@@ -1,0 +1,366 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/////////////////////////////////////////////////////
+// ENUMS
+/////////////////////////////////////////////////////
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum ResidentStatus {
+  ACTIVE
+  INACTIVE
+  MOVED_OUT
+  DECEASED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CivilStatus {
+  SINGLE
+  MARRIED
+  WIDOWED
+  DIVORCED
+  SEPARATED
+}
+
+enum CommunityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  LOCKED
+  DISABLED
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+/////////////////////////////////////////////////////
+// COMMUNITY
+/////////////////////////////////////////////////////
+
+model Community {
+  id String @id @default(uuid()) @db.Uuid
+
+  code        String @unique @db.VarChar(20)
+  slug        String @unique @db.VarChar(50)
+  displayName String @db.VarChar(100)
+
+  description   String?
+  email         String? @db.VarChar(100)
+  contactNumber String? @db.VarChar(20)
+  address       String?
+  logoUrl       String?
+
+  status CommunityStatus @default(ACTIVE)
+
+  roles       Role[]
+  users       User[]
+  permissions Permission[]
+  residents   Resident[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// ACCOUNT
+/////////////////////////////////////////////////////
+
+model Account {
+  id String @id @default(uuid()) @db.Uuid
+
+  email        String @unique @db.VarChar(255)
+  passwordHash String
+
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+
+  status AccountStatus @default(PENDING)
+
+  user User?
+
+  sessions      Session[]
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([email])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// USER
+/////////////////////////////////////////////////////
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+
+  accountId String  @unique @db.Uuid
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  referenceNumber String @unique @db.VarChar(30)
+
+  firstName  String  @db.VarChar(100)
+  middleName String? @db.VarChar(100)
+  lastName   String  @db.VarChar(100)
+
+  phoneNumber String? @db.VarChar(20)
+  avatarUrl   String?
+
+  status UserStatus @default(ACTIVE)
+
+  roles UserRole[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([status])
+  @@index([lastName])
+}
+
+/////////////////////////////////////////////////////
+// ROLE
+/////////////////////////////////////////////////////
+
+model Role {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(50)
+  description String?
+
+  isSystem Boolean @default(false)
+
+  userRoles   UserRole[]
+  permissions RolePermission[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, name])
+}
+
+/////////////////////////////////////////////////////
+// PERMISSION
+/////////////////////////////////////////////////////
+
+model Permission {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  code        String  @db.VarChar(100)
+  module      String  @db.VarChar(50)
+  description String?
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, code])
+}
+
+/////////////////////////////////////////////////////
+// USER ROLE
+/////////////////////////////////////////////////////
+
+model UserRole {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+  roleId String @db.Uuid
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, roleId])
+}
+
+/////////////////////////////////////////////////////
+// ROLE PERMISSION
+/////////////////////////////////////////////////////
+
+model RolePermission {
+  id String @id @default(uuid()) @db.Uuid
+
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@unique([roleId, permissionId])
+}
+
+/////////////////////////////////////////////////////
+// SESSION
+/////////////////////////////////////////////////////
+
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+
+  accountId String  @db.Uuid
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  ipAddress String? @db.VarChar(45)
+  userAgent String?
+
+  status SessionStatus @default(ACTIVE)
+
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+}
+
+/////////////////////////////////////////////////////
+// REFRESH TOKEN
+/////////////////////////////////////////////////////
+
+model RefreshToken {
+  id String @id @default(uuid()) @db.Uuid
+
+  accountId String  @db.Uuid
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  token String @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+/////////////////////////////////////////////////////
+// RESIDENT
+/////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////
+// RESIDENT
+/////////////////////////////////////////////////////
+
+model Resident {
+  id String @id @default(uuid()) @db.Uuid
+
+  /////////////////////////////////////////////////////
+  // RELATIONSHIP
+  /////////////////////////////////////////////////////
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  /////////////////////////////////////////////////////
+  // BASIC INFORMATION
+  /////////////////////////////////////////////////////
+
+  residentNumber String @unique @db.VarChar(30)
+
+  firstName  String  @db.VarChar(100)
+  middleName String? @db.VarChar(100)
+  lastName   String  @db.VarChar(100)
+  suffix     String? @db.VarChar(20)
+
+  /////////////////////////////////////////////////////
+  // PERSONAL INFORMATION
+  /////////////////////////////////////////////////////
+
+  birthDate DateTime?
+
+  gender Gender?
+
+  civilStatus CivilStatus?
+
+  /////////////////////////////////////////////////////
+  // CONTACT INFORMATION
+  /////////////////////////////////////////////////////
+
+  phoneNumber String? @db.VarChar(20)
+
+  email String? @db.VarChar(255)
+
+  /////////////////////////////////////////////////////
+  // ADDRESS
+  /////////////////////////////////////////////////////
+
+  block String? @db.VarChar(20)
+
+  lot String? @db.VarChar(20)
+
+  street String? @db.VarChar(100)
+
+  address String?
+
+  /////////////////////////////////////////////////////
+  // FUTURE EXTENSIONS
+  /////////////////////////////////////////////////////
+
+  profilePhotoUrl String?
+
+  remarks String?
+
+  /////////////////////////////////////////////////////
+  // STATUS
+  /////////////////////////////////////////////////////
+
+  status ResidentStatus @default(ACTIVE)
+
+  /////////////////////////////////////////////////////
+  // AUDIT
+  /////////////////////////////////////////////////////
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  /////////////////////////////////////////////////////
+  // INDEXES
+  /////////////////////////////////////////////////////
+
+  @@index([communityId])
+  @@index([residentNumber])
+  @@index([lastName])
+  @@index([status])
+  @@index([communityId, lastName])
+}
