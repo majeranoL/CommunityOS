@@ -56,6 +56,12 @@ enum SessionStatus {
   EXPIRED
 }
 
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 /////////////////////////////////////////////////////
 // COMMUNITY
 /////////////////////////////////////////////////////
@@ -75,10 +81,11 @@ model Community {
 
   status CommunityStatus @default(ACTIVE)
 
-  roles       Role[]
-  users       User[]
-  permissions Permission[]
-  residents   Resident[]
+  roles         Role[]
+  users         User[]
+  permissions   Permission[]
+  residents     Resident[]
+  announcements Announcement[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -277,10 +284,6 @@ model RefreshToken {
 // RESIDENT
 /////////////////////////////////////////////////////
 
-/////////////////////////////////////////////////////
-// RESIDENT
-/////////////////////////////////////////////////////
-
 model Resident {
   id String @id @default(uuid()) @db.Uuid
 
@@ -363,4 +366,29 @@ model Resident {
   @@index([lastName])
   @@index([status])
   @@index([communityId, lastName])
+}
+
+model Announcement {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  title String @db.VarChar(200)
+
+  content String
+
+  coverImageUrl String?
+
+  status AnnouncementStatus @default(DRAFT)
+
+  publishedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([status])
+  @@index([publishedAt])
 }

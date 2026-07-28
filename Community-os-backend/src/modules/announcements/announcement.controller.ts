@@ -12,96 +12,103 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { UpdateResidentDto } from './dto/update-resident.dto';
+import { AnnouncementService } from './announcement.service';
 
-import { ResidentService } from './resident.service';
-
-import { CreateResidentDto } from './dto/create-resident.dto';
-import { ResidentQueryDto } from './dto/resident-query.dto';
+import { CreateAnnouncementDto } from './dto/create-announcement.dto';
+import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
+import { AnnouncementQueryDto } from './dto/announcement-query.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
-@Controller('residents')
+@Controller('announcements')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-export class ResidentController {
+export class AnnouncementController {
   constructor(
-    private readonly residentService: ResidentService,
+    private readonly announcementService: AnnouncementService,
   ) {}
 
   // ==========================================
-  // Create Resident
+  // Create Announcement
   // ==========================================
 
   @Post()
-  @Permissions('resident.create')
+  @Permissions('announcement.create')
   create(
     @Request() req: any,
-    @Body() dto: CreateResidentDto,
+    @Body() dto: CreateAnnouncementDto,
   ) {
-    return this.residentService.create(
+    return this.announcementService.create(
       req.user.community.id,
       dto,
     );
   }
 
   // ==========================================
-  // Get All Residents
+  // Get All Announcements
   // ==========================================
 
   @Get()
-  @Permissions('resident.view')
+  @Permissions('announcement.view')
   findAll(
     @Request() req: any,
-    @Query() query: ResidentQueryDto,
+    @Query() query: AnnouncementQueryDto,
   ) {
-    return this.residentService.findAll(
+    return this.announcementService.findAll(
       req.user.community.id,
       query,
     );
   }
 
   // ==========================================
-  // Get Resident By ID
+  // Get Announcement By ID
   // ==========================================
 
   @Get(':id')
-  @Permissions('resident.view')
+  @Permissions('announcement.view')
   findOne(
     @Request() req: any,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.residentService.findOne(
+    return this.announcementService.findOne(
       req.user.community.id,
       id,
     );
   }
+
+  // ==========================================
+  // Update Announcement
+  // ==========================================
+
   @Put(':id')
-  @Permissions('resident.update')
+  @Permissions('announcement.update')
   update(
     @Request() req: any,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateResidentDto,
+    @Body() dto: UpdateAnnouncementDto,
   ) {
-    return this.residentService.update(
+    return this.announcementService.update(
       req.user.community.id,
       id,
       dto,
     );
   }
+
+  // ==========================================
+  // Delete Announcement
+  // ==========================================
+
   @Delete(':id')
-  @Permissions('resident.delete')
+  @Permissions('announcement.delete')
   remove(
     @Request() req: any,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.residentService.remove(
+    return this.announcementService.remove(
       req.user.community.id,
       id,
     );
   }
-  
-
 }

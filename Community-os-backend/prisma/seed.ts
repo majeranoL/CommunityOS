@@ -94,6 +94,11 @@ async function main() {
       description: 'Delete announcements',
     },
     {
+      code: 'announcement.view',
+      module: 'Announcements',
+      description: 'View announcements',
+    },
+    {
       code: 'announcement.publish',
       module: 'Announcements',
       description: 'Publish announcements',

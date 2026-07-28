@@ -29,7 +29,7 @@ export class CreateResidentDto {
 
   @IsOptional()
   @IsDateString()
-  birthDate?: Date;
+  birthDate?: string;
 
   @IsOptional()
   @IsEnum(Gender)
