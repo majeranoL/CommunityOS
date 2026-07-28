@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -107,6 +108,18 @@ export class AnnouncementController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.announcementService.remove(
+      req.user.community.id,
+      id,
+    );
+  }
+
+  @Patch(':id/publish')
+  @Permissions('announcement.publish')
+  publish(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.announcementService.publish(
       req.user.community.id,
       id,
     );
