@@ -5,7 +5,7 @@ import {
   UserStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-
+import { permissions } from './permissions';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -52,111 +52,7 @@ async function main() {
 
   console.log('✅ President role created');
 
-  // =====================================================
-  // PERMISSIONS
-  // =====================================================
 
-  const permissions = [
-    {
-      code: 'resident.create',
-      module: 'Residents',
-      description: 'Create residents',
-    },
-    {
-      code: 'resident.update',
-      module: 'Residents',
-      description: 'Update residents',
-    },
-    {
-      code: 'resident.delete',
-      module: 'Residents',
-      description: 'Delete residents',
-    },
-    {
-      code: 'resident.view',
-      module: 'Residents',
-      description: 'View residents',
-    },
-
-    {
-      code: 'announcement.create',
-      module: 'Announcements',
-      description: 'Create announcements',
-    },
-    {
-      code: 'announcement.update',
-      module: 'Announcements',
-      description: 'Update announcements',
-    },
-    {
-      code: 'announcement.delete',
-      module: 'Announcements',
-      description: 'Delete announcements',
-    },
-    {
-      code: 'announcement.view',
-      module: 'Announcements',
-      description: 'View announcements',
-    },
-    {
-      code: 'announcement.publish',
-      module: 'Announcements',
-      description: 'Publish announcements',
-    },
-
-    {
-      code: 'billing.create',
-      module: 'Billing',
-      description: 'Create billing',
-    },
-    {
-      code: 'billing.update',
-      module: 'Billing',
-      description: 'Update billing',
-    },
-    {
-      code: 'billing.approve',
-      module: 'Billing',
-      description: 'Approve billing',
-    },
-    {
-      code: 'billing.view',
-      module: 'Billing',
-      description: 'View billing',
-    },
-
-    {
-      code: 'user.create',
-      module: 'Users',
-      description: 'Create users',
-    },
-    {
-      code: 'user.update',
-      module: 'Users',
-      description: 'Update users',
-    },
-    {
-      code: 'user.delete',
-      module: 'Users',
-      description: 'Delete users',
-    },
-    {
-      code: 'user.view',
-      module: 'Users',
-      description: 'View users',
-    },
-
-    {
-      code: 'role.manage',
-      module: 'Roles',
-      description: 'Manage roles',
-    },
-    {
-      code: 'permission.manage',
-      module: 'Roles',
-      description: 'Manage permissions',
-    },
-  ];
 
   for (const item of permissions) {
     const permission = await prisma.permission.create({
@@ -239,6 +135,8 @@ async function main() {
   console.log('===================================');
 }
 
+
+
 main()
   .catch((error) => {
     console.error(error);
@@ -246,3 +144,5 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
+  

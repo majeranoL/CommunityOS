@@ -62,6 +62,32 @@ enum AnnouncementStatus {
   ARCHIVED
 }
 
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ComplaintCategory {
+  SECURITY
+  NOISE
+  SANITATION
+  PARKING
+  PETS
+  FACILITY
+  UTILITIES
+  NEIGHBOR
+  OTHER
+}
+
 /////////////////////////////////////////////////////
 // COMMUNITY
 /////////////////////////////////////////////////////
@@ -86,6 +112,7 @@ model Community {
   permissions   Permission[]
   residents     Resident[]
   announcements Announcement[]
+  complaints    Complaint[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -147,6 +174,7 @@ model User {
   status UserStatus @default(ACTIVE)
 
   roles UserRole[]
+  assignedComplaints Complaint[] @relation("ComplaintAssignedTo")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -294,6 +322,8 @@ model Resident {
   communityId String    @db.Uuid
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
+  complaints Complaint[]
+
   /////////////////////////////////////////////////////
   // BASIC INFORMATION
   /////////////////////////////////////////////////////
@@ -391,4 +421,70 @@ model Announcement {
   @@index([communityId])
   @@index([status])
   @@index([publishedAt])
+}
+
+model Complaint {
+  id String @id @default(uuid()) @db.Uuid
+
+  /////////////////////////////////////////////////////
+  // RELATIONSHIPS
+  /////////////////////////////////////////////////////
+
+  communityId String @db.Uuid
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  residentId String @db.Uuid
+  resident Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  /////////////////////////////////////////////////////
+  // COMPLAINT DETAILS
+  /////////////////////////////////////////////////////
+
+  complaintNumber String @unique @db.VarChar(30)
+
+  title String @db.VarChar(200)
+
+  description String
+
+  category ComplaintCategory
+
+  priority ComplaintPriority @default(MEDIUM)
+
+  status ComplaintStatus @default(OPEN)
+
+  /////////////////////////////////////////////////////
+  // ASSIGNMENT
+  /////////////////////////////////////////////////////
+
+  assignedToId String? @db.Uuid
+
+  assignedTo User? @relation("ComplaintAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  remarks String?
+
+  resolutionRemarks String?
+
+  resolvedAt DateTime?
+
+  /////////////////////////////////////////////////////
+  // AUDIT
+  /////////////////////////////////////////////////////
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  /////////////////////////////////////////////////////
+  // INDEXES
+  /////////////////////////////////////////////////////
+
+  @@index([communityId])
+  @@index([residentId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([createdAt])
 }
