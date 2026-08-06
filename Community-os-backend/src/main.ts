@@ -1,10 +1,31 @@
+import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as express from 'express';
+import { existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 import { AppModule } from './app.module';
+import { validateEnv } from './config/env';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 
 async function bootstrap() {
+  validateEnv();
+
   const app = await NestFactory.create(AppModule);
+
+  app.setGlobalPrefix('api');
+
+  app.useGlobalFilters(new PrismaExceptionFilter());
+
+  // Ensure uploads directory exists and serve uploaded files statically
+  const uploadsDir = join(process.cwd(), 'uploads');
+
+  if (!existsSync(uploadsDir)) {
+    mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  app.use('/uploads', express.static(uploadsDir));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -23,12 +44,12 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(3000);
 
   console.log('🚀 Server running at http://localhost:3000');
-  console.log('📘 Swagger available at http://localhost:3000/api');
+  console.log('📘 Swagger available at http://localhost:3000/api/docs');
 }
 
 bootstrap();

@@ -1,27 +1,33 @@
 import {
   Injectable,
+  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 
+import { ComplaintStatus, NotificationType } from '@prisma/client';
+
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { NotificationsService } from '../notifications/notifications.service';
+
 import { CreateComplaintDto } from './dto/create-complaint.dto';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { ComplaintQueryDto } from './dto/complaint-query.dto';
+import { AssignComplaintDto } from './dto/assign-complaint.dto';
+import { ResolveComplaintDto } from './dto/resolve-complaint.dto';
 
 @Injectable()
 export class ComplaintService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ==========================================
   // Create Complaint
   // ==========================================
 
-  async create(
-    communityId: string,
-    dto: CreateComplaintDto,
-  ) {
+  async create(communityId: string, dto: CreateComplaintDto) {
     // ==========================================
     // Clean Inputs
     // ==========================================
@@ -34,69 +40,83 @@ export class ComplaintService {
     // Validate Resident
     // ==========================================
 
-    const resident =
-      await this.prisma.resident.findFirst({
-        where: {
-          id: dto.residentId,
-          communityId,
-          deletedAt: null,
-        },
-      });
+    const resident = await this.prisma.resident.findFirst({
+      where: {
+        id: dto.residentId,
+        communityId,
+        deletedAt: null,
+      },
+    });
 
     if (!resident) {
-      throw new NotFoundException(
-        'Resident not found.',
-      );
+      throw new NotFoundException('Resident not found.');
     }
 
     // ==========================================
     // Generate Complaint Number
     // ==========================================
 
-    const totalComplaints =
-      await this.prisma.complaint.count({
-        where: {
-          communityId,
-        },
-      });
+    const totalComplaints = await this.prisma.complaint.count({
+      where: {
+        communityId,
+      },
+    });
 
-    const complaintNumber = `CMP-${String(
-      totalComplaints + 1,
-    ).padStart(6, '0')}`;
+    const complaintNumber = `CMP-${String(totalComplaints + 1).padStart(
+      6,
+      '0',
+    )}`;
 
     // ==========================================
     // Create Complaint
     // ==========================================
 
-    const complaint =
-      await this.prisma.complaint.create({
-        data: {
-          communityId,
-          residentId: dto.residentId,
+    const complaint = await this.prisma.complaint.create({
+      data: {
+        communityId,
+        residentId: dto.residentId,
 
-          complaintNumber,
+        complaintNumber,
 
-          title: dto.title,
-          description: dto.description,
+        title: dto.title,
+        description: dto.description,
 
-          category: dto.category,
+        category: dto.category,
 
-          priority: dto.priority ?? 'MEDIUM',
+        priority: dto.priority ?? 'MEDIUM',
 
-          remarks: dto.remarks,
-        },
+        remarks: dto.remarks,
+      },
 
-        include: {
-          resident: {
-            select: {
-              id: true,
-              residentNumber: true,
-              firstName: true,
-              lastName: true,
-            },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            residentNumber: true,
+            firstName: true,
+            lastName: true,
           },
         },
-      });
+      },
+    });
+
+    // ==========================================
+    // Notify Staff
+    // ==========================================
+
+    const staffUserIds = await this.notificationsService.userIdsWithPermission(
+      communityId,
+      'complaint.assign',
+    );
+
+    await this.notificationsService.notifyMany(
+      communityId,
+      staffUserIds,
+      NotificationType.COMPLAINT,
+      `New complaint ${complaint.complaintNumber}`,
+      `${complaint.title} was filed by ${complaint.resident.firstName} ${complaint.resident.lastName}.`,
+      `/complaints/${complaint.id}`,
+    );
 
     return {
       success: true,
@@ -109,25 +129,13 @@ export class ComplaintService {
   // Temporary Stubs
   // ==========================================
 
-  async findAll(
-    communityId: string,
-    query: ComplaintQueryDto,
-  ) {
-
+  async findAll(communityId: string, query: ComplaintQueryDto) {
     // ==========================================
     // Extract Query Parameters
     // ==========================================
 
-    const {
-      page,
-      limit,
-      search,
-      status,
-      priority,
-      category,
-      sortBy,
-      order,
-    } = query;
+    const { page, limit, search, status, priority, category, sortBy, order } =
+      query;
 
     const skip = (page - 1) * limit;
 
@@ -191,35 +199,32 @@ export class ComplaintService {
     // Fetch Complaints
     // ==========================================
 
-    const [complaints, total] =
-      await this.prisma.$transaction([
+    const [complaints, total] = await this.prisma.$transaction([
+      this.prisma.complaint.findMany({
+        where,
 
-        this.prisma.complaint.findMany({
-          where,
+        skip,
+        take: limit,
 
-          skip,
-          take: limit,
+        orderBy: {
+          [sortBy]: order,
+        },
 
-          orderBy: {
-            [sortBy]: order,
-          },
-
-          include: {
-            resident: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-              },
+        include: {
+          resident: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
             },
           },
-        }),
+        },
+      }),
 
-        this.prisma.complaint.count({
-          where,
-        }),
-
-      ]);
+      this.prisma.complaint.count({
+        where,
+      }),
+    ]);
 
     // ==========================================
     // Return Response
@@ -240,8 +245,7 @@ export class ComplaintService {
 
         resident: {
           id: complaint.resident.id,
-          fullName:
-            `${complaint.resident.firstName} ${complaint.resident.lastName}`,
+          fullName: `${complaint.resident.firstName} ${complaint.resident.lastName}`,
         },
 
         createdAt: complaint.createdAt,
@@ -263,44 +267,36 @@ export class ComplaintService {
   // Get Complaint By ID
   // ==========================================
 
-
-  async findOne(
-    communityId: string,
-    id: string,
-  ) {
-
+  async findOne(communityId: string, id: string) {
     // ==========================================
     // Find Complaint
     // ==========================================
 
-    const complaint =
-      await this.prisma.complaint.findFirst({
-        where: {
-          id,
-          communityId,
-          deletedAt: null,
-        },
+    const complaint = await this.prisma.complaint.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
 
-        include: {
-          resident: {
-            select: {
-              id: true,
-              firstName: true,
-              middleName: true,
-              lastName: true,
-            },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
           },
         },
-      });
+      },
+    });
 
     // ==========================================
     // Validate Complaint
     // ==========================================
 
     if (!complaint) {
-      throw new NotFoundException(
-        'Complaint not found.',
-      );
+      throw new NotFoundException('Complaint not found.');
     }
 
     // ==========================================
@@ -342,57 +338,42 @@ export class ComplaintService {
     };
   }
 
-
   // ==========================================
   // Update Complaint
   // ==========================================
 
-  async update(
-    communityId: string,
-    id: string,
-    dto: UpdateComplaintDto,
-  ) {
-
+  async update(communityId: string, id: string, dto: UpdateComplaintDto) {
     // ==========================================
     // Find Complaint
     // ==========================================
 
-    const complaint =
-      await this.prisma.complaint.findFirst({
-        where: {
-          id,
-          communityId,
-          deletedAt: null,
-        },
-      });
+    const complaint = await this.prisma.complaint.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
 
     if (!complaint) {
-      throw new NotFoundException(
-        'Complaint not found.',
-      );
+      throw new NotFoundException('Complaint not found.');
     }
 
     // ==========================================
     // Validate Resident
     // ==========================================
 
-    if (
-      dto.residentId &&
-      dto.residentId !== complaint.residentId
-    ) {
-      const resident =
-        await this.prisma.resident.findFirst({
-          where: {
-            id: dto.residentId,
-            communityId,
-            deletedAt: null,
-          },
-        });
+    if (dto.residentId && dto.residentId !== complaint.residentId) {
+      const resident = await this.prisma.resident.findFirst({
+        where: {
+          id: dto.residentId,
+          communityId,
+          deletedAt: null,
+        },
+      });
 
       if (!resident) {
-        throw new NotFoundException(
-          'Resident not found.',
-        );
+        throw new NotFoundException('Resident not found.');
       }
     }
 
@@ -416,49 +397,48 @@ export class ComplaintService {
     // Update Complaint
     // ==========================================
 
-    const updatedComplaint =
-      await this.prisma.complaint.update({
-        where: {
-          id,
-        },
+    const updatedComplaint = await this.prisma.complaint.update({
+      where: {
+        id,
+      },
 
-        data: {
-          ...(dto.residentId && {
-            residentId: dto.residentId,
-          }),
+      data: {
+        ...(dto.residentId && {
+          residentId: dto.residentId,
+        }),
 
-          ...(dto.title && {
-            title: dto.title,
-          }),
+        ...(dto.title && {
+          title: dto.title,
+        }),
 
-          ...(dto.description && {
-            description: dto.description,
-          }),
+        ...(dto.description && {
+          description: dto.description,
+        }),
 
-          ...(dto.category && {
-            category: dto.category,
-          }),
+        ...(dto.category && {
+          category: dto.category,
+        }),
 
-          ...(dto.priority && {
-            priority: dto.priority,
-          }),
+        ...(dto.priority && {
+          priority: dto.priority,
+        }),
 
-          ...(dto.remarks !== undefined && {
-            remarks: dto.remarks,
-          }),
-        },
+        ...(dto.remarks !== undefined && {
+          remarks: dto.remarks,
+        }),
+      },
 
-        include: {
-          resident: {
-            select: {
-              id: true,
-              residentNumber: true,
-              firstName: true,
-              lastName: true,
-            },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            residentNumber: true,
+            firstName: true,
+            lastName: true,
           },
         },
-      });
+      },
+    });
 
     // ==========================================
     // Return Response
@@ -475,28 +455,21 @@ export class ComplaintService {
   // Delete Complaint (Soft Delete)
   // ==========================================
 
-  async remove(
-    communityId: string,
-    id: string,
-  ) {
-
+  async remove(communityId: string, id: string) {
     // ==========================================
     // Validate Complaint
     // ==========================================
 
-    const complaint =
-      await this.prisma.complaint.findFirst({
-        where: {
-          id,
-          communityId,
-          deletedAt: null,
-        },
-      });
+    const complaint = await this.prisma.complaint.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
 
     if (!complaint) {
-      throw new NotFoundException(
-        'Complaint not found.',
-      );
+      throw new NotFoundException('Complaint not found.');
     }
 
     // ==========================================
@@ -520,6 +493,293 @@ export class ComplaintService {
     return {
       success: true,
       message: 'Complaint deleted successfully.',
+    };
+  }
+
+  // ==========================================
+  // Assign Complaint
+  // ==========================================
+
+  async assign(communityId: string, id: string, dto: AssignComplaintDto) {
+    // ==========================================
+    // Validate Complaint
+    // ==========================================
+
+    const complaint = await this.prisma.complaint.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!complaint) {
+      throw new NotFoundException('Complaint not found.');
+    }
+
+    // ==========================================
+    // Ensure Complaint is OPEN
+    // ==========================================
+
+    if (complaint.status !== ComplaintStatus.OPEN) {
+      throw new BadRequestException('Only OPEN complaints can be assigned.');
+    }
+
+    // ==========================================
+    // Validate User
+    // ==========================================
+
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: dto.assignedToId,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Assigned user not found.');
+    }
+
+    // ==========================================
+    // Assign Complaint
+    // ==========================================
+
+    const updatedComplaint = await this.prisma.complaint.update({
+      where: {
+        id,
+      },
+
+      data: {
+        assignedToId: dto.assignedToId,
+        status: ComplaintStatus.IN_PROGRESS,
+      },
+
+      include: {
+        resident: {
+          select: {
+            id: true,
+            residentNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // ==========================================
+    // Notify Assigned User
+    // ==========================================
+
+    await this.notificationsService.notify(
+      communityId,
+      dto.assignedToId,
+      NotificationType.COMPLAINT,
+      `Complaint ${complaint.complaintNumber} assigned to you`,
+      `${complaint.title} has been assigned to you.`,
+      `/complaints/${complaint.id}`,
+    );
+
+    // ==========================================
+    // Response
+    // ==========================================
+
+    return {
+      success: true,
+      message: 'Complaint assigned successfully.',
+      data: updatedComplaint,
+    };
+  }
+
+  // ==========================================
+  // Resolve Complaint
+  // ==========================================
+
+  async resolve(communityId: string, id: string, dto: ResolveComplaintDto) {
+    // ==========================================
+    // Validate Complaint
+    // ==========================================
+
+    const complaint = await this.prisma.complaint.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!complaint) {
+      throw new NotFoundException('Complaint not found.');
+    }
+
+    if (complaint.status === ComplaintStatus.RESOLVED) {
+      throw new BadRequestException('Complaint is already resolved.');
+    }
+
+    if (complaint.status === ComplaintStatus.CLOSED) {
+      throw new BadRequestException('CLOSED complaints cannot be resolved.');
+    }
+
+    // ==========================================
+    // Clean Inputs
+    // ==========================================
+
+    const resolutionRemarks = dto.resolutionRemarks?.trim();
+
+    // ==========================================
+    // Resolve Complaint
+    // ==========================================
+
+    const resolvedComplaint = await this.prisma.complaint.update({
+      where: {
+        id,
+      },
+
+      data: {
+        status: ComplaintStatus.RESOLVED,
+        resolutionRemarks,
+        resolvedAt: new Date(),
+      },
+
+      include: {
+        resident: {
+          select: {
+            id: true,
+            residentNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // ==========================================
+    // Notify Assigned User
+    // ==========================================
+
+    if (complaint.assignedToId) {
+      await this.notificationsService.notify(
+        communityId,
+        complaint.assignedToId,
+        NotificationType.COMPLAINT,
+        `Complaint ${complaint.complaintNumber} resolved`,
+        `${complaint.title} has been resolved.`,
+        `/complaints/${complaint.id}`,
+      );
+    }
+
+    // ==========================================
+    // Response
+    // ==========================================
+
+    return {
+      success: true,
+      message: 'Complaint resolved successfully.',
+      data: resolvedComplaint,
+    };
+  }
+
+  // ==========================================
+  // Close Complaint
+  // ==========================================
+
+  async close(communityId: string, id: string) {
+    // ==========================================
+    // Validate Complaint
+    // ==========================================
+
+    const complaint = await this.prisma.complaint.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!complaint) {
+      throw new NotFoundException('Complaint not found.');
+    }
+
+    if (complaint.status === ComplaintStatus.CLOSED) {
+      throw new BadRequestException('Complaint is already closed.');
+    }
+
+    if (complaint.status !== ComplaintStatus.RESOLVED) {
+      throw new BadRequestException('Only RESOLVED complaints can be closed.');
+    }
+
+    // ==========================================
+    // Close Complaint
+    // ==========================================
+
+    const closedComplaint = await this.prisma.complaint.update({
+      where: {
+        id,
+      },
+
+      data: {
+        status: ComplaintStatus.CLOSED,
+      },
+
+      include: {
+        resident: {
+          select: {
+            id: true,
+            residentNumber: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    // ==========================================
+    // Notify Assigned User
+    // ==========================================
+
+    if (complaint.assignedToId) {
+      await this.notificationsService.notify(
+        communityId,
+        complaint.assignedToId,
+        NotificationType.COMPLAINT,
+        `Complaint ${complaint.complaintNumber} closed`,
+        `${complaint.title} has been closed.`,
+        `/complaints/${complaint.id}`,
+      );
+    }
+
+    // ==========================================
+    // Response
+    // ==========================================
+
+    return {
+      success: true,
+      message: 'Complaint closed successfully.',
+      data: closedComplaint,
     };
   }
 }

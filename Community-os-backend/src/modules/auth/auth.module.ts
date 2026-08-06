@@ -5,7 +5,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersModule } from '../users/users.module';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 @Module({
   imports: [
@@ -21,7 +20,6 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
   providers: [
     AuthService,
     JwtStrategy, // <- This must be here
-    RolesGuard,
     PermissionsGuard,
   ],
 })

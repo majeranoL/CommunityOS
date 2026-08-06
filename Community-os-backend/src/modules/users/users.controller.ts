@@ -26,9 +26,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 @Controller('users')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-  ) {}
+  constructor(private readonly usersService: UsersService) {}
 
   // ==========================================
   // Create User
@@ -36,14 +34,8 @@ export class UsersController {
 
   @Post()
   @Permissions('user.create')
-  create(
-    @Request() req: any,
-    @Body() dto: CreateUserDto,
-  ) {
-    return this.usersService.create(
-      req.user.community.id,
-      dto,
-    );
+  create(@Request() req: any, @Body() dto: CreateUserDto) {
+    return this.usersService.create(req.user.community.id, dto);
   }
 
   // ==========================================
@@ -52,14 +44,8 @@ export class UsersController {
 
   @Get()
   @Permissions('user.view')
-  findAll(
-    @Request() req: any,
-    @Query() query: UserQueryDto,
-  ) {
-    return this.usersService.findAll(
-      req.user.community.id,
-      query,
-    );
+  findAll(@Request() req: any, @Query() query: UserQueryDto) {
+    return this.usersService.findAll(req.user.community.id, query);
   }
 
   // ==========================================
@@ -68,14 +54,8 @@ export class UsersController {
 
   @Get(':id')
   @Permissions('user.view')
-  findOne(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.usersService.findOne(
-      req.user.community.id,
-      id,
-    );
+  findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findOne(req.user.community.id, id);
   }
 
   // ==========================================
@@ -89,11 +69,7 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.usersService.update(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.usersService.update(req.user.community.id, id, dto);
   }
 
   // ==========================================
@@ -102,13 +78,7 @@ export class UsersController {
 
   @Delete(':id')
   @Permissions('user.delete')
-  remove(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.usersService.remove(
-      req.user.community.id,
-      id,
-    );
+  remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.remove(req.user.community.id, id);
   }
 }

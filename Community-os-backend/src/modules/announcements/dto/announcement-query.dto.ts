@@ -10,9 +10,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import {
-  AnnouncementStatus,
-} from '@prisma/client';
+import { AnnouncementStatus } from '@prisma/client';
 
 export class AnnouncementQueryDto {
   @IsOptional()
@@ -37,12 +35,7 @@ export class AnnouncementQueryDto {
   status?: AnnouncementStatus;
 
   @IsOptional()
-  @IsIn([
-    'title',
-    'status',
-    'publishedAt',
-    'createdAt',
-  ])
+  @IsIn(['title', 'status', 'publishedAt', 'createdAt'])
   sortBy: string = 'createdAt';
 
   @IsOptional()

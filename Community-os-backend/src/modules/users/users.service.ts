@@ -8,10 +8,7 @@ import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
-import {
-  AccountStatus,
-  UserStatus,
-} from '@prisma/client';
+import { AccountStatus, UserStatus } from '@prisma/client';
 
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -19,9 +16,7 @@ import { UserQueryDto } from './dto/user-query.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   private capitalize(value?: string) {
     if (!value) return value;
@@ -29,9 +24,7 @@ export class UsersService {
     return value
       .trim()
       .toLowerCase()
-      .replace(/\b\w/g, (char) =>
-        char.toUpperCase(),
-      );
+      .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
   // ==========================================
@@ -91,10 +84,7 @@ export class UsersService {
     });
   }
 
-  async create(
-    communityId: string,
-    dto: CreateUserDto,
-  ) {
+  async create(communityId: string, dto: CreateUserDto) {
     // ==========================================
     // Clean Inputs
     // ==========================================
@@ -113,135 +103,104 @@ export class UsersService {
     // Duplicate Email
     // ==========================================
 
-    const existingAccount =
-      await this.prisma.account.findUnique({
-        where: {
-          email: dto.email,
-        },
-      });
+    const existingAccount = await this.prisma.account.findUnique({
+      where: {
+        email: dto.email,
+      },
+    });
 
     if (existingAccount) {
-      throw new ConflictException(
-        'Email already exists.',
-      );
+      throw new ConflictException('Email already exists.');
     }
 
     // ==========================================
     // Validate Role
     // ==========================================
 
-    const role =
-      await this.prisma.role.findFirst({
-        where: {
-          id: dto.roleId,
-          communityId,
-          deletedAt: null,
-        },
-      });
+    const role = await this.prisma.role.findFirst({
+      where: {
+        id: dto.roleId,
+        communityId,
+        deletedAt: null,
+      },
+    });
 
     if (!role) {
-      throw new NotFoundException(
-        'Role not found.',
-      );
+      throw new NotFoundException('Role not found.');
     }
 
-    
-  // ==========================================
-  // Hash Password
-  // ==========================================
+    // ==========================================
+    // Hash Password
+    // ==========================================
 
-  const passwordHash = await bcrypt.hash(
-    dto.password,
-    10,
-  );
+    const passwordHash = await bcrypt.hash(dto.password, 10);
 
-  // ==========================================
-  // Generate User Reference Number
-  // ==========================================
+    // ==========================================
+    // Generate User Reference Number
+    // ==========================================
 
-  const totalUsers =
-    await this.prisma.user.count({
+    const totalUsers = await this.prisma.user.count({
       where: {
         communityId,
       },
     });
 
-  const referenceNumber = `USR-${String(
-    totalUsers + 1,
-  ).padStart(6, '0')}`;
+    const referenceNumber = `USR-${String(totalUsers + 1).padStart(6, '0')}`;
 
+    // ==========================================
+    // Create Account + User + User Role
+    // ==========================================
 
-  // ==========================================
-  // Create Account + User + User Role
-  // ==========================================
+    const user = await this.prisma.$transaction(async (prisma) => {
+      const account = await prisma.account.create({
+        data: {
+          email: dto.email,
+          passwordHash,
+          status: AccountStatus.ACTIVE,
+        },
+      });
 
-  const user =
-    await this.prisma.$transaction(
-      async (prisma) => {
+      const createdUser = await prisma.user.create({
+        data: {
+          accountId: account.id,
+          communityId,
 
-        const account =
-          await prisma.account.create({
-            data: {
-              email: dto.email,
-              passwordHash,
-              status: AccountStatus.ACTIVE,
-            },
-          });
+          referenceNumber,
 
-        const createdUser =
-          await prisma.user.create({
-            data: {
-              accountId: account.id,
-              communityId,
+          firstName: dto.firstName,
+          middleName: dto.middleName,
+          lastName: dto.lastName,
 
-              referenceNumber,
+          phoneNumber: dto.phoneNumber,
+          avatarUrl: dto.avatarUrl,
 
-              firstName: dto.firstName,
-              middleName: dto.middleName,
-              lastName: dto.lastName,
+          status: UserStatus.ACTIVE,
+        },
+      });
 
-              phoneNumber: dto.phoneNumber,
-              avatarUrl: dto.avatarUrl,
+      await prisma.userRole.create({
+        data: {
+          userId: createdUser.id,
+          roleId: dto.roleId,
+        },
+      });
 
-              status: UserStatus.ACTIVE,
-            },
-          });
-
-        await prisma.userRole.create({
-          data: {
-            userId: createdUser.id,
-            roleId: dto.roleId,
-          },
-        });
-
-        return createdUser;
-      },
-    );
+      return createdUser;
+    });
 
     return {
-  success: true,
-  message: 'User created successfully.',
-  data: user,
-  };
-  
+      success: true,
+      message: 'User created successfully.',
+      data: user,
+    };
   }
 
   // ==========================================
   // Get All Users
   // ==========================================
 
-  async findAll(
-    communityId: string,
-    query: UserQueryDto,
-  ) {
-    const {
-      page,
-      limit,
-      search,
-      status,
-      sortBy,
-      order,
-    } = query;
+  async findAll(communityId: string, query: UserQueryDto) {
+    const { page, limit, search, status, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
 
@@ -287,42 +246,41 @@ export class UsersService {
       where.status = status;
     }
 
-    const [users, total] =
-      await this.prisma.$transaction([
-        this.prisma.user.findMany({
-          where,
+    const [users, total] = await this.prisma.$transaction([
+      this.prisma.user.findMany({
+        where,
 
-          skip,
-          take: limit,
+        skip,
+        take: limit,
 
-          orderBy: {
-            [sortBy]: order,
+        orderBy: {
+          [sortBy]: order,
+        },
+
+        include: {
+          account: {
+            select: {
+              email: true,
+            },
           },
 
-          include: {
-            account: {
-              select: {
-                email: true,
-              },
-            },
-
-            roles: {
-              include: {
-                role: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
+          roles: {
+            include: {
+              role: {
+                select: {
+                  id: true,
+                  name: true,
                 },
               },
             },
           },
-        }),
+        },
+      }),
 
-        this.prisma.user.count({
-          where,
-        }),
-      ]);
+      this.prisma.user.count({
+        where,
+      }),
+    ]);
 
     const formattedUsers = users.map((user) => ({
       id: user.id,
@@ -370,10 +328,7 @@ export class UsersService {
   // Get User By ID
   // ==========================================
 
-  async findOne(
-    communityId: string,
-    id: string,
-  ) {
+  async findOne(communityId: string, id: string) {
     const user = await this.prisma.user.findFirst({
       where: {
         id,
@@ -402,9 +357,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found.',
-      );
+      throw new NotFoundException('User not found.');
     }
 
     return {
@@ -439,11 +392,7 @@ export class UsersService {
     };
   }
 
-  async update(
-    communityId: string,
-    id: string,
-    dto: UpdateUserDto,
-  ) {
+  async update(communityId: string, id: string, dto: UpdateUserDto) {
     // ==========================================
     // Check if User Exists
     // ==========================================
@@ -460,9 +409,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found.',
-      );
+      throw new NotFoundException('User not found.');
     }
 
     // ==========================================
@@ -484,20 +431,17 @@ export class UsersService {
     if (dto.email) {
       dto.email = dto.email.trim().toLowerCase();
 
-      const existingAccount =
-        await this.prisma.account.findFirst({
-          where: {
-            email: dto.email,
-            NOT: {
-              id: user.accountId,
-            },
+      const existingAccount = await this.prisma.account.findFirst({
+        where: {
+          email: dto.email,
+          NOT: {
+            id: user.accountId,
           },
-        });
+        },
+      });
 
       if (existingAccount) {
-        throw new ConflictException(
-          'Email already exists.',
-        );
+        throw new ConflictException('Email already exists.');
       }
     }
 
@@ -515,9 +459,7 @@ export class UsersService {
       });
 
       if (!role) {
-        throw new NotFoundException(
-          'Role not found.',
-        );
+        throw new NotFoundException('Role not found.');
       }
     }
 
@@ -590,11 +532,7 @@ export class UsersService {
     };
   }
 
-
-  async remove(
-    communityId: string,
-    id: string,
-  ) {
+  async remove(communityId: string, id: string) {
     // ==========================================
     // Check if User Exists
     // ==========================================
@@ -611,9 +549,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found.',
-      );
+      throw new NotFoundException('User not found.');
     }
 
     // ==========================================
@@ -646,5 +582,4 @@ export class UsersService {
       message: 'User deleted successfully.',
     };
   }
-  
 }

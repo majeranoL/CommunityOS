@@ -5,9 +5,7 @@ import { CreateAnnouncementDto } from './create-announcement.dto';
 
 import { AnnouncementStatus } from '@prisma/client';
 
-export class UpdateAnnouncementDto extends PartialType(
-  CreateAnnouncementDto,
-) {
+export class UpdateAnnouncementDto extends PartialType(CreateAnnouncementDto) {
   @IsOptional()
   @IsEnum(AnnouncementStatus)
   status?: AnnouncementStatus;

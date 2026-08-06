@@ -1,37 +1,23 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(
-    private readonly reflector: Reflector,
-  ) {}
+  constructor(private readonly reflector: Reflector) {}
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean {
-    const requiredPermissions =
-      this.reflector.getAllAndOverride<string[]>(
-        PERMISSIONS_KEY,
-        [
-          context.getHandler(),
-          context.getClass(),
-        ],
-      );
+  canActivate(context: ExecutionContext): boolean {
+    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
+      PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (!requiredPermissions) {
       return true;
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest();
+    const request = context.switchToHttp().getRequest();
 
     const user = request.user;
 
@@ -39,14 +25,11 @@ export class PermissionsGuard implements CanActivate {
       return false;
     }
 
-    const userPermissions =
-      user.roles.flatMap((userRole: any) =>
-        userRole.role.permissions.map(
-          (rp: any) => rp.permission.code,
-        ),
-      );
+    const userPermissions = user.roles.flatMap((userRole: any) =>
+      userRole.role.permissions.map((rp: any) => rp.permission.code),
+    );
 
-    return requiredPermissions.every(permission =>
+    return requiredPermissions.every((permission) =>
       userPermissions.includes(permission),
     );
   }

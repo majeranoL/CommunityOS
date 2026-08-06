@@ -27,9 +27,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 @Controller('announcements')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AnnouncementController {
-  constructor(
-    private readonly announcementService: AnnouncementService,
-  ) {}
+  constructor(private readonly announcementService: AnnouncementService) {}
 
   // ==========================================
   // Create Announcement
@@ -37,14 +35,8 @@ export class AnnouncementController {
 
   @Post()
   @Permissions('announcement.create')
-  create(
-    @Request() req: any,
-    @Body() dto: CreateAnnouncementDto,
-  ) {
-    return this.announcementService.create(
-      req.user.community.id,
-      dto,
-    );
+  create(@Request() req: any, @Body() dto: CreateAnnouncementDto) {
+    return this.announcementService.create(req.user.community.id, dto);
   }
 
   // ==========================================
@@ -53,14 +45,8 @@ export class AnnouncementController {
 
   @Get()
   @Permissions('announcement.view')
-  findAll(
-    @Request() req: any,
-    @Query() query: AnnouncementQueryDto,
-  ) {
-    return this.announcementService.findAll(
-      req.user.community.id,
-      query,
-    );
+  findAll(@Request() req: any, @Query() query: AnnouncementQueryDto) {
+    return this.announcementService.findAll(req.user.community.id, query);
   }
 
   // ==========================================
@@ -69,14 +55,8 @@ export class AnnouncementController {
 
   @Get(':id')
   @Permissions('announcement.view')
-  findOne(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.announcementService.findOne(
-      req.user.community.id,
-      id,
-    );
+  findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.announcementService.findOne(req.user.community.id, id);
   }
 
   // ==========================================
@@ -90,11 +70,7 @@ export class AnnouncementController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAnnouncementDto,
   ) {
-    return this.announcementService.update(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.announcementService.update(req.user.community.id, id, dto);
   }
 
   // ==========================================
@@ -103,25 +79,13 @@ export class AnnouncementController {
 
   @Delete(':id')
   @Permissions('announcement.delete')
-  remove(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.announcementService.remove(
-      req.user.community.id,
-      id,
-    );
+  remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.announcementService.remove(req.user.community.id, id);
   }
 
   @Patch(':id/publish')
   @Permissions('announcement.publish')
-  publish(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.announcementService.publish(
-      req.user.community.id,
-      id,
-    );
+  publish(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.announcementService.publish(req.user.community.id, id);
   }
 }

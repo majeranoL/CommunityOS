@@ -1,11 +1,4 @@
-import {
-  IsIn,
-  IsInt,
-  IsOptional,
-  IsString,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 import { Type } from 'class-transformer';
 
@@ -28,16 +21,10 @@ export class RoleQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsIn([
-    'name',
-    'createdAt',
-  ])
+  @IsIn(['name', 'createdAt'])
   sortBy: string = 'createdAt';
 
   @IsOptional()
-  @IsIn([
-    'asc',
-    'desc',
-  ])
+  @IsIn(['asc', 'desc'])
   order: 'asc' | 'desc' = 'desc';
 }

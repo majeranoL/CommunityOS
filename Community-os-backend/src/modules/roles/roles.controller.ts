@@ -26,9 +26,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 @Controller('roles')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class RolesController {
-  constructor(
-    private readonly rolesService: RolesService,
-  ) {}
+  constructor(private readonly rolesService: RolesService) {}
 
   // ==========================================
   // Create Role
@@ -36,14 +34,8 @@ export class RolesController {
 
   @Post()
   @Permissions('role.manage')
-  create(
-    @Request() req: any,
-    @Body() dto: CreateRoleDto,
-  ) {
-    return this.rolesService.create(
-      req.user.community.id,
-      dto,
-    );
+  create(@Request() req: any, @Body() dto: CreateRoleDto) {
+    return this.rolesService.create(req.user.community.id, dto);
   }
 
   // ==========================================
@@ -52,14 +44,8 @@ export class RolesController {
 
   @Get()
   @Permissions('role.manage')
-  findAll(
-    @Request() req: any,
-    @Query() query: RoleQueryDto,
-  ) {
-    return this.rolesService.findAll(
-      req.user.community.id,
-      query,
-    );
+  findAll(@Request() req: any, @Query() query: RoleQueryDto) {
+    return this.rolesService.findAll(req.user.community.id, query);
   }
 
   // ==========================================
@@ -68,14 +54,8 @@ export class RolesController {
 
   @Get(':id')
   @Permissions('role.manage')
-  findOne(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.rolesService.findOne(
-      req.user.community.id,
-      id,
-    );
+  findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.rolesService.findOne(req.user.community.id, id);
   }
 
   // ==========================================
@@ -89,26 +69,22 @@ export class RolesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateRoleDto,
   ) {
-    return this.rolesService.update(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.rolesService.update(req.user.community.id, id, dto);
   }
 
   @Post(':id/permissions')
-    @Permissions('permission.manage')
-    assignPermissions(
+  @Permissions('permission.manage')
+  assignPermissions(
     @Request() req: any,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AssignPermissionsDto,
-    ) {
+  ) {
     return this.rolesService.assignPermissions(
-        req.user.community.id,
-        id,
-        dto.permissionIds,
+      req.user.community.id,
+      id,
+      dto.permissionIds,
     );
-    }
+  }
 
   // ==========================================
   // Delete Role
@@ -116,13 +92,7 @@ export class RolesController {
 
   @Delete(':id')
   @Permissions('role.manage')
-  remove(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.rolesService.remove(
-      req.user.community.id,
-      id,
-    );
+  remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.rolesService.remove(req.user.community.id, id);
   }
 }

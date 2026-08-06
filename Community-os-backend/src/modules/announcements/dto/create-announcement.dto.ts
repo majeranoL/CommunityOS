@@ -6,9 +6,7 @@ import {
   IsNotEmpty,
 } from 'class-validator';
 
-import {
-  AnnouncementStatus,
-} from '@prisma/client';
+import { AnnouncementStatus } from '@prisma/client';
 
 export class CreateAnnouncementDto {
   @IsString()

@@ -10,10 +10,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import {
-  Gender,
-  ResidentStatus,
-} from '@prisma/client';
+import { Gender, ResidentStatus } from '@prisma/client';
 
 export class ResidentQueryDto {
   @IsOptional()
@@ -42,12 +39,7 @@ export class ResidentQueryDto {
   gender?: Gender;
 
   @IsOptional()
-  @IsIn([
-    'residentNumber',
-    'firstName',
-    'lastName',
-    'createdAt',
-  ])
+  @IsIn(['residentNumber', 'firstName', 'lastName', 'createdAt'])
   sortBy: string = 'createdAt';
 
   @IsOptional()

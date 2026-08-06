@@ -1,10 +1,6 @@
-
 import { AuthService } from './auth.service';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { RolesGuard } from '../../common/guards/roles.guard';
 import { LoginDto } from './dto/login.dto';
-import { Permissions } from '../../common/decorators/permissions.decorator';
-import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 import {
@@ -18,25 +14,35 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
+  login(@Request() req: any, @Body() dto: LoginDto) {
     return this.authService.login(
       dto.email,
       dto.password,
+      req.ip,
+      req.headers?.['user-agent'],
     );
   }
 
+  @Post('refresh')
+  refresh(@Request() req: any, @Body() dto: RefreshTokenDto) {
+    return this.authService.refresh(
+      dto.refreshToken,
+      req.ip,
+      req.headers?.['user-agent'],
+    );
+  }
+
+  @Post('logout')
+  logout(@Body() dto: RefreshTokenDto) {
+    return this.authService.logout(dto.refreshToken);
+  }
+
   @Get('me')
-  @UseGuards(
-    JwtAuthGuard,
-    PermissionsGuard,
-  )
-  @Permissions('resident.archive')
+  @UseGuards(JwtAuthGuard)
   me(@Request() req: any) {
-    return req.user;
+    return this.authService.profile(req.user);
   }
 }

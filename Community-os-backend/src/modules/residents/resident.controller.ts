@@ -27,9 +27,7 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 @Controller('residents')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ResidentController {
-  constructor(
-    private readonly residentService: ResidentService,
-  ) {}
+  constructor(private readonly residentService: ResidentService) {}
 
   // ==========================================
   // Create Resident
@@ -37,14 +35,8 @@ export class ResidentController {
 
   @Post()
   @Permissions('resident.create')
-  create(
-    @Request() req: any,
-    @Body() dto: CreateResidentDto,
-  ) {
-    return this.residentService.create(
-      req.user.community.id,
-      dto,
-    );
+  create(@Request() req: any, @Body() dto: CreateResidentDto) {
+    return this.residentService.create(req.user.community.id, dto);
   }
 
   // ==========================================
@@ -53,14 +45,8 @@ export class ResidentController {
 
   @Get()
   @Permissions('resident.view')
-  findAll(
-    @Request() req: any,
-    @Query() query: ResidentQueryDto,
-  ) {
-    return this.residentService.findAll(
-      req.user.community.id,
-      query,
-    );
+  findAll(@Request() req: any, @Query() query: ResidentQueryDto) {
+    return this.residentService.findAll(req.user.community.id, query);
   }
 
   // ==========================================
@@ -69,14 +55,8 @@ export class ResidentController {
 
   @Get(':id')
   @Permissions('resident.view')
-  findOne(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.residentService.findOne(
-      req.user.community.id,
-      id,
-    );
+  findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.residentService.findOne(req.user.community.id, id);
   }
   @Put(':id')
   @Permissions('resident.update')
@@ -85,23 +65,11 @@ export class ResidentController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateResidentDto,
   ) {
-    return this.residentService.update(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.residentService.update(req.user.community.id, id, dto);
   }
   @Delete(':id')
   @Permissions('resident.delete')
-  remove(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.residentService.remove(
-      req.user.community.id,
-      id,
-    );
+  remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.residentService.remove(req.user.community.id, id);
   }
-  
-
 }

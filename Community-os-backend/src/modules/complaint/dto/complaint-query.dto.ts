@@ -47,13 +47,7 @@ export class ComplaintQueryDto {
   category?: ComplaintCategory;
 
   @IsOptional()
-  @IsIn([
-    'complaintNumber',
-    'title',
-    'status',
-    'priority',
-    'createdAt',
-  ])
+  @IsIn(['complaintNumber', 'title', 'status', 'priority', 'createdAt'])
   sortBy = 'createdAt';
 
   @IsOptional()

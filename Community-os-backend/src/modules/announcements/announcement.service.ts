@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-import {
-  AnnouncementStatus,
-} from '@prisma/client';
+import { AnnouncementStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -15,366 +10,307 @@ import { AnnouncementQueryDto } from './dto/announcement-query.dto';
 
 @Injectable()
 export class AnnouncementService {
-  constructor(
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // ==========================================
   // Create Announcement
   // ==========================================
 
-  async create(
-    communityId: string,
-    dto: CreateAnnouncementDto,
-  ) {
+  async create(communityId: string, dto: CreateAnnouncementDto) {
     const title = dto.title.trim();
     const content = dto.content.trim();
-    const coverImageUrl =
-      dto.coverImageUrl?.trim();
+    const coverImageUrl = dto.coverImageUrl?.trim();
 
-    const announcement =
-      await this.prisma.announcement.create({
-        data: {
-          communityId,
+    const announcement = await this.prisma.announcement.create({
+      data: {
+        communityId,
 
-          title,
-          content,
-          coverImageUrl,
+        title,
+        content,
+        coverImageUrl,
 
-          status:
-            dto.status ??
-            AnnouncementStatus.DRAFT,
+        status: dto.status ?? AnnouncementStatus.DRAFT,
 
-          publishedAt:
-            dto.status ===
-            AnnouncementStatus.PUBLISHED
-              ? new Date()
-              : null,
-        },
+        publishedAt:
+          dto.status === AnnouncementStatus.PUBLISHED ? new Date() : null,
+      },
 
-        select: {
-          id: true,
+      select: {
+        id: true,
 
-          title: true,
-          content: true,
-          coverImageUrl: true,
+        title: true,
+        content: true,
+        coverImageUrl: true,
 
-          status: true,
-          publishedAt: true,
+        status: true,
+        publishedAt: true,
 
-          createdAt: true,
-          updatedAt: true,
-        },
-      });
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     return {
       success: true,
-      message:
-        'Announcement created successfully.',
+      message: 'Announcement created successfully.',
       data: announcement,
     };
   }
   // ==========================================
-// Get All Announcements
-// ==========================================
+  // Get All Announcements
+  // ==========================================
 
-  async findAll(
-    communityId: string,
-    query: AnnouncementQueryDto,
-    ) {
-    const {
-        page,
-        limit,
-        search,
-        status,
-        sortBy,
-        order,
-    } = query;
+  async findAll(communityId: string, query: AnnouncementQueryDto) {
+    const { page, limit, search, status, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
 
     const where: any = {
-        communityId,
-        deletedAt: null,
+      communityId,
+      deletedAt: null,
     };
 
     // Search
     if (search) {
-        where.OR = [
+      where.OR = [
         {
-            title: {
+          title: {
             contains: search,
             mode: 'insensitive',
-            },
+          },
         },
         {
-            content: {
+          content: {
             contains: search,
             mode: 'insensitive',
-            },
+          },
         },
-        ];
+      ];
     }
 
     // Status Filter
     if (status) {
-        where.status = status;
+      where.status = status;
     }
 
-    const [announcements, total] =
-        await this.prisma.$transaction([
-        this.prisma.announcement.findMany({
-            where,
+    const [announcements, total] = await this.prisma.$transaction([
+      this.prisma.announcement.findMany({
+        where,
 
-            skip,
-            take: limit,
+        skip,
+        take: limit,
 
-            orderBy: {
-            [sortBy]: order,
-            },
+        orderBy: {
+          [sortBy]: order,
+        },
 
-            select: {
-            id: true,
-            title: true,
-            coverImageUrl: true,
-            status: true,
-            publishedAt: true,
-            createdAt: true,
-            },
-        }),
+        select: {
+          id: true,
+          title: true,
+          coverImageUrl: true,
+          status: true,
+          publishedAt: true,
+          createdAt: true,
+        },
+      }),
 
-        this.prisma.announcement.count({
-            where,
-        }),
-        ]);
+      this.prisma.announcement.count({
+        where,
+      }),
+    ]);
 
     return {
-        success: true,
-        data: announcements,
+      success: true,
+      data: announcements,
 
-        pagination: {
+      pagination: {
         page,
         limit,
         total,
 
         totalPages: Math.ceil(total / limit),
 
-        hasNextPage:
-            page < Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
 
         hasPreviousPage: page > 1,
-        },
+      },
     };
   }
   // ==========================================
-// Get Announcement By ID
-// ==========================================
-
-  async findOne(
-    communityId: string,
-    id: string,
-    ) {
-    const announcement =
-        await this.prisma.announcement.findFirst({
-        where: {
-            id,
-            communityId,
-            deletedAt: null,
-        },
-
-        select: {
-            id: true,
-
-            title: true,
-            content: true,
-            coverImageUrl: true,
-
-            status: true,
-            publishedAt: true,
-
-            createdAt: true,
-            updatedAt: true,
-        },
-        });
-
-    if (!announcement) {
-        throw new NotFoundException(
-        'Announcement not found.',
-        );
-    }
-
-    return {
-        success: true,
-        message:
-        'Announcement retrieved successfully.',
-        data: announcement,
-    };
-  }
+  // Get Announcement By ID
   // ==========================================
-// Update Announcement
-// ==========================================
 
-  async update(
-    communityId: string,
-    id: string,
-    dto: UpdateAnnouncementDto,
-    ) {
-    const announcement =
-        await this.prisma.announcement.findFirst({
-        where: {
-            id,
-            communityId,
-            deletedAt: null,
-        },
-        });
-
-    if (!announcement) {
-        throw new NotFoundException(
-        'Announcement not found.',
-        );
-    }
-
-    const updatedAnnouncement =
-        await this.prisma.announcement.update({
-        where: {
-            id,
-        },
-
-        data: {
-            ...(dto.title && {
-            title: dto.title.trim(),
-            }),
-
-            ...(dto.content && {
-            content: dto.content.trim(),
-            }),
-
-            ...(dto.coverImageUrl !== undefined && {
-            coverImageUrl:
-                dto.coverImageUrl?.trim(),
-            }),
-
-            ...(dto.status && {
-            status: dto.status,
-            }),
-
-            ...(dto.status ===
-            AnnouncementStatus.PUBLISHED && {
-            publishedAt: new Date(),
-            }),
-        },
-
-        select: {
-            id: true,
-            title: true,
-            content: true,
-            coverImageUrl: true,
-            status: true,
-            publishedAt: true,
-            createdAt: true,
-            updatedAt: true,
-        },
-        });
-
-    return {
-        success: true,
-        message:
-        'Announcement updated successfully.',
-        data: updatedAnnouncement,
-    };
-  }
-  // ==========================================
-// Delete Announcement (Soft Delete)
-// ==========================================
-
-  async remove(
-    communityId: string,
-    id: string,
-    ) {
-    const announcement =
-        await this.prisma.announcement.findFirst({
-        where: {
-            id,
-            communityId,
-            deletedAt: null,
-        },
-        });
-
-    if (!announcement) {
-        throw new NotFoundException(
-        'Announcement not found.',
-        );
-    }
-
-    await this.prisma.announcement.update({
-        where: {
+  async findOne(communityId: string, id: string) {
+    const announcement = await this.prisma.announcement.findFirst({
+      where: {
         id,
-        },
+        communityId,
+        deletedAt: null,
+      },
 
-        data: {
-        deletedAt: new Date(),
-        status: AnnouncementStatus.ARCHIVED,
-        },
+      select: {
+        id: true,
+
+        title: true,
+        content: true,
+        coverImageUrl: true,
+
+        status: true,
+        publishedAt: true,
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!announcement) {
+      throw new NotFoundException('Announcement not found.');
+    }
+
+    return {
+      success: true,
+      message: 'Announcement retrieved successfully.',
+      data: announcement,
+    };
+  }
+  // ==========================================
+  // Update Announcement
+  // ==========================================
+
+  async update(communityId: string, id: string, dto: UpdateAnnouncementDto) {
+    const announcement = await this.prisma.announcement.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!announcement) {
+      throw new NotFoundException('Announcement not found.');
+    }
+
+    const updatedAnnouncement = await this.prisma.announcement.update({
+      where: {
+        id,
+      },
+
+      data: {
+        ...(dto.title && {
+          title: dto.title.trim(),
+        }),
+
+        ...(dto.content && {
+          content: dto.content.trim(),
+        }),
+
+        ...(dto.coverImageUrl !== undefined && {
+          coverImageUrl: dto.coverImageUrl?.trim(),
+        }),
+
+        ...(dto.status && {
+          status: dto.status,
+        }),
+
+        ...(dto.status === AnnouncementStatus.PUBLISHED && {
+          publishedAt: new Date(),
+        }),
+      },
+
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        coverImageUrl: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     return {
-        success: true,
-        message:
-        'Announcement deleted successfully.',
+      success: true,
+      message: 'Announcement updated successfully.',
+      data: updatedAnnouncement,
     };
   }
   // ==========================================
-// Publish Announcement
-// ==========================================
+  // Delete Announcement (Soft Delete)
+  // ==========================================
 
-  async publish(
-    communityId: string,
-    id: string,
-    ) {
-    const announcement =
-        await this.prisma.announcement.findFirst({
-        where: {
-            id,
-            communityId,
-            deletedAt: null,
-        },
-        });
+  async remove(communityId: string, id: string) {
+    const announcement = await this.prisma.announcement.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
 
     if (!announcement) {
-        throw new NotFoundException(
-        'Announcement not found.',
-        );
+      throw new NotFoundException('Announcement not found.');
     }
 
-    const publishedAnnouncement =
-        await this.prisma.announcement.update({
-        where: {
-            id,
-        },
+    await this.prisma.announcement.update({
+      where: {
+        id,
+      },
 
-        data: {
-            status: AnnouncementStatus.PUBLISHED,
-            publishedAt: new Date(),
-        },
-
-        select: {
-            id: true,
-            title: true,
-            content: true,
-            coverImageUrl: true,
-            status: true,
-            publishedAt: true,
-            createdAt: true,
-            updatedAt: true,
-        },
-        });
+      data: {
+        deletedAt: new Date(),
+        status: AnnouncementStatus.ARCHIVED,
+      },
+    });
 
     return {
-        success: true,
-        message:
-        'Announcement published successfully.',
-        data: publishedAnnouncement,
+      success: true,
+      message: 'Announcement deleted successfully.',
     };
   }
-  
+  // ==========================================
+  // Publish Announcement
+  // ==========================================
+
+  async publish(communityId: string, id: string) {
+    const announcement = await this.prisma.announcement.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!announcement) {
+      throw new NotFoundException('Announcement not found.');
+    }
+
+    const publishedAnnouncement = await this.prisma.announcement.update({
+      where: {
+        id,
+      },
+
+      data: {
+        status: AnnouncementStatus.PUBLISHED,
+        publishedAt: new Date(),
+      },
+
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        coverImageUrl: true,
+        status: true,
+        publishedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Announcement published successfully.',
+      data: publishedAnnouncement,
+    };
+  }
 }

@@ -33,9 +33,9 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  avatarUrl?:string;
+  avatarUrl?: string;
 
   @IsUUID()
   @IsNotEmpty()
-  roleId!:string;
+  roleId!: string;
 }

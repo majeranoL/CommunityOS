@@ -88,6 +88,192 @@ enum ComplaintCategory {
   OTHER
 }
 
+enum FacilityType {
+  CLUBHOUSE
+  FUNCTION_ROOM
+  POOL
+  GYM
+  COURT
+  PARK
+  PLAYGROUND
+  GARDEN
+  OTHER
+}
+
+enum FacilityStatus {
+  AVAILABLE
+  MAINTENANCE
+  CLOSED
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum HouseholdStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum VisitorStatus {
+  EXPECTED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  TRUCK
+  VAN
+  BICYCLE
+  OTHER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum StaffRole {
+  SECURITY
+  MAINTENANCE
+  CLEANING
+  ADMIN
+  OTHER
+}
+
+enum StaffStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum MaintenanceCategory {
+  ELECTRICAL
+  PLUMBING
+  LANDSCAPING
+  STRUCTURAL
+  ROADS
+  FACILITY
+  CLEANING
+  OTHER
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MaintenanceStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  ON_HOLD
+  RESOLVED
+  CANCELLED
+}
+
+enum AssessmentStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  GCASH
+  CREDIT_CARD
+  CHEQUE
+  OTHER
+}
+
+enum DocumentCategory {
+  POLICY
+  MINUTES
+  FINANCIAL
+  NOTICE
+  FORM
+  OTHER
+}
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum PollStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+enum NotificationType {
+  SYSTEM
+  COMPLAINT
+  MAINTENANCE
+  PAYMENT
+  ASSESSMENT
+  MESSAGE
+  EVENT
+  RESERVATION
+  VISITOR
+  ANNOUNCEMENT
+  POLL
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  OVERDUE
+  VOID
+}
+
 /////////////////////////////////////////////////////
 // COMMUNITY
 /////////////////////////////////////////////////////
@@ -113,6 +299,24 @@ model Community {
   residents     Resident[]
   announcements Announcement[]
   complaints    Complaint[]
+  facilities    Facility[]
+  reservations  Reservation[]
+  households    Household[]
+  visitors      Visitor[]
+  vehicles      Vehicle[]
+  staffMembers  Staff[]
+  maintenances  Maintenance[]
+  assessments   Assessment[]
+  payments      Payment[]
+  documents     Document[]
+  messages      Message[]
+  events        Event[]
+  notifications Notification[]
+  subscription  Subscription?
+  invoices      Invoice[]
+  polls         Poll[]
+  auditLogs     AuditLog[]
+  settings      Setting[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -162,7 +366,7 @@ model User {
   communityId String    @db.Uuid
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
-  referenceNumber String @unique @db.VarChar(30)
+  referenceNumber String @db.VarChar(30)
 
   firstName  String  @db.VarChar(100)
   middleName String? @db.VarChar(100)
@@ -173,13 +377,24 @@ model User {
 
   status UserStatus @default(ACTIVE)
 
-  roles UserRole[]
-  assignedComplaints Complaint[] @relation("ComplaintAssignedTo")
+  roles              UserRole[]
+  assignedComplaints Complaint[]    @relation("ComplaintAssignedTo")
+  notifications      Notification[]
+
+  sentMessages      Message[]  @relation("MessageSender")
+  receivedMessages  Message[]  @relation("MessageRecipient")
+  uploadedDocuments Document[]
+  organizedEvents   Event[]
+  createdPolls      Poll[]     @relation("PollCreatedBy")
+  pollVotes         PollVote[]
+  auditLogs         AuditLog[]
+  updatedSettings   Setting[]  @relation("SettingUpdatedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  @@unique([communityId, referenceNumber])
   @@index([communityId])
   @@index([status])
   @@index([lastName])
@@ -322,13 +537,21 @@ model Resident {
   communityId String    @db.Uuid
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
-  complaints Complaint[]
+  householdId String?    @db.Uuid
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+
+  complaints   Complaint[]
+  reservations Reservation[]
+
+  hostedVisitors Visitor[] @relation("VisitorHostResident")
+  vehicles       Vehicle[]
+  payments       Payment[]
 
   /////////////////////////////////////////////////////
   // BASIC INFORMATION
   /////////////////////////////////////////////////////
 
-  residentNumber String @unique @db.VarChar(30)
+  residentNumber String @db.VarChar(30)
 
   firstName  String  @db.VarChar(100)
   middleName String? @db.VarChar(100)
@@ -391,7 +614,9 @@ model Resident {
   // INDEXES
   /////////////////////////////////////////////////////
 
+  @@unique([communityId, residentNumber])
   @@index([communityId])
+  @@index([communityId, householdId])
   @@index([residentNumber])
   @@index([lastName])
   @@index([status])
@@ -430,17 +655,17 @@ model Complaint {
   // RELATIONSHIPS
   /////////////////////////////////////////////////////
 
-  communityId String @db.Uuid
-  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
-  residentId String @db.Uuid
-  resident Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+  residentId String   @db.Uuid
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
 
   /////////////////////////////////////////////////////
   // COMPLAINT DETAILS
   /////////////////////////////////////////////////////
 
-  complaintNumber String @unique @db.VarChar(30)
+  complaintNumber String @db.VarChar(30)
 
   title String @db.VarChar(200)
 
@@ -480,6 +705,7 @@ model Complaint {
   // INDEXES
   /////////////////////////////////////////////////////
 
+  @@unique([communityId, complaintNumber])
   @@index([communityId])
   @@index([residentId])
   @@index([assignedToId])
@@ -487,4 +713,665 @@ model Complaint {
   @@index([priority])
   @@index([category])
   @@index([createdAt])
+}
+
+/////////////////////////////////////////////////////
+// FACILITY
+/////////////////////////////////////////////////////
+
+model Facility {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  name        String       @db.VarChar(100)
+  type        FacilityType
+  description String?
+  location    String?      @db.VarChar(200)
+  capacity    Int?
+  imageUrl    String?
+  hourlyRate  Decimal?     @db.Decimal(10, 2)
+
+  status FacilityStatus @default(AVAILABLE)
+
+  reservations Reservation[]
+  maintenances Maintenance[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([type])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// RESERVATION
+/////////////////////////////////////////////////////
+
+model Reservation {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  facilityId String   @db.Uuid
+  facility   Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  residentId String   @db.Uuid
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  purpose String?
+  startAt DateTime
+  endAt   DateTime
+  remarks String?
+
+  status ReservationStatus @default(PENDING)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([facilityId])
+  @@index([residentId])
+  @@index([status])
+  @@index([startAt])
+}
+
+/////////////////////////////////////////////////////
+// HOUSEHOLD
+/////////////////////////////////////////////////////
+
+model Household {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  block   String? @db.VarChar(20)
+  lot     String? @db.VarChar(20)
+  unit    String? @db.VarChar(20)
+  address String?
+
+  status HouseholdStatus @default(ACTIVE)
+
+  residents   Resident[]
+  assessments Assessment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([block, lot])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// VISITOR
+/////////////////////////////////////////////////////
+
+model Visitor {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  hostResidentId String?   @db.Uuid
+  hostResident   Resident? @relation("VisitorHostResident", fields: [hostResidentId], references: [id], onDelete: SetNull)
+
+  vehicleId String?  @db.Uuid
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  name        String  @db.VarChar(100)
+  phoneNumber String? @db.VarChar(20)
+  purpose     String?
+  remarks     String?
+
+  entryAt DateTime?
+  exitAt  DateTime?
+
+  status VisitorStatus @default(EXPECTED)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([hostResidentId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([entryAt])
+}
+
+/////////////////////////////////////////////////////
+// VEHICLE
+/////////////////////////////////////////////////////
+
+model Vehicle {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  residentId String?   @db.Uuid
+  resident   Resident? @relation(fields: [residentId], references: [id], onDelete: SetNull)
+
+  visitors Visitor[]
+
+  plateNumber          String      @db.VarChar(20)
+  make                 String?     @db.VarChar(50)
+  model                String?     @db.VarChar(50)
+  color                String?     @db.VarChar(30)
+  type                 VehicleType @default(CAR)
+  parkingStickerNumber String?     @db.VarChar(30)
+
+  status VehicleStatus @default(ACTIVE)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, plateNumber])
+  @@index([communityId])
+  @@index([residentId])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// STAFF
+/////////////////////////////////////////////////////
+
+model Staff {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  staffNumber String  @db.VarChar(30)
+  firstName   String  @db.VarChar(100)
+  middleName  String? @db.VarChar(100)
+  lastName    String  @db.VarChar(100)
+
+  role        StaffRole @default(SECURITY)
+  phoneNumber String?   @db.VarChar(20)
+  email       String?   @db.VarChar(255)
+  hireDate    DateTime?
+  notes       String?
+
+  status StaffStatus @default(ACTIVE)
+
+  assignedMaintenances Maintenance[] @relation("MaintenanceAssignedTo")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, staffNumber])
+  @@index([communityId])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// MAINTENANCE
+/////////////////////////////////////////////////////
+
+model Maintenance {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  maintenanceNumber String @db.VarChar(30)
+
+  title       String  @db.VarChar(200)
+  description String?
+
+  category MaintenanceCategory
+  priority MaintenancePriority @default(MEDIUM)
+  status   MaintenanceStatus   @default(OPEN)
+
+  facilityId String?   @db.Uuid
+  facility   Facility? @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+
+  assignedToId String? @db.Uuid
+  assignedTo   Staff?  @relation("MaintenanceAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  cost Decimal? @db.Decimal(10, 2)
+
+  scheduledAt DateTime?
+  completedAt DateTime?
+  remarks     String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, maintenanceNumber])
+  @@index([communityId])
+  @@index([facilityId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+}
+
+/////////////////////////////////////////////////////
+// ASSESSMENT
+/////////////////////////////////////////////////////
+
+model Assessment {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  householdId String    @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  assessmentNumber String   @db.VarChar(30)
+  title            String   @db.VarChar(200)
+  description      String?
+  amount           Decimal  @db.Decimal(10, 2)
+  dueDate          DateTime
+  period           String?  @db.VarChar(20)
+  paidAmount       Decimal  @default(0) @db.Decimal(10, 2)
+  remarks          String?
+
+  status AssessmentStatus @default(DRAFT)
+
+  payments Payment[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, assessmentNumber])
+  @@index([communityId])
+  @@index([householdId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+/////////////////////////////////////////////////////
+// PAYMENT
+/////////////////////////////////////////////////////
+
+model Payment {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  assessmentId String     @db.Uuid
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  residentId String   @db.Uuid
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  paymentNumber   String        @db.VarChar(30)
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentDate     DateTime
+  method          PaymentMethod @default(CASH)
+  referenceNumber String?       @db.VarChar(100)
+  remarks         String?
+
+  status PaymentStatus @default(PENDING)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, paymentNumber])
+  @@index([communityId])
+  @@index([assessmentId])
+  @@index([residentId])
+  @@index([status])
+  @@index([paymentDate])
+}
+
+/////////////////////////////////////////////////////
+// DOCUMENT
+/////////////////////////////////////////////////////
+
+model Document {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  uploadedById String @db.Uuid
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  title       String           @db.VarChar(200)
+  description String?
+  category    DocumentCategory @default(OTHER)
+  fileUrl     String
+  fileName    String           @db.VarChar(255)
+  fileSize    Int?
+  mimeType    String?          @db.VarChar(100)
+
+  status DocumentStatus @default(DRAFT)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([uploadedById])
+  @@index([category])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// MESSAGE
+/////////////////////////////////////////////////////
+
+model Message {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  senderId String @db.Uuid
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  recipientId String? @db.Uuid
+  recipient   User?   @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  subject String @db.VarChar(200)
+  body    String
+
+  status MessageStatus @default(SENT)
+
+  sentAt DateTime?
+  readAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// EVENT
+/////////////////////////////////////////////////////
+
+model Event {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  organizerId String? @db.Uuid
+  organizer   User?   @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+
+  title         String    @db.VarChar(200)
+  description   String?
+  location      String?   @db.VarChar(200)
+  startAt       DateTime
+  endAt         DateTime?
+  coverImageUrl String?
+
+  status EventStatus @default(DRAFT)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([organizerId])
+  @@index([status])
+  @@index([startAt])
+}
+
+/////////////////////////////////////////////////////
+// NOTIFICATION
+/////////////////////////////////////////////////////
+
+model Notification {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    NotificationType @default(SYSTEM)
+  title   String           @db.VarChar(200)
+  message String?          @db.VarChar(1000)
+  link    String?          @db.VarChar(500)
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([communityId])
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+/////////////////////////////////////////////////////
+// SUBSCRIPTION PLAN
+/////////////////////////////////////////////////////
+
+model SubscriptionPlan {
+  id String @id @default(uuid()) @db.Uuid
+
+  code         String       @unique @db.VarChar(50)
+  name         String       @db.VarChar(100)
+  description  String?
+  price        Decimal      @db.Decimal(10, 2)
+  billingCycle BillingCycle @default(MONTHLY)
+  features     String[]
+  maxUsers     Int          @default(1)
+  maxResidents Int          @default(0)
+  isActive     Boolean      @default(true)
+  sortOrder    Int          @default(0)
+
+  subscriptions Subscription[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+/////////////////////////////////////////////////////
+// SUBSCRIPTION
+/////////////////////////////////////////////////////
+
+model Subscription {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @unique @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  planId String?           @db.Uuid
+  plan   SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  status      SubscriptionStatus @default(TRIAL)
+  startsAt    DateTime
+  endsAt      DateTime
+  trialEndsAt DateTime?
+  autoRenew   Boolean            @default(true)
+  cancelledAt DateTime?
+
+  invoices Invoice[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([planId])
+  @@index([status])
+  @@index([endsAt])
+}
+
+/////////////////////////////////////////////////////
+// INVOICE
+/////////////////////////////////////////////////////
+
+model Invoice {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  subscriptionId String?       @db.Uuid
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  invoiceNumber String        @db.VarChar(30)
+  amount        Decimal       @db.Decimal(10, 2)
+  billingCycle  BillingCycle  @default(MONTHLY)
+  status        InvoiceStatus @default(DRAFT)
+  dueDate       DateTime
+  paidAt        DateTime?
+  paymentMethod String?       @db.VarChar(50)
+  notes         String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, invoiceNumber])
+  @@index([communityId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+/////////////////////////////////////////////////////
+// POLL
+/////////////////////////////////////////////////////
+
+model Poll {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  createdById String @db.Uuid
+  createdBy   User   @relation("PollCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  title           String     @db.VarChar(200)
+  description     String?
+  status          PollStatus @default(DRAFT)
+  isAnonymous     Boolean    @default(false)
+  allowMultiple   Boolean    @default(false)
+  allowAddOptions Boolean    @default(false)
+  startAt         DateTime?
+  endAt           DateTime?
+
+  options PollOption[]
+  votes   PollVote[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([createdById])
+  @@index([status])
+  @@index([endAt])
+}
+
+model PollOption {
+  id String @id @default(uuid()) @db.Uuid
+
+  pollId String @db.Uuid
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  text String @db.VarChar(200)
+
+  votes PollVote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pollId])
+}
+
+model PollVote {
+  id String @id @default(uuid()) @db.Uuid
+
+  pollId String @db.Uuid
+  poll   Poll   @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  optionId String     @db.Uuid
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([pollId, optionId, userId])
+  @@index([pollId])
+  @@index([optionId])
+  @@index([userId])
+}
+
+/////////////////////////////////////////////////////
+// AUDIT LOG
+/////////////////////////////////////////////////////
+
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  actorId String? @db.Uuid
+  actor   User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  action    String  @db.VarChar(50)
+  entity    String  @db.VarChar(100)
+  entityId  String? @db.VarChar(100)
+  before    Json?
+  after     Json?
+  ipAddress String? @db.VarChar(45)
+  userAgent String? @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+
+  @@index([communityId])
+  @@index([actorId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+}
+
+/////////////////////////////////////////////////////
+// SETTING
+/////////////////////////////////////////////////////
+
+model Setting {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  key      String  @db.VarChar(100)
+  value    Json?
+  group    String  @db.VarChar(50)
+  isPublic Boolean @default(false)
+
+  updatedById String? @db.Uuid
+  updatedBy   User?   @relation("SettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, key])
+  @@index([communityId])
+  @@index([group])
 }

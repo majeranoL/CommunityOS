@@ -35,12 +35,7 @@ export class UserQueryDto {
   status?: UserStatus;
 
   @IsOptional()
-  @IsIn([
-    'referenceNumber',
-    'firstName',
-    'lastName',
-    'createdAt',
-  ])
+  @IsIn(['referenceNumber', 'firstName', 'lastName', 'createdAt'])
   sortBy: string = 'createdAt';
 
   @IsOptional()

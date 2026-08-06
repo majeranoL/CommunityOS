@@ -6,10 +6,7 @@ import {
   IsUUID,
 } from 'class-validator';
 
-import {
-  ComplaintCategory,
-  ComplaintPriority,
-} from '@prisma/client';
+import { ComplaintCategory, ComplaintPriority } from '@prisma/client';
 
 export class CreateComplaintDto {
   @IsUUID()
