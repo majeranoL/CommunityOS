@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from 'class-validator';
@@ -45,6 +46,10 @@ export class ComplaintQueryDto {
   @IsOptional()
   @IsEnum(ComplaintCategory)
   category?: ComplaintCategory;
+
+  @IsOptional()
+  @IsUUID()
+  residentId?: string;
 
   @IsOptional()
   @IsIn(['complaintNumber', 'title', 'status', 'priority', 'createdAt'])

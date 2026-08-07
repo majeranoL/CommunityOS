@@ -26,11 +26,14 @@ describe('PrismaExceptionFilter', () => {
   });
 
   it('maps P2002 to 409 Conflict with success:false', () => {
-    const error = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-      code: 'P2002',
-      clientVersion: '6.19.3',
-      meta: { target: ['email'] },
-    });
+    const error = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      {
+        code: 'P2002',
+        clientVersion: '6.19.3',
+        meta: { target: ['email'] },
+      },
+    );
 
     filter.catch(error, mockHost);
 
@@ -51,7 +54,11 @@ describe('PrismaExceptionFilter', () => {
 
     expect(mockResponse.status).toHaveBeenCalledWith(404);
     expect(mockResponse.json).toHaveBeenCalledWith(
-      expect.objectContaining({ success: false, statusCode: 404, message: 'Record not found.' }),
+      expect.objectContaining({
+        success: false,
+        statusCode: 404,
+        message: 'Record not found.',
+      }),
     );
   });
 

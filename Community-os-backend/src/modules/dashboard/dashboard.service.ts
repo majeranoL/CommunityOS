@@ -45,7 +45,9 @@ export class DashboardService {
       staff,
       activeVisitors,
       announcements,
+      draftAnnouncements,
       openComplaints,
+      pendingReservations,
       activeMaintenance,
       assessmentAgg,
       monthlyCollected,
@@ -89,6 +91,14 @@ export class DashboardService {
         },
       }),
 
+      this.prisma.announcement.count({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: AnnouncementStatus.DRAFT,
+        },
+      }),
+
       this.prisma.complaint.count({
         where: {
           communityId,
@@ -96,6 +106,14 @@ export class DashboardService {
           status: {
             in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS],
           },
+        },
+      }),
+
+      this.prisma.reservation.count({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: ReservationStatus.PENDING,
         },
       }),
 
@@ -255,7 +273,9 @@ export class DashboardService {
           staff,
           activeVisitors,
           announcements,
+          draftAnnouncements,
           openComplaints,
+          pendingReservations,
           activeMaintenance,
           pendingPayments,
         },

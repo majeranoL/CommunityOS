@@ -134,7 +134,7 @@ export class ComplaintService {
     // Extract Query Parameters
     // ==========================================
 
-    const { page, limit, search, status, priority, category, sortBy, order } =
+    const { page, limit, search, status, priority, category, residentId, sortBy, order } =
       query;
 
     const skip = (page - 1) * limit;
@@ -158,6 +158,10 @@ export class ComplaintService {
 
     if (category) {
       where.category = category;
+    }
+
+    if (residentId) {
+      where.residentId = residentId;
     }
 
     if (search) {

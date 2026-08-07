@@ -1,14 +1,71 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomUUID } from 'crypto';
 import ms, { StringValue } from 'ms';
 
-import { AccountStatus, SessionStatus, UserStatus } from '@prisma/client';
+import {
+  AccountStatus,
+  SessionStatus,
+  UserStatus,
+  ResidentStatus,
+  HouseholdStatus,
+  CommunityStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { UsersService } from '../users/users.service';
+
+import { RegisterDto } from './dto/register.dto';
+
+type AccountWithUser = {
+  id: string;
+  email: string;
+  status: AccountStatus;
+  user: {
+    id: string;
+    referenceNumber: string;
+    firstName: string;
+    middleName: string | null;
+    lastName: string;
+    phoneNumber: string | null;
+    avatarUrl: string | null;
+    community: {
+      id: string;
+      code: string;
+      slug: string;
+      displayName: string;
+    };
+    resident: {
+      id: string;
+      residentNumber: string;
+      household: {
+        id: string;
+        block: string | null;
+        lot: string | null;
+        unit: string | null;
+        address: string | null;
+      } | null;
+    } | null;
+    roles: {
+      role: {
+        name: string;
+        permissions: {
+          permission: {
+            code: string;
+          };
+        }[];
+      };
+    }[];
+  } | null;
+};
 
 @Injectable()
 export class AuthService {
@@ -26,35 +83,7 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  private formatUser(account: {
-    email: string;
-    status: AccountStatus;
-    user: {
-      id: string;
-      referenceNumber: string;
-      firstName: string;
-      middleName: string | null;
-      lastName: string;
-      phoneNumber: string | null;
-      avatarUrl: string | null;
-      community: {
-        id: string;
-        code: string;
-        slug: string;
-        displayName: string;
-      };
-      roles: {
-        role: {
-          name: string;
-          permissions: {
-            permission: {
-              code: string;
-            };
-          }[];
-        };
-      }[];
-    } | null;
-  }) {
+  private formatUser(account: AccountWithUser) {
     if (!account.user) {
       throw new UnauthorizedException('Account has no user profile');
     }
@@ -80,6 +109,23 @@ export class AuthService {
         slug: user.community.slug,
         displayName: user.community.displayName,
       },
+
+      resident: user.resident
+        ? {
+            id: user.resident.id,
+            residentNumber: user.resident.residentNumber,
+
+            household: user.resident.household
+              ? {
+                  id: user.resident.household.id,
+                  block: user.resident.household.block,
+                  lot: user.resident.household.lot,
+                  unit: user.resident.household.unit,
+                  address: user.resident.household.address,
+                }
+              : null,
+          }
+        : null,
 
       roles: user.roles.map((r) => r.role.name),
 
@@ -138,6 +184,293 @@ export class AuthService {
     return token;
   }
 
+  private async createSession(
+    account: AccountWithUser,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    if (!account.user) {
+      throw new UnauthorizedException('Account has no user profile');
+    }
+
+    const accessToken = await this.jwtService.signAsync({
+      sub: account.user.id,
+      email: account.email,
+      communityId: account.user.community.id,
+    });
+
+    const refreshToken = await this.issueRefreshToken(
+      account.id,
+      ipAddress,
+      userAgent,
+    );
+
+    return {
+      accessToken,
+      refreshToken,
+      user: this.formatUser(account),
+    };
+  }
+
+  // ==========================================
+  // Register
+  // ==========================================
+
+  async register(dto: RegisterDto, ipAddress?: string, userAgent?: string) {
+    const email = dto.email.trim().toLowerCase();
+
+    const existing = await this.prisma.account.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('Email is already registered.');
+    }
+
+    // ==========================================
+    // Resolve Community
+    // ==========================================
+
+    const community = await this.prisma.community.findFirst({
+      where: {
+        id: dto.communityId,
+        status: CommunityStatus.ACTIVE,
+        deletedAt: null,
+      },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found.');
+    }
+
+    // ==========================================
+    // Validate Unit Information
+    // ==========================================
+
+    const hasUnitInfo = Boolean(
+      dto.block?.trim() ||
+      dto.lot?.trim() ||
+      dto.unit?.trim() ||
+      dto.address?.trim(),
+    );
+
+    if (!hasUnitInfo) {
+      throw new BadRequestException(
+        'Please provide at least one of block, lot, unit, or address.',
+      );
+    }
+
+    // ==========================================
+    // Resolve Default Role
+    // ==========================================
+
+    const role =
+      (await this.prisma.role.findFirst({
+        where: {
+          communityId: community.id,
+          deletedAt: null,
+          isSystem: true,
+          name: 'Member',
+        },
+      })) ??
+      (await this.prisma.role.findFirst({
+        where: {
+          communityId: community.id,
+          deletedAt: null,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      }));
+
+    // ==========================================
+    // Hash Password
+    // ==========================================
+
+    const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS ?? 10);
+
+    const passwordHash = await bcrypt.hash(dto.password, saltRounds);
+
+    // ==========================================
+    // Generate User Reference Number
+    // ==========================================
+
+    const totalUsers = await this.prisma.user.count({
+      where: {
+        communityId: community.id,
+      },
+    });
+
+    const referenceNumber = `USR-${String(totalUsers + 1).padStart(6, '0')}`;
+
+    const capitalize = (value: string) =>
+      value
+        .trim()
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+    // ==========================================
+    // Create Account + User + User Role
+    // ==========================================
+
+    const createdAccount = await this.prisma.$transaction(async (prisma) => {
+      // ==========================================
+      // Find or Create Household
+      // ==========================================
+
+      let household: { id: string } | null = null;
+
+      if (dto.block?.trim() || dto.lot?.trim() || dto.unit?.trim()) {
+        household = await prisma.household.findFirst({
+          where: {
+            communityId: community.id,
+            deletedAt: null,
+            ...(dto.block?.trim() ? { block: dto.block.trim() } : {}),
+            ...(dto.lot?.trim() ? { lot: dto.lot.trim() } : {}),
+            ...(dto.unit?.trim() ? { unit: dto.unit.trim() } : {}),
+          },
+          select: { id: true },
+        });
+      }
+
+      if (!household) {
+        household = await prisma.household.create({
+          data: {
+            communityId: community.id,
+            block: dto.block?.trim() ?? null,
+            lot: dto.lot?.trim() ?? null,
+            unit: dto.unit?.trim() ?? null,
+            address: dto.address?.trim() ?? null,
+            status: HouseholdStatus.ACTIVE,
+          },
+          select: { id: true },
+        });
+      }
+
+      // ==========================================
+      // Create Account
+      // ==========================================
+
+      const account = await prisma.account.create({
+        data: {
+          email,
+          passwordHash,
+          status: AccountStatus.ACTIVE,
+        },
+      });
+
+      // ==========================================
+      // Create Resident
+      // ==========================================
+
+      const latestResident = await prisma.resident.findFirst({
+        where: {
+          communityId: community.id,
+        },
+        orderBy: {
+          residentNumber: 'desc',
+        },
+        select: {
+          residentNumber: true,
+        },
+      });
+
+      let residentNumber = 'RES-000001';
+
+      if (latestResident) {
+        const latestNumber = Number(
+          latestResident.residentNumber.replace('RES-', ''),
+        );
+
+        residentNumber = `RES-${String(latestNumber + 1).padStart(6, '0')}`;
+      }
+
+      const resident = await prisma.resident.create({
+        data: {
+          communityId: community.id,
+          residentNumber,
+          householdId: household.id,
+          firstName: capitalize(dto.firstName),
+          middleName: dto.middleName ? capitalize(dto.middleName) : null,
+          lastName: capitalize(dto.lastName),
+          phoneNumber: dto.phoneNumber?.trim(),
+          email,
+          status: ResidentStatus.ACTIVE,
+        },
+      });
+
+      // ==========================================
+      // Create User
+      // ==========================================
+
+      const user = await prisma.user.create({
+        data: {
+          accountId: account.id,
+          communityId: community.id,
+          residentId: resident.id,
+          referenceNumber,
+          firstName: capitalize(dto.firstName),
+          middleName: dto.middleName ? capitalize(dto.middleName) : null,
+          lastName: capitalize(dto.lastName),
+          phoneNumber: dto.phoneNumber?.trim(),
+          status: UserStatus.ACTIVE,
+        },
+      });
+
+      if (role) {
+        await prisma.userRole.create({
+          data: {
+            userId: user.id,
+            roleId: role.id,
+          },
+        });
+      }
+
+      return account;
+    });
+
+    const account = await this.prisma.account.findUnique({
+      where: {
+        id: createdAccount.id,
+      },
+      include: {
+        user: {
+          include: {
+            community: true,
+            resident: {
+              include: {
+                household: true,
+              },
+            },
+            roles: {
+              include: {
+                role: {
+                  include: {
+                    permissions: {
+                      include: {
+                        permission: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const session = await this.createSession(account!, ipAddress, userAgent);
+
+    return {
+      success: true,
+      message: 'Registration successful.',
+      data: session,
+    };
+  }
+
   // ==========================================
   // Login
   // ==========================================
@@ -168,19 +501,7 @@ export class AuthService {
       throw new UnauthorizedException('Account has no user profile');
     }
 
-    const user = account.user;
-
-    const accessToken = await this.jwtService.signAsync({
-      sub: user.id,
-      email: account.email,
-      communityId: user.community.id,
-    });
-
-    const refreshToken = await this.issueRefreshToken(
-      account.id,
-      ipAddress,
-      userAgent,
-    );
+    const session = await this.createSession(account, ipAddress, userAgent);
 
     await this.prisma.account.update({
       where: {
@@ -192,9 +513,9 @@ export class AuthService {
     });
 
     return {
-      accessToken,
-      refreshToken,
-      user: this.formatUser(account),
+      success: true,
+      message: 'Login successful.',
+      data: session,
     };
   }
 
@@ -248,6 +569,11 @@ export class AuthService {
         user: {
           include: {
             community: true,
+            resident: {
+              include: {
+                household: true,
+              },
+            },
             roles: {
               include: {
                 role: {
@@ -270,8 +596,6 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    const user = account.user;
-
     // ==========================================
     // Rotate: revoke old refresh token, issue a new one
     // ==========================================
@@ -285,22 +609,12 @@ export class AuthService {
       },
     });
 
-    const accessToken = await this.jwtService.signAsync({
-      sub: user.id,
-      email: account.email,
-      communityId: user.community.id,
-    });
-
-    const newRefreshToken = await this.issueRefreshToken(
-      account.id,
-      ipAddress,
-      userAgent,
-    );
+    const session = await this.createSession(account, ipAddress, userAgent);
 
     return {
-      accessToken,
-      refreshToken: newRefreshToken,
-      user: this.formatUser(account),
+      success: true,
+      message: 'Session refreshed successfully.',
+      data: session,
     };
   }
 
@@ -308,16 +622,27 @@ export class AuthService {
   // Logout (revoke refresh token)
   // ==========================================
 
-  async logout(refreshToken: string) {
-    await this.prisma.refreshToken.updateMany({
-      where: {
-        token: this.hashToken(refreshToken),
-        revokedAt: null,
-      },
-      data: {
-        revokedAt: new Date(),
-      },
-    });
+  async logout(accountId: string, refreshToken: string) {
+    await this.prisma.$transaction([
+      this.prisma.refreshToken.updateMany({
+        where: {
+          token: this.hashToken(refreshToken),
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      }),
+      this.prisma.session.updateMany({
+        where: {
+          accountId,
+          status: SessionStatus.ACTIVE,
+        },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      }),
+    ]);
 
     return {
       success: true,
@@ -347,6 +672,17 @@ export class AuthService {
       slug: string;
       displayName: string;
     };
+    resident: {
+      id: string;
+      residentNumber: string;
+      household: {
+        id: string;
+        block: string | null;
+        lot: string | null;
+        unit: string | null;
+        address: string | null;
+      } | null;
+    } | null;
     roles: {
       role: {
         name: string;
@@ -382,6 +718,23 @@ export class AuthService {
           slug: user.community.slug,
           displayName: user.community.displayName,
         },
+
+        resident: user.resident
+          ? {
+              id: user.resident.id,
+              residentNumber: user.resident.residentNumber,
+
+              household: user.resident.household
+                ? {
+                    id: user.resident.household.id,
+                    block: user.resident.household.block,
+                    lot: user.resident.household.lot,
+                    unit: user.resident.household.unit,
+                    address: user.resident.household.address,
+                  }
+                : null,
+            }
+          : null,
 
         roles: user.roles.map((r) => r.role.name),
 

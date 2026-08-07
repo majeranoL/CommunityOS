@@ -30,6 +30,7 @@ services:
       REFRESH_SECRET: ${REFRESH_SECRET:-CommunityOSRefreshSecret}
       REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
       BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-10}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       SEED_DB: ${SEED_DB:-false}
     ports:
       - "${APP_PORT:-3000}:3000"

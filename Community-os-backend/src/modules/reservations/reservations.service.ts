@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { FacilityStatus, ReservationStatus } from '@prisma/client';
+import { FacilityStatus, NotificationType, ReservationStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -15,7 +17,58 @@ import { ReservationQueryDto } from './dto/reservation-query.dto';
 
 @Injectable()
 export class ReservationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
+
+  private async notifyManagers(communityId: string, reservation: any) {
+    const userIds = await this.notificationsService.userIdsWithPermission(
+      communityId,
+      'reservation.approve',
+    );
+
+    await this.notificationsService.notifyMany(
+      communityId,
+      userIds,
+      NotificationType.RESERVATION,
+      'New reservation request',
+      `${reservation.purpose ?? 'Facility booking'} · ${
+        reservation.facility?.name ?? 'Facility'
+      } by ${reservation.resident?.firstName ?? ''} ${
+        reservation.resident?.lastName ?? ''
+      }.`,
+      `/reservations/${reservation.id}`,
+    );
+  }
+
+  private async notifyResident(
+    communityId: string,
+    reservation: any,
+    title: string,
+    message: string,
+  ) {
+    const residentUser = await this.prisma.user.findFirst({
+      where: {
+        communityId,
+        residentId: reservation.residentId,
+        deletedAt: null,
+      },
+    });
+
+    if (!residentUser) {
+      return;
+    }
+
+    await this.notificationsService.notify(
+      communityId,
+      residentUser.id,
+      NotificationType.RESERVATION,
+      title,
+      message,
+      `/reservations/${reservation.id}`,
+    );
+  }
 
   private validateTimeRange(startAt: Date, endAt: Date) {
     if (isNaN(startAt.getTime()) || isNaN(endAt.getTime())) {
@@ -171,6 +224,8 @@ export class ReservationsService {
         },
       },
     });
+
+    await this.notifyManagers(communityId, reservation);
 
     return {
       success: true,
@@ -555,7 +610,20 @@ export class ReservationsService {
       );
     }
 
-    return this.updateStatus(communityId, id, ReservationStatus.APPROVED);
+    const result = await this.updateStatus(
+      communityId,
+      id,
+      ReservationStatus.APPROVED,
+    );
+
+    await this.notifyResident(
+      communityId,
+      result.data,
+      'Reservation approved',
+      `Your reservation for ${result.data.facility?.name ?? 'the facility'} has been approved.`,
+    );
+
+    return result;
   }
 
   // ==========================================
@@ -571,7 +639,20 @@ export class ReservationsService {
       );
     }
 
-    return this.updateStatus(communityId, id, ReservationStatus.REJECTED);
+    const result = await this.updateStatus(
+      communityId,
+      id,
+      ReservationStatus.REJECTED,
+    );
+
+    await this.notifyResident(
+      communityId,
+      result.data,
+      'Reservation rejected',
+      `Your reservation for ${result.data.facility?.name ?? 'the facility'} was rejected.`,
+    );
+
+    return result;
   }
 
   // ==========================================

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { StaffStatus } from '@prisma/client';
+import { StaffRole, StaffStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -62,7 +62,7 @@ export class StaffService {
         middleName: dto.middleName,
         lastName: dto.lastName,
 
-        role: dto.role ?? 'SECURITY',
+        role: dto.role ?? StaffRole.SECURITY,
         phoneNumber: dto.phoneNumber,
         email: dto.email,
         hireDate: dto.hireDate ? new Date(dto.hireDate) : undefined,

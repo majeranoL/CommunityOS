@@ -40,6 +40,11 @@ export class UsersService {
         user: {
           include: {
             community: true,
+            resident: {
+              include: {
+                household: true,
+              },
+            },
             roles: {
               include: {
                 role: {
@@ -63,10 +68,16 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: {
         id,
+        deletedAt: null,
       },
       include: {
         account: true,
         community: true,
+        resident: {
+          include: {
+            household: true,
+          },
+        },
         roles: {
           include: {
             role: {
@@ -133,7 +144,10 @@ export class UsersService {
     // Hash Password
     // ==========================================
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(
+      dto.password,
+      Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+    );
 
     // ==========================================
     // Generate User Reference Number

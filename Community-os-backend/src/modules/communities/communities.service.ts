@@ -114,12 +114,13 @@ export class CommunitiesService {
   // Get All Communities
   // ==========================================
 
-  async findAll(query: CommunityQueryDto) {
+  async findAll(communityId: string, query: CommunityQueryDto) {
     const { page, limit, search, status, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
 
     const where: any = {
+      id: communityId,
       deletedAt: null,
     };
 
@@ -212,7 +213,7 @@ export class CommunitiesService {
   // Get Community By ID
   // ==========================================
 
-  async findOne(id: string) {
+  async findOne(communityId: string, id: string) {
     const community = await this.prisma.community.findFirst({
       where: {
         id,
@@ -238,7 +239,7 @@ export class CommunitiesService {
       },
     });
 
-    if (!community) {
+    if (!community || community.id !== communityId) {
       throw new NotFoundException('Community not found.');
     }
 
@@ -253,7 +254,7 @@ export class CommunitiesService {
   // Update Community
   // ==========================================
 
-  async update(id: string, dto: UpdateCommunityDto) {
+  async update(communityId: string, id: string, dto: UpdateCommunityDto) {
     const community = await this.prisma.community.findFirst({
       where: {
         id,
@@ -261,7 +262,7 @@ export class CommunitiesService {
       },
     });
 
-    if (!community) {
+    if (!community || community.id !== communityId) {
       throw new NotFoundException('Community not found.');
     }
 
@@ -395,7 +396,7 @@ export class CommunitiesService {
   // Delete Community (Soft Delete)
   // ==========================================
 
-  async remove(id: string) {
+  async remove(communityId: string, id: string) {
     const community = await this.prisma.community.findFirst({
       where: {
         id,
@@ -403,7 +404,7 @@ export class CommunitiesService {
       },
     });
 
-    if (!community) {
+    if (!community || community.id !== communityId) {
       throw new NotFoundException('Community not found.');
     }
 

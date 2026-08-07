@@ -22,11 +22,13 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       const status = exception.getStatus();
       const body = exception.getResponse();
 
-      response.status(status).json(
-        typeof body === 'string'
-          ? { success: false, statusCode: status, message: body }
-          : { ...(body as object), success: false },
-      );
+      response
+        .status(status)
+        .json(
+          typeof body === 'string'
+            ? { success: false, statusCode: status, message: body }
+            : { ...body, success: false },
+        );
 
       return;
     }
@@ -38,7 +40,11 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       switch (exception.code) {
         case 'P2002': {
           const target = exception.meta?.target;
-          const fields = Array.isArray(target) ? target.join(', ') : String(target ?? '');
+          const fields = Array.isArray(target)
+            ? target.join(', ')
+            : typeof target === 'string'
+              ? target
+              : '';
 
           status = HttpStatus.CONFLICT;
           message = fields

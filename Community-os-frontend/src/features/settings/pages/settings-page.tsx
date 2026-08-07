@@ -1,0 +1,155 @@
+import { Check, Moon, Sun, Monitor } from 'lucide-react'
+import { PageHeader } from '@/components/shared/page-header'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { useAuthStore } from '@/store/auth-store'
+import { useTheme } from '@/components/theme-provider'
+import { initials } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import type { Theme } from '@/components/theme-provider'
+
+const THEME_OPTIONS: { value: Theme; label: string; icon: typeof Sun }[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+]
+
+export default function SettingsPage() {
+  const user = useAuthStore((state) => state.user)
+  const { theme, setTheme } = useTheme()
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Settings"
+        description="Manage your profile, account, and preferences."
+      />
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Profile</CardTitle>
+            <CardDescription>Your account details.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-14 w-14">
+                <AvatarImage src={user?.avatarUrl ?? undefined} />
+                <AvatarFallback className="text-base">
+                  {initials(user?.firstName, user?.lastName)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">
+                  {user?.firstName} {user?.middleName ? `${user.middleName} ` : ''}
+                  {user?.lastName}
+                </p>
+                <p className="text-sm text-muted-foreground">{user?.referenceNumber}</p>
+              </div>
+            </div>
+
+            <Separator />
+
+            <dl className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Email</dt>
+                <dd className="font-medium">{user?.email}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Phone</dt>
+                <dd className="font-medium">{user?.phoneNumber || '—'}</dd>
+              </div>
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">Community</dt>
+                <dd className="font-medium">{user?.community.displayName}</dd>
+              </div>
+            </dl>
+
+            <Separator />
+
+            <div className="flex flex-wrap items-center gap-2">
+              {user?.roles.map((role) => (
+                <Badge key={role} variant="secondary">
+                  {role}
+                </Badge>
+              ))}
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {user?.resident ? `Resident ${user.resident.residentNumber}` : 'No linked resident record'}
+              {user?.resident?.household
+                ? ` · ${[
+                    user.resident.household.block && `Block ${user.resident.household.block}`,
+                    user.resident.household.lot && `Lot ${user.resident.household.lot}`,
+                    user.resident.household.unit && `Unit ${user.resident.household.unit}`,
+                    user.resident.household.address,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}`
+                : ''}
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-6 lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Appearance</CardTitle>
+              <CardDescription>Choose how CommunityOS looks to you.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {THEME_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  const active = theme === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setTheme(option.value)}
+                      className={cn(
+                        'flex flex-col items-center gap-2 rounded-lg border p-4 text-sm font-medium transition-colors',
+                        active
+                          ? 'border-primary bg-primary/5 text-primary'
+                          : 'hover:bg-accent',
+                      )}
+                    >
+                      <div className="relative">
+                        <Icon className="h-5 w-5" />
+                        {active ? (
+                          <span className="absolute -right-2 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        ) : null}
+                      </div>
+                      {option.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>About CommunityOS</CardTitle>
+              <CardDescription>Platform information.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Version</span>
+                <span className="font-medium">v0.1.0</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Member since</span>
+                <span className="font-medium">—</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  )
+}

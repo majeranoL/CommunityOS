@@ -16,6 +16,14 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  app.enableCors({
+    origin: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    credentials: true,
+  });
+
   app.useGlobalFilters(new PrismaExceptionFilter());
 
   // Ensure uploads directory exists and serve uploaded files statically

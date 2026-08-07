@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 
@@ -43,8 +44,8 @@ export class CommunitiesController {
 
   @Get()
   @Permissions('community.view')
-  findAll(@Query() query: CommunityQueryDto) {
-    return this.communitiesService.findAll(query);
+  findAll(@Request() req: any, @Query() query: CommunityQueryDto) {
+    return this.communitiesService.findAll(req.user.community.id, query);
   }
 
   // ==========================================
@@ -53,8 +54,8 @@ export class CommunitiesController {
 
   @Get(':id')
   @Permissions('community.view')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.communitiesService.findOne(id);
+  findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.communitiesService.findOne(req.user.community.id, id);
   }
 
   // ==========================================
@@ -64,10 +65,11 @@ export class CommunitiesController {
   @Put(':id')
   @Permissions('community.update')
   update(
+    @Request() req: any,
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCommunityDto,
   ) {
-    return this.communitiesService.update(id, dto);
+    return this.communitiesService.update(req.user.community.id, id, dto);
   }
 
   // ==========================================
@@ -76,7 +78,7 @@ export class CommunitiesController {
 
   @Delete(':id')
   @Permissions('community.delete')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.communitiesService.remove(id);
+  remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.communitiesService.remove(req.user.community.id, id);
   }
 }

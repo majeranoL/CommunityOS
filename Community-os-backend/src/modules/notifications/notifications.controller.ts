@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Query,
   Request,
@@ -76,7 +77,7 @@ export class NotificationsController {
   @Permissions('notification.update')
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Mark a notification as read' })
-  markRead(@Request() req: any, @Param('id') id: string) {
+  markRead(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.notificationsService.markRead(
       req.user.community.id,
       req.user.id,

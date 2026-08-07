@@ -199,6 +199,7 @@ async function main() {
   console.log('✅ Permissions created');
 
   const memberPermissionCodes = [
+    'dashboard.view',
     'message.create',
     'message.view',
     'message.update',
@@ -866,6 +867,14 @@ async function seedSampleData(
       },
     });
 
+    const resident = await prisma.resident.findFirst({
+      where: {
+        communityId,
+        email: item.email,
+      },
+      select: { id: true },
+    });
+
     const user = await prisma.user.create({
       data: {
         accountId: account.id,
@@ -873,6 +882,7 @@ async function seedSampleData(
         referenceNumber: item.referenceNumber,
         firstName: item.firstName,
         lastName: item.lastName,
+        residentId: resident?.id,
         status: UserStatus.ACTIVE,
       },
     });
