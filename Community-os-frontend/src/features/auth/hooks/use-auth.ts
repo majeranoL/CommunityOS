@@ -10,10 +10,11 @@ function useRedirectAfterAuth() {
   const location = useLocation()
 
   return () => {
+    const user = useAuthStore.getState().user
     const from = (location.state as { from?: string } | null)?.from
-    navigate(from && from !== '/login' && from !== '/register' ? from : '/dashboard', {
-      replace: true,
-    })
+    const isPlatformAdmin = user?.isPlatformAdmin === true
+    const destination = isPlatformAdmin ? '/admin' : from || '/app/dashboard'
+    navigate(destination, { replace: true })
   }
 }
 
@@ -47,6 +48,31 @@ export function useRegister() {
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Registration failed. Please try again.'))
+    },
+  })
+}
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (email: string) => authService.forgotPassword(email),
+    onSuccess: () => {
+      toast.success('If an account exists for that email, a reset link was sent.')
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Something went wrong. Please try again.'))
+    },
+  })
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: ({ token, password }: { token: string; password: string }) =>
+      authService.resetPassword(token, password),
+    onSuccess: () => {
+      toast.success('Password reset. You can now sign in.')
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Invalid or expired reset link.'))
     },
   })
 }

@@ -21,6 +21,8 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { MailService } from '../../mail/mail.service';
+
 import { UsersService } from '../users/users.service';
 
 import { RegisterDto } from './dto/register.dto';
@@ -37,6 +39,7 @@ type AccountWithUser = {
     lastName: string;
     phoneNumber: string | null;
     avatarUrl: string | null;
+    isPlatformAdmin: boolean;
     community: {
       id: string;
       code: string;
@@ -73,6 +76,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
   ) {}
 
   // ==========================================
@@ -102,6 +106,8 @@ export class AuthService {
 
       phoneNumber: user.phoneNumber,
       avatarUrl: user.avatarUrl,
+
+      isPlatformAdmin: user.isPlatformAdmin,
 
       community: {
         id: user.community.id,
@@ -651,6 +657,99 @@ export class AuthService {
   }
 
   // ==========================================
+  // Forgot Password
+  // ==========================================
+
+  async forgotPassword(email: string) {
+    const normalized = email.trim().toLowerCase();
+
+    const account = await this.prisma.account.findUnique({
+      where: { email: normalized },
+      include: { user: true },
+    });
+
+    if (account && account.user) {
+      const token = await this.jwtService.signAsync(
+        {
+          sub: account.id,
+          type: 'password_reset',
+        },
+        {
+          expiresIn: '30m',
+        },
+      );
+
+      const appUrl = (process.env.APP_URL ?? 'http://localhost:5173').replace(
+        /\/$/,
+        '',
+      );
+
+      await this.mailService.sendPasswordResetEmail(
+        account.email,
+        `${account.user.firstName} ${account.user.lastName}`,
+        `${appUrl}/reset-password?token=${encodeURIComponent(token)}`,
+      );
+    }
+
+    return {
+      success: true,
+      message:
+        'If an account exists for that email, a password reset link has been sent.',
+    };
+  }
+
+  // ==========================================
+  // Reset Password
+  // ==========================================
+
+  async resetPassword(token: string, password: string) {
+    let payload: { sub: string; type?: string };
+
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch {
+      throw new BadRequestException('Invalid or expired reset token.');
+    }
+
+    if (payload.type !== 'password_reset') {
+      throw new BadRequestException('Invalid or expired reset token.');
+    }
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!account || account.deletedAt) {
+      throw new BadRequestException('Invalid or expired reset token.');
+    }
+
+    const passwordHash = await bcrypt.hash(
+      password,
+      Number(process.env.BCRYPT_SALT_ROUNDS || 10),
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.account.update({
+        where: { id: account.id },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { accountId: account.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+      this.prisma.session.updateMany({
+        where: { accountId: account.id, status: SessionStatus.ACTIVE },
+        data: { status: SessionStatus.REVOKED },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Password has been reset successfully. You can now sign in.',
+    };
+  }
+
+  // ==========================================
   // Profile (for GET /auth/me)
   // ==========================================
 
@@ -663,6 +762,7 @@ export class AuthService {
     phoneNumber: string | null;
     avatarUrl: string | null;
     status: UserStatus;
+    isPlatformAdmin: boolean;
     account: {
       email: string;
     };
@@ -709,6 +809,8 @@ export class AuthService {
 
         phoneNumber: user.phoneNumber,
         avatarUrl: user.avatarUrl,
+
+        isPlatformAdmin: user.isPlatformAdmin,
 
         status: user.status,
 

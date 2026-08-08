@@ -4,11 +4,19 @@ import { CommunityStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { CommunitiesService } from '../communities/communities.service';
+import { AuthService } from '../auth/auth.service';
+
 import { PublicCommunitiesQueryDto } from './dto/public-communities-query.dto';
+import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
 
 @Injectable()
 export class PublicService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly communitiesService: CommunitiesService,
+    private readonly authService: AuthService,
+  ) {}
 
   async findCommunities(query: PublicCommunitiesQueryDto) {
     const { search, limit } = query;
@@ -62,6 +70,78 @@ export class PublicService {
       success: true,
       message: 'Communities retrieved successfully.',
       data: communities,
+    };
+  }
+
+  // ==========================================
+  // Subscription Plans (public pricing)
+  // ==========================================
+
+  async findPlans() {
+    const plans = await this.prisma.subscriptionPlan.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+      },
+      orderBy: {
+        sortOrder: 'asc',
+      },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        description: true,
+        price: true,
+        billingCycle: true,
+        features: true,
+        maxUsers: true,
+        maxResidents: true,
+        isActive: true,
+        sortOrder: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Subscription plans retrieved successfully.',
+      data: plans,
+    };
+  }
+
+  // ==========================================
+  // HOA Signup (provision community + owner session)
+  // ==========================================
+
+  async signup(
+    dto: ProvisionCommunityDto,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const provisioned = await this.communitiesService.provision(dto);
+
+    const owner = provisioned.data.owner;
+
+    const session = await this.authService.login(
+      dto.owner.email.trim().toLowerCase(),
+      dto.owner.password,
+      ipAddress,
+      userAgent,
+    );
+
+    return {
+      success: true,
+      message: 'Community created successfully. Welcome aboard!',
+      data: {
+        community: provisioned.data.community,
+        subscription: provisioned.data.subscription,
+        owner: {
+          id: owner.id,
+          firstName: owner.firstName,
+          lastName: owner.lastName,
+          email: owner.email,
+        },
+        session: session.data,
+      },
     };
   }
 }

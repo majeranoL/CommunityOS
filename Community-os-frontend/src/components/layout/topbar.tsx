@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  ShieldCheck,
   Sun,
   User,
 } from 'lucide-react'
@@ -70,7 +71,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           variant="ghost"
           size="icon"
           className="relative"
-          onClick={() => navigate('/notifications')}
+          onClick={() => navigate('/app/notifications')}
         >
           <Bell className="h-4 w-4" />
           {(unreadCount ?? 0) > 0 ? (
@@ -113,10 +114,19 @@ export function Topbar({ onMenuClick }: TopbarProps) {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/settings')}>
+            <DropdownMenuItem onClick={() => navigate('/app/settings')}>
               <User className="h-4 w-4" />
               Profile & settings
             </DropdownMenuItem>
+            {user?.isPlatformAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/admin')}>
+                  <ShieldCheck className="h-4 w-4" />
+                  Platform admin
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"

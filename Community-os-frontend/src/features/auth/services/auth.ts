@@ -43,4 +43,14 @@ export const authService = {
       // ignore — tokens are cleared locally regardless
     }
   },
+
+  async forgotPassword(email: string) {
+    const { data } = await api.post<ApiEnvelope<null>>('/auth/forgot-password', { email })
+    return data
+  },
+
+  async resetPassword(token: string, password: string) {
+    const { data } = await api.post<ApiEnvelope<null>>('/auth/reset-password', { token, password })
+    return data
+  },
 }

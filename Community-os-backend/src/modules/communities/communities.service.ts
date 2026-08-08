@@ -4,13 +4,69 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { CommunityStatus } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+
+import {
+  AccountStatus,
+  CommunityStatus,
+  SubscriptionStatus,
+  UserStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { permissions } from '../../../prisma/permissions';
 
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
 import { CommunityQueryDto } from './dto/community-query.dto';
+import { ProvisionCommunityDto } from './dto/provision-community.dto';
+
+const PROVISION_TRIAL_DAYS = 14;
+
+const PROVISION_MEMBER_PERMISSIONS = [
+  'dashboard.view',
+  'message.create',
+  'message.view',
+  'message.update',
+  'message.delete',
+  'event.view',
+  'document.view',
+  'assessment.view',
+  'payment.view',
+  'announcement.view',
+  'complaint.create',
+  'complaint.view',
+  'facility.view',
+  'reservation.create',
+  'reservation.view',
+  'notification.view',
+  'notification.update',
+  'poll.view',
+  'poll.vote',
+  'settings.view',
+];
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function capitalize(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
 
 @Injectable()
 export class CommunitiesService {
@@ -423,5 +479,273 @@ export class CommunitiesService {
       success: true,
       message: 'Community deleted successfully.',
     };
+  }
+
+  // ==========================================
+  // Provision Community (HOA signup / platform admin)
+  // ==========================================
+
+  async provision(dto: ProvisionCommunityDto) {
+    const ownerEmail = dto.owner.email.trim().toLowerCase();
+
+    // ==========================================
+    // Duplicate Owner Email
+    // ==========================================
+
+    const existingAccount = await this.prisma.account.findUnique({
+      where: { email: ownerEmail },
+      select: { id: true },
+    });
+
+    if (existingAccount) {
+      throw new ConflictException('Email is already registered.');
+    }
+
+    // ==========================================
+    // Resolve Subscription Plan
+    // ==========================================
+
+    const plan = dto.planId
+      ? await this.prisma.subscriptionPlan.findFirst({
+          where: { id: dto.planId, isActive: true, deletedAt: null },
+        })
+      : await this.prisma.subscriptionPlan.findFirst({
+          where: { isActive: true, deletedAt: null },
+          orderBy: { sortOrder: 'asc' },
+        });
+
+    // ==========================================
+    // Generate Unique Code + Slug
+    // ==========================================
+
+    const code = await this.generateUniqueCode();
+    const slug = await this.generateUniqueSlug(
+      slugify(dto.displayName) || 'hoa',
+    );
+
+    // ==========================================
+    // Hash Owner Password
+    // ==========================================
+
+    const passwordHash = await bcrypt.hash(
+      dto.owner.password,
+      Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+    );
+
+    // ==========================================
+    // Provision Transaction
+    // ==========================================
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // ---------- Community ----------
+
+      const community = await tx.community.create({
+        data: {
+          code,
+          slug,
+          displayName: dto.displayName.trim(),
+
+          description: dto.description?.trim(),
+          email: dto.email?.trim().toLowerCase(),
+          contactNumber: dto.contactNumber?.trim(),
+          address: dto.address?.trim(),
+          logoUrl: dto.logoUrl?.trim(),
+
+          status: CommunityStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+          code: true,
+          slug: true,
+          displayName: true,
+          email: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      // ---------- System Roles ----------
+
+      const presidentRole = await tx.role.create({
+        data: {
+          communityId: community.id,
+          name: 'President',
+          description: 'Community President',
+          isSystem: true,
+        },
+      });
+
+      const memberRole = await tx.role.create({
+        data: {
+          communityId: community.id,
+          name: 'Member',
+          description: 'Community Member',
+          isSystem: true,
+        },
+      });
+
+      // ---------- Permissions ----------
+
+      await tx.permission.createMany({
+        data: permissions.map((permission) => ({
+          communityId: community.id,
+          code: permission.code,
+          module: permission.module,
+          description: permission.description,
+        })),
+      });
+
+      const permissionRows = await tx.permission.findMany({
+        where: { communityId: community.id },
+        select: { id: true, code: true },
+      });
+
+      await tx.rolePermission.createMany({
+        data: permissionRows.map((permission) => ({
+          roleId: presidentRole.id,
+          permissionId: permission.id,
+        })),
+      });
+
+      const memberPermissions = permissionRows.filter((permission) =>
+        PROVISION_MEMBER_PERMISSIONS.includes(permission.code),
+      );
+
+      await tx.rolePermission.createMany({
+        data: memberPermissions.map((permission) => ({
+          roleId: memberRole.id,
+          permissionId: permission.id,
+        })),
+      });
+
+      // ---------- Subscription (Trial) ----------
+
+      let subscription: {
+        id: string;
+        status: SubscriptionStatus;
+        planId: string | null;
+        endsAt: Date;
+      } | null = null;
+
+      if (plan) {
+        const startsAt = new Date();
+        const trialEndsAt = addDays(startsAt, PROVISION_TRIAL_DAYS);
+
+        subscription = await tx.subscription.create({
+          data: {
+            communityId: community.id,
+            planId: plan.id,
+            status: SubscriptionStatus.TRIAL,
+            startsAt,
+            endsAt: trialEndsAt,
+            trialEndsAt,
+            autoRenew: true,
+          },
+          select: {
+            id: true,
+            status: true,
+            planId: true,
+            endsAt: true,
+          },
+        });
+      }
+
+      // ---------- Owner Account + User ----------
+
+      const account = await tx.account.create({
+        data: {
+          email: ownerEmail,
+          passwordHash,
+          status: AccountStatus.ACTIVE,
+        },
+        select: { id: true },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          accountId: account.id,
+          communityId: community.id,
+
+          referenceNumber: 'USR-000001',
+
+          firstName: capitalize(dto.owner.firstName),
+          lastName: capitalize(dto.owner.lastName),
+
+          status: UserStatus.ACTIVE,
+          isPlatformAdmin: false,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: presidentRole.id,
+        },
+      });
+
+      return { community, subscription, user };
+    });
+
+    return {
+      success: true,
+      message: 'Community provisioned successfully.',
+      data: {
+        community: result.community,
+        subscription: result.subscription,
+        owner: {
+          id: result.user.id,
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          email: ownerEmail,
+        },
+      },
+    };
+  }
+
+  // ==========================================
+  // Provision Helpers
+  // ==========================================
+
+  private async generateUniqueCode() {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = `HOA-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      const existing = await this.prisma.community.findFirst({
+        where: { code: candidate },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return candidate;
+      }
+    }
+
+    throw new ConflictException(
+      'Unable to generate a unique community code. Please try again.',
+    );
+  }
+
+  private async generateUniqueSlug(base: string) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+
+      const existing = await this.prisma.community.findFirst({
+        where: { slug: candidate },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        return candidate;
+      }
+    }
+
+    throw new ConflictException(
+      'Unable to generate a unique community slug. Please try again.',
+    );
   }
 }

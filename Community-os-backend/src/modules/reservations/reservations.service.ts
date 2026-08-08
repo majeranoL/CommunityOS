@@ -5,7 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { FacilityStatus, NotificationType, ReservationStatus } from '@prisma/client';
+import {
+  FacilityStatus,
+  NotificationType,
+  ReservationStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 

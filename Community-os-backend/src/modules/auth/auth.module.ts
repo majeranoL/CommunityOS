@@ -6,9 +6,11 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UsersModule } from '../users/users.module';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { MailModule } from '../../mail/mail.module';
 @Module({
   imports: [
     UsersModule,
+    MailModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET!,
       signOptions: {
@@ -22,5 +24,6 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
     JwtStrategy, // <- This must be here
     PermissionsGuard,
   ],
+  exports: [AuthService],
 })
 export class AuthModule {}

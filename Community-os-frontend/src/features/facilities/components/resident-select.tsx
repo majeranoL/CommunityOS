@@ -5,18 +5,23 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useResidentOptions } from '@/features/facilities/hooks/use-residents'
+import type { ResidentOption } from '@/features/facilities/types/resident'
 import { cn } from '@/lib/utils'
 
 interface ResidentSelectProps {
   value: string
   onChange: (value: string) => void
   disabled?: boolean
+  useOptions?: (search: string) => {
+    data?: { items: ResidentOption[] }
+    isLoading: boolean
+  }
 }
 
-export function ResidentSelect({ value, onChange, disabled }: ResidentSelectProps) {
+export function ResidentSelect({ value, onChange, disabled, useOptions = useResidentOptions }: ResidentSelectProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const { data, isLoading } = useResidentOptions(search)
+  const { data, isLoading } = useOptions(search)
 
   const selected = data?.items.find((resident) => resident.id === value)
   const fullName = (resident: { firstName: string; lastName: string; suffix: string | null }) =>

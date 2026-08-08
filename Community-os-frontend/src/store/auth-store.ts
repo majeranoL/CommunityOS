@@ -43,3 +43,7 @@ export function useHasAnyPermission(permissions: string[]) {
   if (!user) return false
   return permissions.some((p) => user.permissions.includes(p))
 }
+
+export function useIsPlatformAdmin() {
+  return useAuthStore((state) => state.user?.isPlatformAdmin === true)
+}

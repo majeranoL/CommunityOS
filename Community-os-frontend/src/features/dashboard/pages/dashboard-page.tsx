@@ -74,7 +74,7 @@ function RecentReservationsCard({ data }: { data?: DashboardOverview }) {
         )}
         <button
           type="button"
-          onClick={() => navigate('/facilities?tab=reservations')}
+          onClick={() => navigate('/app/facilities?tab=reservations')}
           className="mt-2 flex items-center gap-1 text-sm font-medium text-primary hover:underline"
         >
           Manage reservations
@@ -99,28 +99,28 @@ function NeedsAttentionCard({
       label: 'Pending reservations',
       value: counts?.pendingReservations,
       icon: Clock,
-      href: '/facilities?tab=reservations',
+      href: '/app/facilities?tab=reservations',
       tone: 'text-primary',
     },
     {
       label: 'Draft announcements',
       value: counts?.draftAnnouncements,
       icon: PenLine,
-      href: '/announcements',
+      href: '/app/announcements',
       tone: 'text-primary',
     },
     {
       label: 'Open complaints',
       value: counts?.openComplaints,
       icon: MessageSquareWarning,
-      href: '/complaints',
+      href: '/app/complaints',
       tone: 'text-warning',
     },
     {
       label: 'Pending payments',
       value: counts?.pendingPayments,
       icon: FileText,
-      href: '/users',
+      href: '/app/users',
       tone: 'text-primary',
     },
   ]
@@ -249,11 +249,11 @@ export default function DashboardPage() {
   const availableFacilities = data?.facilityStatus.AVAILABLE ?? 0
 
   const quickActions = [
-    { label: 'Announcements', icon: Megaphone, href: '/announcements', permission: PERMISSIONS.announcementView },
-    { label: 'Events', icon: CalendarDays, href: '/events', permission: PERMISSIONS.eventView },
-    { label: 'Polls', icon: Vote, href: '/polls', permission: PERMISSIONS.pollView },
-    { label: 'Complaints', icon: MessageSquareWarning, href: '/complaints', permission: PERMISSIONS.complaintView },
-    { label: 'Facilities', icon: Building2, href: '/facilities', permission: PERMISSIONS.facilityView },
+    { label: 'Announcements', icon: Megaphone, href: '/app/announcements', permission: PERMISSIONS.announcementView },
+    { label: 'Events', icon: CalendarDays, href: '/app/events', permission: PERMISSIONS.eventView },
+    { label: 'Polls', icon: Vote, href: '/app/polls', permission: PERMISSIONS.pollView },
+    { label: 'Complaints', icon: MessageSquareWarning, href: '/app/complaints', permission: PERMISSIONS.complaintView },
+    { label: 'Facilities', icon: Building2, href: '/app/facilities', permission: PERMISSIONS.facilityView },
   ].filter((action) => user?.permissions.includes(action.permission))
 
   return (

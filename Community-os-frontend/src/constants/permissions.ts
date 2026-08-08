@@ -6,10 +6,52 @@ export const PERMISSIONS = {
   userUpdate: 'user.update',
   userDelete: 'user.delete',
 
+  roleManage: 'role.manage',
+  permissionView: 'permission.view',
+  permissionManage: 'permission.manage',
+
+  residentCreate: 'resident.create',
+  residentView: 'resident.view',
+  residentUpdate: 'resident.update',
+  residentDelete: 'resident.delete',
+
+  householdCreate: 'household.create',
+  householdView: 'household.view',
+  householdUpdate: 'household.update',
+  householdDelete: 'household.delete',
+
+  vehicleCreate: 'vehicle.create',
+  vehicleView: 'vehicle.view',
+  vehicleUpdate: 'vehicle.update',
+  vehicleDelete: 'vehicle.delete',
+
+  visitorCreate: 'visitor.create',
+  visitorView: 'visitor.view',
+  visitorUpdate: 'visitor.update',
+  visitorDelete: 'visitor.delete',
+  visitorCheckIn: 'visitor.check-in',
+  visitorCheckOut: 'visitor.check-out',
+  visitorCancel: 'visitor.cancel',
+
+  staffCreate: 'staff.create',
+  staffView: 'staff.view',
+  staffUpdate: 'staff.update',
+  staffDelete: 'staff.delete',
+
+  maintenanceCreate: 'maintenance.create',
+  maintenanceView: 'maintenance.view',
+  maintenanceUpdate: 'maintenance.update',
+  maintenanceDelete: 'maintenance.delete',
+  maintenanceAssign: 'maintenance.assign',
+  maintenanceStart: 'maintenance.start',
+  maintenanceResolve: 'maintenance.resolve',
+  maintenanceCancel: 'maintenance.cancel',
+
   announcementCreate: 'announcement.create',
   announcementView: 'announcement.view',
   announcementUpdate: 'announcement.update',
   announcementDelete: 'announcement.delete',
+  announcementPublish: 'announcement.publish',
 
   eventCreate: 'event.create',
   eventView: 'event.view',
@@ -33,12 +75,15 @@ export const PERMISSIONS = {
   complaintDelete: 'complaint.delete',
   complaintAssign: 'complaint.assign',
   complaintResolve: 'complaint.resolve',
+  complaintClose: 'complaint.close',
 
   notificationView: 'notification.view',
   notificationUpdate: 'notification.update',
 
-  settingsView: 'settings.view',
-  settingsUpdate: 'settings.update',
+  messageCreate: 'message.create',
+  messageView: 'message.view',
+  messageUpdate: 'message.update',
+  messageDelete: 'message.delete',
 
   facilityView: 'facility.view',
   facilityCreate: 'facility.create',
@@ -53,6 +98,44 @@ export const PERMISSIONS = {
   reservationReject: 'reservation.reject',
   reservationCancel: 'reservation.cancel',
   reservationComplete: 'reservation.complete',
+
+  documentCreate: 'document.create',
+  documentView: 'document.view',
+  documentUpdate: 'document.update',
+  documentDelete: 'document.delete',
+  documentPublish: 'document.publish',
+  documentArchive: 'document.archive',
+
+  billingView: 'billing.view',
+  billingManage: 'billing.manage',
+
+  assessmentView: 'assessment.view',
+  assessmentCreate: 'assessment.create',
+  assessmentUpdate: 'assessment.update',
+  assessmentDelete: 'assessment.delete',
+  assessmentIssue: 'assessment.issue',
+  assessmentCancel: 'assessment.cancel',
+
+  paymentView: 'payment.view',
+  paymentCreate: 'payment.create',
+  paymentUpdate: 'payment.update',
+  paymentDelete: 'payment.delete',
+  paymentConfirm: 'payment.confirm',
+  paymentReject: 'payment.reject',
+  paymentRefund: 'payment.refund',
+
+  subscriptionView: 'subscription.view',
+  subscriptionManage: 'subscription.manage',
+  invoiceView: 'invoice.view',
+  invoiceManage: 'invoice.manage',
+
+  reportsExport: 'reports.export',
+  analyticsView: 'analytics.view',
+  auditView: 'audit.view',
+  auditManage: 'audit.manage',
+
+  settingsView: 'settings.view',
+  settingsManage: 'settings.manage',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

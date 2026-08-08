@@ -272,6 +272,7 @@ async function main() {
       lastName: 'Administrator',
 
       status: UserStatus.ACTIVE,
+      isPlatformAdmin: true,
     },
   });
 

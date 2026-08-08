@@ -30,6 +30,7 @@ import { PollsModule } from './modules/polls/polls.module';
 import { AuditLogsModule } from './modules/auditlogs/audit-logs.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PublicModule } from './modules/public/public.module';
+import { AdminModule } from './modules/admin/admin.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -63,6 +64,7 @@ import { PublicModule } from './modules/public/public.module';
     AuditLogsModule,
     SettingsModule,
     PublicModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

@@ -380,6 +380,8 @@ model User {
 
   status UserStatus @default(ACTIVE)
 
+  isPlatformAdmin Boolean @default(false)
+
   roles              UserRole[]
   assignedComplaints Complaint[]    @relation("ComplaintAssignedTo")
   notifications      Notification[]

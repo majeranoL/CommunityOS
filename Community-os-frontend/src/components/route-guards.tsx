@@ -34,13 +34,34 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
 export function PublicOnlyRoute({ children }: { children: ReactNode }) {
   const { status } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
 
   if (status === 'loading' || status === 'idle') {
     return <FullPageLoader />
   }
 
   if (status === 'authenticated') {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to={user?.isPlatformAdmin ? '/admin' : '/app/dashboard'} replace />
+  }
+
+  return children
+}
+
+export function PlatformAdminRoute({ children }: { children: ReactNode }) {
+  const { status } = useAuthStore()
+  const user = useAuthStore((state) => state.user)
+  const location = useLocation()
+
+  if (status === 'loading' || status === 'idle') {
+    return <FullPageLoader />
+  }
+
+  if (status === 'unauthenticated') {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  }
+
+  if (!user?.isPlatformAdmin) {
+    return <Navigate to="/app/dashboard" replace />
   }
 
   return children
@@ -56,7 +77,7 @@ export function PermissionRoute({
   const user = useAuthStore((state) => state.user)
 
   if (!user?.permissions.includes(permission)) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/app/dashboard" replace />
   }
 
   return children
