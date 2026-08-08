@@ -36,6 +36,11 @@ export class AdminController {
     return this.adminService.overview();
   }
 
+  @Get('analytics')
+  analytics() {
+    return this.adminService.analytics();
+  }
+
   @Get('communities')
   findAllCommunities(@Query() query: AdminCommunityQueryDto) {
     return this.adminService.findAllCommunities(query);

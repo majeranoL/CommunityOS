@@ -43,6 +43,12 @@ const SETTING_DEFAULTS: SettingDefault[] = [
     group: 'security',
     isPublic: false,
   },
+  {
+    key: 'registrationMode',
+    value: 'OPEN',
+    group: 'security',
+    isPublic: false,
+  },
   { key: 'currency', value: 'PHP', group: 'billing', isPublic: false },
   { key: 'paymentTermsDays', value: 30, group: 'billing', isPublic: false },
 ];

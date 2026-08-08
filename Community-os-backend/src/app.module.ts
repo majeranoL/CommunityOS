@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { RolesModule } from './modules/roles/roles.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -29,11 +31,19 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { PollsModule } from './modules/polls/polls.module';
 import { AuditLogsModule } from './modules/auditlogs/audit-logs.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { PlatformSettingsModule } from './modules/platform-settings/platform-settings.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     UsersModule,
     AuthModule,
@@ -63,8 +73,15 @@ import { AdminModule } from './modules/admin/admin.module';
     PollsModule,
     AuditLogsModule,
     SettingsModule,
+    PlatformSettingsModule,
     PublicModule,
     AdminModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

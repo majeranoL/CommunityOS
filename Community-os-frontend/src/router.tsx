@@ -19,6 +19,18 @@ const ForgotPasswordPage = lazy(() => import('@/features/auth/pages/forgot-passw
 const ResetPasswordPage = lazy(() => import('@/features/auth/pages/reset-password-page'))
 const DashboardPage = lazy(() => import('@/features/dashboard/pages/dashboard-page'))
 const UsersPage = lazy(() => import('@/features/users/pages/users-page'))
+const RolesPage = lazy(() => import('@/features/roles/pages/roles-page'))
+const ResidentsPage = lazy(() => import('@/features/residents/pages/residents-page'))
+const HouseholdsPage = lazy(() => import('@/features/households/pages/households-page'))
+const VehiclesPage = lazy(() => import('@/features/vehicles/pages/vehicles-page'))
+const VisitorsPage = lazy(() => import('@/features/visitors/pages/visitors-page'))
+const StaffPage = lazy(() => import('@/features/staff/pages/staff-page'))
+const MaintenancePage = lazy(() => import('@/features/maintenance/pages/maintenance-page'))
+const DocumentsPage = lazy(() => import('@/features/documents/pages/documents-page'))
+const MessagesPage = lazy(() => import('@/features/messages/pages/messages-page'))
+const ReportsPage = lazy(() => import('@/features/reports/pages/reports-page'))
+const AnalyticsPage = lazy(() => import('@/features/analytics/pages/analytics-page'))
+const AuditLogsPage = lazy(() => import('@/features/audit-logs/pages/audit-logs-page'))
 const SettingsPage = lazy(() => import('@/features/settings/pages/settings-page'))
 const AnnouncementsPage = lazy(() => import('@/features/announcements/pages/announcements-page'))
 const EventsPage = lazy(() => import('@/features/events/pages/events-page'))
@@ -32,6 +44,8 @@ const AdminOverviewPage = lazy(() => import('@/features/admin/pages/admin-overvi
 const AdminCommunitiesPage = lazy(() => import('@/features/admin/pages/admin-communities-page'))
 const AdminCommunityDetailPage = lazy(() => import('@/features/admin/pages/admin-community-detail-page'))
 const AdminProvisionPage = lazy(() => import('@/features/admin/pages/admin-provision-page'))
+const AdminPlansPage = lazy(() => import('@/features/admin/pages/admin-plans-page'))
+const AdminPlatformSettingsPage = lazy(() => import('@/features/admin/pages/admin-platform-settings-page'))
 
 function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
@@ -104,10 +118,82 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'roles',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.roleManage}>
+            {withSuspense(<RolesPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'residents',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.residentView}>
+            {withSuspense(<ResidentsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'households',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.householdView}>
+            {withSuspense(<HouseholdsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'vehicles',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.vehicleView}>
+            {withSuspense(<VehiclesPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'visitors',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.visitorView}>
+            {withSuspense(<VisitorsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'staff',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.staffView}>
+            {withSuspense(<StaffPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'maintenance',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.maintenanceView}>
+            {withSuspense(<MaintenancePage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'documents',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.documentView}>
+            {withSuspense(<DocumentsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
         path: 'announcements',
         element: (
           <PermissionRoute permission={PERMISSIONS.announcementView}>
             {withSuspense(<AnnouncementsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'messages',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.messageView}>
+            {withSuspense(<MessagesPage />)}
           </PermissionRoute>
         ),
       },
@@ -160,6 +246,30 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'reports',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.reportsExport}>
+            {withSuspense(<ReportsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'analytics',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.analyticsView}>
+            {withSuspense(<AnalyticsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'audit-logs',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.auditView}>
+            {withSuspense(<AuditLogsPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
         path: 'billing',
         element: (
           <PermissionRoute permission={PERMISSIONS.billingView}>
@@ -201,6 +311,14 @@ export const router = createBrowserRouter([
       {
         path: 'communities/new',
         element: withSuspense(<AdminProvisionPage />),
+      },
+      {
+        path: 'plans',
+        element: withSuspense(<AdminPlansPage />),
+      },
+      {
+        path: 'settings',
+        element: withSuspense(<AdminPlatformSettingsPage />),
       },
     ],
   },

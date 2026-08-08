@@ -278,6 +278,21 @@ export class UsersService {
             },
           },
 
+          resident: {
+            select: {
+              household: {
+                select: {
+                  id: true,
+                  block: true,
+                  lot: true,
+                  unit: true,
+                  address: true,
+                  status: true,
+                },
+              },
+            },
+          },
+
           roles: {
             include: {
               role: {
@@ -313,6 +328,17 @@ export class UsersService {
       email: user.account.email,
 
       status: user.status,
+
+      household: user.resident?.household
+        ? {
+            id: user.resident.household.id,
+            block: user.resident.household.block,
+            lot: user.resident.household.lot,
+            unit: user.resident.household.unit,
+            address: user.resident.household.address,
+            status: user.resident.household.status,
+          }
+        : null,
 
       roles: user.roles.map((r) => ({
         id: r.role.id,

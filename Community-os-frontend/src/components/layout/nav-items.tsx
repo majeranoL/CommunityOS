@@ -1,15 +1,27 @@
 import {
   Bell,
+  Briefcase,
   Building2,
   CalendarDays,
+  Car,
+  ChartPie,
   CreditCard,
+  DoorOpen,
+  FileSpreadsheet,
+  FileText,
+  History,
+  Home,
   LayoutDashboard,
   Megaphone,
+  MessageSquare,
   MessageSquareWarning,
   Settings,
+  ShieldCheck,
   Users,
+  UserRound,
   Vote,
   Wallet,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -34,7 +46,14 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Community',
-    items: [{ label: 'Users', href: '/app/users', icon: Users, permission: PERMISSIONS.userView }],
+    items: [
+      { label: 'Users', href: '/app/users', icon: Users, permission: PERMISSIONS.userView },
+      { label: 'Roles', href: '/app/roles', icon: ShieldCheck, permission: PERMISSIONS.roleManage },
+      { label: 'Residents', href: '/app/residents', icon: UserRound, permission: PERMISSIONS.residentView },
+      { label: 'Households', href: '/app/households', icon: Home, permission: PERMISSIONS.householdView },
+      { label: 'Vehicles', href: '/app/vehicles', icon: Car, permission: PERMISSIONS.vehicleView },
+      { label: 'Visitors', href: '/app/visitors', icon: DoorOpen, permission: PERMISSIONS.visitorView },
+    ],
   },
   {
     label: 'Communication',
@@ -42,6 +61,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Announcements', href: '/app/announcements', icon: Megaphone, permission: PERMISSIONS.announcementView },
       { label: 'Events', href: '/app/events', icon: CalendarDays, permission: PERMISSIONS.eventView },
       { label: 'Polls', href: '/app/polls', icon: Vote, permission: PERMISSIONS.pollView },
+      { label: 'Documents', href: '/app/documents', icon: FileText, permission: PERMISSIONS.documentView },
+      { label: 'Messages', href: '/app/messages', icon: MessageSquare, permission: PERMISSIONS.messageView },
       { label: 'Notifications', href: '/app/notifications', icon: Bell, permission: PERMISSIONS.notificationView },
     ],
   },
@@ -50,6 +71,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Complaints', href: '/app/complaints', icon: MessageSquareWarning, permission: PERMISSIONS.complaintView },
       { label: 'Facilities', href: '/app/facilities', icon: Building2, permission: PERMISSIONS.facilityView },
+      { label: 'Staff', href: '/app/staff', icon: Briefcase, permission: PERMISSIONS.staffView },
+      { label: 'Maintenance', href: '/app/maintenance', icon: Wrench, permission: PERMISSIONS.maintenanceView },
     ],
   },
   {
@@ -61,6 +84,11 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: 'Intelligence',
-    items: [{ label: 'Settings', href: '/app/settings', icon: Settings, permission: PERMISSIONS.settingsView }],
+    items: [
+      { label: 'Analytics', href: '/app/analytics', icon: ChartPie, permission: PERMISSIONS.analyticsView },
+      { label: 'Reports', href: '/app/reports', icon: FileSpreadsheet, permission: PERMISSIONS.reportsExport },
+      { label: 'Audit Logs', href: '/app/audit-logs', icon: History, permission: PERMISSIONS.auditView },
+      { label: 'Settings', href: '/app/settings', icon: Settings, permission: PERMISSIONS.settingsView },
+    ],
   },
 ]

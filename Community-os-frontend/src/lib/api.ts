@@ -20,26 +20,6 @@ function isPublicPath(url: string) {
   return PUBLIC_PATHS.some((path) => url.startsWith(path))
 }
 
-let refreshPromise: Promise<string | null> | null = null
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = tokenStore.getRefresh()
-  if (!refreshToken) return null
-
-  try {
-    const response = await axios.post('/api/auth/refresh', { refreshToken })
-    const data = response.data?.data
-    if (data?.accessToken && data?.refreshToken) {
-      tokenStore.set(data.accessToken, data.refreshToken)
-      return data.accessToken as string
-    }
-    return null
-  } catch {
-    tokenStore.clear()
-    return null
-  }
-}
-
 function isRetryable(config: InternalAxiosRequestConfig) {
   return !(config as { _retried?: boolean })._retried
 }
@@ -58,10 +38,8 @@ api.interceptors.response.use(
     if (status === 401 && !isPublicPath(url) && isRetryable(config)) {
       config._retried = true
 
-      refreshPromise = refreshPromise ?? refreshAccessToken()
-
       try {
-        const newToken = await refreshPromise
+        const newToken = await tokenStore.refresh()
         if (newToken) {
           config.headers = config.headers ?? new AxiosHeaders()
           config.headers.set('Authorization', `Bearer ${newToken}`)
@@ -69,8 +47,6 @@ api.interceptors.response.use(
         }
       } catch {
         // fall through to reject
-      } finally {
-        refreshPromise = null
       }
 
       if (!tokenStore.getAccess()) {

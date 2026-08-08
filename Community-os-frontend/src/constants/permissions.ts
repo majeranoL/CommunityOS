@@ -105,6 +105,7 @@ export const PERMISSIONS = {
   documentDelete: 'document.delete',
   documentPublish: 'document.publish',
   documentArchive: 'document.archive',
+  uploadFile: 'upload.file',
 
   billingView: 'billing.view',
   billingManage: 'billing.manage',

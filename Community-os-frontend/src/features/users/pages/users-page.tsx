@@ -24,6 +24,19 @@ import { formatDate } from '@/lib/format'
 
 const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE', 'SUSPENDED'] as const
 
+function formatHousehold(
+  household: UserListItem['household'],
+): { label: string; inactive: boolean } | null {
+  if (!household) return null
+  const parts = [household.block, household.lot, household.unit, household.address].filter(
+    (part): part is string => Boolean(part),
+  )
+  return {
+    label: parts.join(', ') || 'Unnamed unit',
+    inactive: household.status !== 'ACTIVE',
+  }
+}
+
 export default function UsersPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
@@ -85,6 +98,20 @@ export default function UsersPage() {
       key: 'status',
       header: 'Status',
       cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: 'household',
+      header: 'Unit',
+      cell: (row) => {
+        const household = formatHousehold(row.household)
+        if (!household) return <span className="text-muted-foreground">—</span>
+        return (
+          <span className={household.inactive ? 'text-muted-foreground' : undefined}>
+            {household.label}
+          </span>
+        )
+      },
+      hideBelow: 'lg',
     },
     {
       key: 'createdAt',

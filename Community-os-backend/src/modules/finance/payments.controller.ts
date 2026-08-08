@@ -24,10 +24,27 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
+import { hasAnyPermission } from '../../common/utils/permissions';
+
 @Controller('payments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
+
+  private resolveScope(user: any): string | undefined {
+    const isManager = hasAnyPermission(user, [
+      'payment.create',
+      'payment.update',
+      'payment.delete',
+      'payment.confirm',
+      'payment.reject',
+      'payment.refund',
+    ]);
+
+    if (isManager) return undefined;
+
+    return user.resident?.household?.id;
+  }
 
   // ==========================================
   // Create Payment
@@ -46,7 +63,11 @@ export class PaymentsController {
   @Get()
   @Permissions('payment.view')
   findAll(@Request() req: any, @Query() query: PaymentQueryDto) {
-    return this.paymentsService.findAll(req.user.community.id, query);
+    return this.paymentsService.findAll(
+      req.user.community.id,
+      query,
+      this.resolveScope(req.user),
+    );
   }
 
   // ==========================================

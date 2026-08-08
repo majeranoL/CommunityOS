@@ -1,4 +1,4 @@
-export type EventStatus = 'DRAFT' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED'
+export type EventStatus = 'DRAFT' | 'UPCOMING' | 'PUBLISHED' | 'CANCELLED' | 'COMPLETED'
 
 export interface EventOrganizer {
   id: string

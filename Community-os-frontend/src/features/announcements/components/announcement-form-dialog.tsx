@@ -44,7 +44,7 @@ export function AnnouncementFormDialog({ open, onOpenChange, announcement }: Ann
       content: values.content,
       coverImageUrl: values.coverImageUrl || undefined,
       ...(isEdit
-        ? announcement?.status === 'DRAFT'
+        ? announcement?.status === 'DRAFT' || announcement?.status === 'REVIEW'
           ? { status: values.publish ? ('PUBLISHED' as const) : undefined }
           : {}
         : { status: values.publish ? ('PUBLISHED' as const) : ('DRAFT' as const) }),
@@ -110,7 +110,7 @@ export function AnnouncementFormDialog({ open, onOpenChange, announcement }: Ann
                 </FormItem>
               )}
             />
-            {!isEdit || announcement?.status === 'DRAFT' ? (
+            {!isEdit || announcement?.status === 'DRAFT' || announcement?.status === 'REVIEW' ? (
               <FormField
                 control={form.control}
                 name="publish"

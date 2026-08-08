@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { CalendarDays, MapPin, UserRound } from 'lucide-react'
+import { StatusBadge } from '@/components/shared/status-badge'
 import { useEvent } from '@/features/events/hooks/use-events'
 import { formatDateTime } from '@/lib/format'
 
@@ -35,9 +36,7 @@ export function EventDetailDialog({ eventId, open, onOpenChange }: EventDetailDi
               <img src={event.coverImageUrl} alt={event.title} className="h-40 w-full rounded-md object-cover" />
             ) : null}
             <div className="flex items-center gap-2">
-              <Badge variant={event.status === 'PUBLISHED' ? 'success' : event.status === 'DRAFT' ? 'secondary' : event.status === 'CANCELLED' ? 'destructive' : 'muted'}>
-                {event.status}
-              </Badge>
+              <StatusBadge status={event.status} />
               {event.endAt && new Date(event.endAt) < new Date() && event.status !== 'CANCELLED' ? (
                 <Badge variant="muted">Past</Badge>
               ) : null}

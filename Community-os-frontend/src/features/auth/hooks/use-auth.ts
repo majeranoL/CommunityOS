@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
+import { tokenStore } from '@/lib/token'
 import { useAuthStore } from '@/store/auth-store'
 import { authService, type LoginInput, type RegisterInput } from '@/features/auth/services/auth'
 
@@ -85,6 +86,7 @@ export function useSession() {
     queryFn: async () => {
       setStatus('loading')
       try {
+        await tokenStore.ensureAccessToken()
         const current = await authService.me()
         setUser(current)
         return current

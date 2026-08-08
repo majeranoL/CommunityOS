@@ -1,4 +1,4 @@
-export type AnnouncementStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+export type AnnouncementStatus = 'DRAFT' | 'REVIEW' | 'PUBLISHED' | 'ARCHIVED'
 
 export interface AnnouncementListItem {
   id: string

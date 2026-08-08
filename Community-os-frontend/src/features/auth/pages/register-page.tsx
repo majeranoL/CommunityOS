@@ -21,10 +21,12 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CommunityPicker } from '@/features/auth/components/community-picker'
 import { useRegister } from '@/features/auth/hooks/use-auth'
 import { registerSchema, type RegisterValues } from '@/features/auth/validation/register'
 import { usePageTitle } from '@/lib/use-page-title'
+import { apiErrorMessage } from '@/lib/api'
 
 export default function RegisterPage() {
   const register = useRegister()
@@ -245,6 +247,14 @@ export default function RegisterPage() {
                     )}
                   />
                 </div>
+
+                {register.error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>
+                      {apiErrorMessage(register.error, 'Registration failed. Please try again.')}
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="rounded-lg border bg-muted/40 p-4">
                   <p className="mb-3 text-sm font-medium">Your unit</p>

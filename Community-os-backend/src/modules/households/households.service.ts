@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { HouseholdStatus } from '@prisma/client';
+import { HouseholdStatus, UserStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -15,6 +15,34 @@ import { HouseholdQueryDto } from './dto/household-query.dto';
 @Injectable()
 export class HouseholdsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ==========================================
+  // Deactivate Linked Account (User status)
+  // ==========================================
+
+  private async deactivateLinkedAccounts(householdId: string) {
+    const linkedUsers = await this.prisma.user.findMany({
+      where: {
+        status: UserStatus.ACTIVE,
+        deletedAt: null,
+        resident: {
+          householdId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (linkedUsers.length === 0) return;
+
+    await this.prisma.user.updateMany({
+      where: {
+        id: { in: linkedUsers.map((user) => user.id) },
+      },
+      data: {
+        status: UserStatus.INACTIVE,
+      },
+    });
+  }
 
   // ==========================================
   // Create Household
@@ -215,6 +243,20 @@ export class HouseholdsService {
             middleName: true,
             lastName: true,
             status: true,
+            user: {
+              select: {
+                id: true,
+                referenceNumber: true,
+                firstName: true,
+                lastName: true,
+                status: true,
+                account: {
+                  select: {
+                    email: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -283,6 +325,21 @@ export class HouseholdsService {
     }
 
     // ==========================================
+    // Status Transition: ACTIVE → INACTIVE
+    // auto-deactivates the linked account
+    // ==========================================
+
+    const previousStatus = household.status;
+    const nextStatus = dto.status ?? previousStatus;
+
+    if (
+      previousStatus === HouseholdStatus.ACTIVE &&
+      nextStatus === HouseholdStatus.INACTIVE
+    ) {
+      await this.deactivateLinkedAccounts(id);
+    }
+
+    // ==========================================
     // Update Household
     // ==========================================
 
@@ -345,6 +402,10 @@ export class HouseholdsService {
 
     if (!household) {
       throw new NotFoundException('Household not found.');
+    }
+
+    if (household.status === HouseholdStatus.ACTIVE) {
+      await this.deactivateLinkedAccounts(id);
     }
 
     await this.prisma.household.update({

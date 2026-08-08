@@ -4,6 +4,7 @@ import {
   ConflictException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -252,6 +253,28 @@ export class AuthService {
     }
 
     // ==========================================
+    // Registration Gate
+    // ==========================================
+
+    const registrationSetting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId: community.id,
+          key: 'registrationMode',
+        },
+      },
+    });
+
+    const registrationMode =
+      (registrationSetting?.value as string | undefined) ?? 'OPEN';
+
+    if (registrationMode === 'CLOSED') {
+      throw new ForbiddenException(
+        'Registration is closed for this community. Contact your administrator.',
+      );
+    }
+
+    // ==========================================
     // Validate Unit Information
     // ==========================================
 
@@ -323,18 +346,68 @@ export class AuthService {
 
     const createdAccount = await this.prisma.$transaction(async (prisma) => {
       // ==========================================
-      // Find or Create Household
+      // Find or Create Household (ownership rule)
       // ==========================================
 
-      let household: { id: string } | null = null;
+      let household: { id: string; status?: HouseholdStatus } | null = null;
 
-      if (dto.block?.trim() || dto.lot?.trim() || dto.unit?.trim()) {
+      const block = dto.block?.trim();
+      const lot = dto.lot?.trim();
+
+      if (block && lot) {
+        // Ownership rule: match by block + lot (incl. soft-deleted/INACTIVE so
+        // the same household's financial history is reused on reactivation)
+        household = await prisma.household.findFirst({
+          where: {
+            communityId: community.id,
+            block,
+            lot,
+          },
+          select: { id: true, status: true },
+        });
+
+        if (household) {
+          if (household.status === HouseholdStatus.ACTIVE) {
+            // Already occupied by an active account holder?
+            const owner = await prisma.user.findFirst({
+              where: {
+                communityId: community.id,
+                status: UserStatus.ACTIVE,
+                deletedAt: null,
+                resident: {
+                  householdId: household.id,
+                },
+              },
+              select: { id: true },
+            });
+
+            if (owner) {
+              throw new ConflictException(
+                'This unit already has an account. Contact your administrator.',
+              );
+            }
+          } else {
+            // INACTIVE: reactivate the same household and reuse its history
+            await prisma.household.update({
+              where: { id: household.id },
+              data: {
+                status: HouseholdStatus.ACTIVE,
+                deletedAt: null,
+              },
+            });
+          }
+        }
+      }
+
+      // Fallback (address-only, no block+lot) or no match: match by any
+      // provided unit fields, otherwise create a new household
+      if (!household && (block || lot || dto.unit?.trim())) {
         household = await prisma.household.findFirst({
           where: {
             communityId: community.id,
             deletedAt: null,
-            ...(dto.block?.trim() ? { block: dto.block.trim() } : {}),
-            ...(dto.lot?.trim() ? { lot: dto.lot.trim() } : {}),
+            ...(block ? { block } : {}),
+            ...(lot ? { lot } : {}),
             ...(dto.unit?.trim() ? { unit: dto.unit.trim() } : {}),
           },
           select: { id: true },
@@ -345,8 +418,8 @@ export class AuthService {
         household = await prisma.household.create({
           data: {
             communityId: community.id,
-            block: dto.block?.trim() ?? null,
-            lot: dto.lot?.trim() ?? null,
+            block: block ?? null,
+            lot: lot ?? null,
             unit: dto.unit?.trim() ?? null,
             address: dto.address?.trim() ?? null,
             status: HouseholdStatus.ACTIVE,

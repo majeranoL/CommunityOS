@@ -3,9 +3,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   Building2,
+  CreditCard,
   LayoutDashboard,
   LogOut,
   Menu,
+  Settings,
   Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -27,6 +29,8 @@ import { initials } from '@/lib/format'
 const ADMIN_NAV = [
   { label: 'Overview', href: '/admin/overview', icon: LayoutDashboard },
   { label: 'Communities', href: '/admin/communities', icon: Building2 },
+  { label: 'Plans', href: '/admin/plans', icon: CreditCard },
+  { label: 'Settings', href: '/admin/settings', icon: Settings },
   { label: 'Provision', href: '/admin/communities/new', icon: Users },
 ]
 

@@ -106,7 +106,11 @@ export class AssessmentsService {
   // Get All Assessments
   // ==========================================
 
-  async findAll(communityId: string, query: AssessmentQueryDto) {
+  async findAll(
+    communityId: string,
+    query: AssessmentQueryDto,
+    scopeHouseholdId?: string,
+  ) {
     const { page, limit, search, status, householdId, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
@@ -144,7 +148,11 @@ export class AssessmentsService {
       where.status = status;
     }
 
-    if (householdId) {
+    // Household scoping: a forced scope (member sees only their own
+    // household) overrides any client-supplied household filter
+    if (scopeHouseholdId) {
+      where.householdId = scopeHouseholdId;
+    } else if (householdId) {
       where.householdId = householdId;
     }
 

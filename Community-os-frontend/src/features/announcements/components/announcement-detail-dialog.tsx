@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
+import { StatusBadge } from '@/components/shared/status-badge'
 import { useAnnouncement } from '@/features/announcements/hooks/use-announcements'
 import { formatDate } from '@/lib/format'
 
@@ -40,9 +40,7 @@ export function AnnouncementDetailDialog({ announcementId, open, onOpenChange }:
               />
             ) : null}
             <div className="flex items-center gap-2">
-              <Badge variant={announcement.status === 'PUBLISHED' ? 'success' : announcement.status === 'DRAFT' ? 'secondary' : 'muted'}>
-                {announcement.status}
-              </Badge>
+              <StatusBadge status={announcement.status} />
               <span className="text-xs text-muted-foreground">Created {formatDate(announcement.createdAt)}</span>
             </div>
             <h3 className="text-lg font-semibold">{announcement.title}</h3>

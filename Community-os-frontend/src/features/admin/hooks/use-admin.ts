@@ -3,6 +3,7 @@ import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import {
   deleteCommunity,
+  fetchAdminAnalytics,
   fetchAdminCommunities,
   fetchAdminCommunity,
   fetchAdminOverview,
@@ -16,6 +17,13 @@ export function useAdminOverview() {
   return useQuery({
     queryKey: ['admin', 'overview'],
     queryFn: fetchAdminOverview,
+  })
+}
+
+export function useAdminAnalytics() {
+  return useQuery({
+    queryKey: ['admin', 'analytics'],
+    queryFn: fetchAdminAnalytics,
   })
 }
 

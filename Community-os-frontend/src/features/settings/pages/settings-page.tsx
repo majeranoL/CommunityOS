@@ -1,11 +1,13 @@
 import { Check, Moon, Sun, Monitor } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/store/auth-store'
 import { useTheme } from '@/components/theme-provider'
+import { CommunitySettings } from '@/features/settings/components/community-settings'
 import { initials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Theme } from '@/components/theme-provider'
@@ -24,9 +26,16 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Manage your profile, account, and preferences."
+        description="Manage your profile, account, and community preferences."
       />
 
+      <Tabs defaultValue="profile">
+        <TabsList>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="community">Community</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile" className="mt-6">
       <div className="grid gap-6 lg:grid-cols-5">
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -150,6 +159,12 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="community" className="mt-6">
+          <CommunitySettings />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

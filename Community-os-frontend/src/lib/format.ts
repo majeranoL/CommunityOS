@@ -58,3 +58,17 @@ export function toTitleCase(value?: string | null) {
   if (!value) return ''
   return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
+
+export function formatFileSize(bytes?: number | null) {
+  if (bytes === null || bytes === undefined || Number.isNaN(bytes)) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function getFileExtension(value?: string | null) {
+  if (!value) return 'file'
+  const clean = value.split('?')[0].split('#')[0]
+  const last = clean.slice(clean.lastIndexOf('/') + 1)
+  return last.includes('.') ? last : 'file'
+}

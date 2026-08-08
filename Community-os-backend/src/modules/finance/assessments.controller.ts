@@ -24,10 +24,26 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
+import { hasAnyPermission } from '../../common/utils/permissions';
+
 @Controller('assessments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AssessmentsController {
   constructor(private readonly assessmentsService: AssessmentsService) {}
+
+  private resolveScope(user: any): string | undefined {
+    const isManager = hasAnyPermission(user, [
+      'assessment.create',
+      'assessment.update',
+      'assessment.delete',
+      'assessment.issue',
+      'assessment.cancel',
+    ]);
+
+    if (isManager) return undefined;
+
+    return user.resident?.household?.id;
+  }
 
   // ==========================================
   // Create Assessment
@@ -46,7 +62,11 @@ export class AssessmentsController {
   @Get()
   @Permissions('assessment.view')
   findAll(@Request() req: any, @Query() query: AssessmentQueryDto) {
-    return this.assessmentsService.findAll(req.user.community.id, query);
+    return this.assessmentsService.findAll(
+      req.user.community.id,
+      query,
+      this.resolveScope(req.user),
+    );
   }
 
   // ==========================================

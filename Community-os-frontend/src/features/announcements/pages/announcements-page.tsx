@@ -28,7 +28,7 @@ import type { Announcement, AnnouncementListItem } from '@/features/announcement
 import { formatDate } from '@/lib/format'
 import { useViewParam } from '@/lib/use-view-param'
 
-const STATUS_FILTERS = ['ALL', 'PUBLISHED', 'DRAFT', 'ARCHIVED'] as const
+const STATUS_FILTERS = ['ALL', 'PUBLISHED', 'REVIEW', 'DRAFT', 'ARCHIVED'] as const
 
 export default function AnnouncementsPage() {
   const [search, setSearch] = useState('')
@@ -106,7 +106,7 @@ export default function AnnouncementsPage() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => setDetailId(row.id)}>View</DropdownMenuItem>
-                  {row.status === 'DRAFT' && canPublish ? (
+                  {(row.status === 'DRAFT' || row.status === 'REVIEW') && canPublish ? (
                     <DropdownMenuItem
                       onClick={() => publishAnnouncement.mutate(row.id)}
                       disabled={publishAnnouncement.isPending}

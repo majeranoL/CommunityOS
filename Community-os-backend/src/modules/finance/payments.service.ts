@@ -165,7 +165,11 @@ export class PaymentsService {
   // Get All Payments
   // ==========================================
 
-  async findAll(communityId: string, query: PaymentQueryDto) {
+  async findAll(
+    communityId: string,
+    query: PaymentQueryDto,
+    scopeHouseholdId?: string,
+  ) {
     const {
       page,
       limit,
@@ -235,6 +239,14 @@ export class PaymentsService {
 
     if (residentId) {
       where.residentId = residentId;
+    }
+
+    // Household scoping: a member sees only payments from their own
+    // household's residents
+    if (scopeHouseholdId) {
+      where.resident = {
+        householdId: scopeHouseholdId,
+      };
     }
 
     const [payments, total] = await this.prisma.$transaction([

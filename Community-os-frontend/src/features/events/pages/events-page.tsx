@@ -30,7 +30,7 @@ import type { CommunityEvent } from '@/features/events/types/event'
 import { formatDate } from '@/lib/format'
 import { useViewParam } from '@/lib/use-view-param'
 
-const STATUS_FILTERS = ['ALL', 'DRAFT', 'PUBLISHED', 'COMPLETED', 'CANCELLED'] as const
+const STATUS_FILTERS = ['ALL', 'DRAFT', 'UPCOMING', 'PUBLISHED', 'COMPLETED', 'CANCELLED'] as const
 
 export default function EventsPage() {
   const [search, setSearch] = useState('')

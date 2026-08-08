@@ -15,6 +15,14 @@ export interface UserListItem {
   avatarUrl: string | null
   email: string
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  household: {
+    id: string
+    block: string | null
+    lot: string | null
+    unit: string | null
+    address: string | null
+    status: string
+  } | null
   roles: UserRoleSummary[]
   createdAt: string
   updatedAt: string

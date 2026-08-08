@@ -196,6 +196,18 @@ export interface AdminOverview {
   collectedRevenue: string | number
 }
 
+export interface AdminAnalyticsGrowthRow {
+  month: string
+  communities: number
+  users: number
+  revenue: number
+}
+
+export interface AdminAnalytics {
+  growth: AdminAnalyticsGrowthRow[]
+  subscriptionStatus: { status: string; count: number }[]
+}
+
 export interface AdminCommunity {
   id: string
   code: string

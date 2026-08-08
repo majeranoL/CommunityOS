@@ -317,6 +317,17 @@ export class ResidentService {
           block: true,
           lot: true,
 
+          household: {
+            select: {
+              id: true,
+              block: true,
+              lot: true,
+              unit: true,
+              address: true,
+              status: true,
+            },
+          },
+
           status: true,
 
           createdAt: true,
@@ -355,6 +366,17 @@ export class ResidentService {
 
         residentNumber: true,
         householdId: true,
+
+        household: {
+          select: {
+            id: true,
+            block: true,
+            lot: true,
+            unit: true,
+            address: true,
+            status: true,
+          },
+        },
 
         firstName: true,
         middleName: true,

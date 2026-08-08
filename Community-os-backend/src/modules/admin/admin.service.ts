@@ -79,6 +79,104 @@ export class AdminService {
   }
 
   // ==========================================
+  // Platform Analytics
+  // ==========================================
+
+  async analytics() {
+    const monthCount = 12;
+
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+    start.setMonth(start.getMonth() - (monthCount - 1));
+
+    const monthKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      return `${year}-${month}`;
+    };
+
+    const buckets: string[] = [];
+    const cursor = new Date(start);
+    for (let i = 0; i < monthCount; i++) {
+      buckets.push(monthKey(cursor));
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const [communities, users, paidInvoices, subscriptionStatus] =
+      await Promise.all([
+        this.prisma.community.findMany({
+          where: { deletedAt: null, createdAt: { gte: start } },
+          select: { createdAt: true },
+        }),
+        this.prisma.user.findMany({
+          where: { deletedAt: null, createdAt: { gte: start } },
+          select: { createdAt: true },
+        }),
+        this.prisma.invoice.findMany({
+          where: {
+            deletedAt: null,
+            status: InvoiceStatus.PAID,
+            createdAt: { gte: start },
+          },
+          select: { amount: true, createdAt: true },
+        }),
+        this.prisma.subscription.groupBy({
+          by: ['status'],
+          where: { deletedAt: null },
+          _count: { _all: true },
+        }),
+      ]);
+
+    const communityCounts = new Map<string, number>();
+    const userCounts = new Map<string, number>();
+    const revenueByMonth = new Map<string, number>();
+
+    for (const bucket of buckets) {
+      communityCounts.set(bucket, 0);
+      userCounts.set(bucket, 0);
+      revenueByMonth.set(bucket, 0);
+    }
+
+    for (const community of communities) {
+      const key = monthKey(community.createdAt);
+      communityCounts.set(key, (communityCounts.get(key) ?? 0) + 1);
+    }
+
+    for (const user of users) {
+      const key = monthKey(user.createdAt);
+      userCounts.set(key, (userCounts.get(key) ?? 0) + 1);
+    }
+
+    for (const invoice of paidInvoices) {
+      const key = monthKey(invoice.createdAt);
+      revenueByMonth.set(
+        key,
+        (revenueByMonth.get(key) ?? 0) + Number(invoice.amount ?? 0),
+      );
+    }
+
+    const growth = buckets.map((bucket) => ({
+      month: bucket,
+      communities: communityCounts.get(bucket) ?? 0,
+      users: userCounts.get(bucket) ?? 0,
+      revenue: revenueByMonth.get(bucket) ?? 0,
+    }));
+
+    return {
+      success: true,
+      message: 'Platform analytics retrieved successfully.',
+      data: {
+        growth,
+        subscriptionStatus: subscriptionStatus.map((row) => ({
+          status: row.status,
+          count: row._count._all,
+        })),
+      },
+    };
+  }
+
+  // ==========================================
   // List All Communities (all tenants)
   // ==========================================
 

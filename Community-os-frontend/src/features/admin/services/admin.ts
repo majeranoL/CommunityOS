@@ -1,5 +1,6 @@
 import api from '@/lib/api'
 import type {
+  AdminAnalytics,
   AdminCommunity,
   AdminCommunityDetail,
   AdminOverview,
@@ -12,6 +13,11 @@ import type {
 
 export async function fetchAdminOverview() {
   const { data } = await api.get<ApiEnvelope<AdminOverview>>('/admin/overview')
+  return data.data
+}
+
+export async function fetchAdminAnalytics() {
+  const { data } = await api.get<ApiEnvelope<AdminAnalytics>>('/admin/analytics')
   return data.data
 }
 

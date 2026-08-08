@@ -327,7 +327,12 @@ export class EventsService {
       throw new ConflictException('Event cannot be published.');
     }
 
-    return this.updateStatus(communityId, id, EventStatus.PUBLISHED);
+    const target =
+      event.startAt > new Date()
+        ? EventStatus.UPCOMING
+        : EventStatus.PUBLISHED;
+
+    return this.updateStatus(communityId, id, target);
   }
 
   // ==========================================

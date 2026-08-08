@@ -44,7 +44,7 @@ export class AuditInterceptor implements NestInterceptor {
 
           const pathSegments: string[] = (req.path ?? '')
             .split('/')
-            .filter(Boolean);
+            .filter((segment: string) => segment && segment !== 'api');
 
           const entity = pathSegments[0] ?? 'unknown';
 
