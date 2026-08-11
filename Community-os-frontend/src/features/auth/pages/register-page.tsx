@@ -40,6 +40,11 @@ export default function RegisterPage() {
   const sendOtp = useSendOtp()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [devCode, setDevCode] = useState<{
+    email: string
+    communityId: string
+    code: string
+  } | null>(null)
 
   usePageTitle('Create an account')
 
@@ -67,9 +72,11 @@ export default function RegisterPage() {
   const communityId = form.watch('communityId')
   const canSendOtp = Boolean(email && communityId && !sendOtp.isPending)
 
-  const handleSendOtp = () => {
+  const handleSendOtp = async () => {
     if (!canSendOtp) return
-    sendOtp.mutate({ email, communityId })
+    const result = await sendOtp.mutateAsync({ email, communityId })
+    const code = result.data?.devCode
+    setDevCode(code ? { email, communityId, code } : null)
   }
 
   const onSubmit = (values: RegisterValues) => {
@@ -258,9 +265,20 @@ export default function RegisterPage() {
                       {sendOtp.isPending ? 'Sending…' : 'Send code'}
                     </Button>
                   </div>
-                  <FormDescription className="mt-2">
-                    We'll email you a 6-digit code to confirm this address belongs to you.
-                  </FormDescription>
+                  {devCode && devCode.email === email && devCode.communityId === communityId ? (
+                    <div className="mt-3 rounded-md border border-dashed p-3">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Email delivery is not configured yet. Enter this code:
+                      </p>
+                      <p className="mt-1 font-mono text-2xl font-bold tracking-[0.3em]">
+                        {devCode.code}
+                      </p>
+                    </div>
+                  ) : (
+                    <FormDescription className="mt-2">
+                      We'll email you a 6-digit code to confirm this address belongs to you.
+                    </FormDescription>
+                  )}
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">

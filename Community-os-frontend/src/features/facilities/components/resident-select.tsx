@@ -12,13 +12,14 @@ interface ResidentSelectProps {
   value: string
   onChange: (value: string) => void
   disabled?: boolean
+  onSelect?: (resident: ResidentOption) => void
   useOptions?: (search: string) => {
     data?: { items: ResidentOption[] }
     isLoading: boolean
   }
 }
 
-export function ResidentSelect({ value, onChange, disabled, useOptions = useResidentOptions }: ResidentSelectProps) {
+export function ResidentSelect({ value, onChange, disabled, onSelect, useOptions = useResidentOptions }: ResidentSelectProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const { data, isLoading } = useOptions(search)
@@ -70,6 +71,7 @@ export function ResidentSelect({ value, onChange, disabled, useOptions = useResi
                 )}
                 onClick={() => {
                   onChange(resident.id)
+                  onSelect?.(resident)
                   setOpen(false)
                 }}
               >

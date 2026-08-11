@@ -31,7 +31,7 @@ export const authService = {
   },
 
   async sendOtp(input: { email: string; communityId: string }) {
-    const { data } = await api.post<ApiEnvelope<null>>('/auth/otp/send', input)
+    const { data } = await api.post<ApiEnvelope<SendOtpResult | null>>('/auth/otp/send', input)
     return data
   },
 
@@ -62,4 +62,20 @@ export const authService = {
     const { data } = await api.post<ApiEnvelope<null>>('/auth/reset-password', { token, password })
     return data
   },
+
+  async changePassword(input: ChangePasswordInput) {
+    const { data } = await api.post<ApiEnvelope<null>>('/auth/change-password', input)
+    return data
+  },
+}
+
+export interface SendOtpResult {
+  /** Present only when email delivery is not configured (dev mode). */
+  devCode?: string
+  expiresInSeconds?: number
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
 }

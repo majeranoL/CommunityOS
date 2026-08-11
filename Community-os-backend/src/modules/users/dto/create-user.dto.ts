@@ -1,5 +1,6 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -7,6 +8,8 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
+
+import { Gender } from '@prisma/client';
 
 import {
   PASSWORD_MIN_LENGTH,
@@ -48,4 +51,23 @@ export class CreateUserDto {
   @IsUUID()
   @IsNotEmpty()
   roleId!: string;
+
+  // ==========================================
+  // Resident / Household link (no ghost accounts)
+  // Exactly one of residentId / householdId is required.
+  // ==========================================
+
+  @IsOptional()
+  @IsUUID()
+  residentId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  householdId?: string;
+
+  // Used only when householdId is provided (creates a new Resident
+  // on that household using the entered details).
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
 }

@@ -177,9 +177,10 @@ Decisions: code-ready first, deploy later · few communities (single instance, n
 - [x] CI (GitHub Actions) — typecheck, lint, build, backend tests (unit + e2e), frontend tests, migration dry-run; frontend eslint/prettier config landed first (done 2026-08-11)
 
 #### Phase P4 — Reliability + code quality
-- [ ] Structured JSON logs + request-ID middleware; `/health` + `/ready`; Sentry wiring
-- [ ] Index audit on hot queries
-- [ ] Complete `.env.example` + runbooks (backup/restore, deployment checklist)
+- [x] Structured JSON logs + request-ID middleware; `/health` + `/ready` — done 2026-08-11, live on Railway (`JsonLogger` + `requestLogger` middleware with `requestId`; `/api/health` + `/api/health/ready` → 200)
+- [ ] Full Sentry wiring — `main.ts` init + `PrismaExceptionFilter` capture done; needs `@sentry/nestjs` global filter, releases, source maps, frontend project (see Post-launch plan Phase 3)
+- [ ] Index audit on hot queries (see Post-launch plan Phase 6)
+- [x] Complete `.env.example` + runbooks — done 2026-08-11 (`docs/RUNBOOKS.md` exists; SMTP/Sentry/backup-restore sections land in Post-launch plan Phase 6)
 - [x] Frontend lint config — `eslint.config.js` (tseslint + `react-hooks` recommended-latest + `react-refresh` + prettier), lint runs `0 errors` (45 pre-existing warnings) — done 2026-08-11
 
 **Explicitly deferred:** real hosting/TLS, object storage (auth-gated local disk is fine at this scale), payment gateway, queueing/Redis.
@@ -193,13 +194,69 @@ Decisions: code-ready first, deploy later · few communities (single instance, n
 - [x] **B10 — Officer-created limited renter accounts** — seed/provision system `Renter` role (restricted perms); `POST /users/renters` (gate `user.create`) creates Account (temp password + forgot-password email) + Resident + User ACTIVE + Renter role, deactivates current holder; "Assign renter" action in Household details.
 - [ ] Then **P3/P4** (frontend vitest, Playwright, CI) + original feature backlog B0–B7.
 
+### Post-launch improvement plan — Approved 2026-08-11 (deployment is live)
+Deployment status: backend live on Railway (`https://backend-production-c9f3e.up.railway.app`), frontend on Vercel (`https://community-os-red.vercel.app`), `/api` rewrite wired and verified (health + ready → 200). System usable today via platform admin + admin-created users; **self-serve registration is blocked until SMTP is set** (OTP emails are console-logged only).
+
+#### Decisions
+| # | Decision | Choice |
+|---|---|---|
+| 1 | SMTP provider | Brevo (`smtp-relay.brevo.com:587`, login + master password) |
+| 2 | Sentry | Cloud free tier — backend + frontend projects |
+| 3 | Realtime notifications | SSE (`GET /notifications/stream`); keep the 60s poll as fallback |
+| 4 | DB backups | Scheduled `pg_dump` on Railway (cron service → volume, 7-day retention); off-site R2 sync deferred |
+| 5 | Scope this pass | Everything: SMTP, OTP UX, Sentry, SSE+email notifications, UI polish, Command Menu, Events RSVP, APPROVAL mode, index audit, docs |
+
+#### Phase 0 — External accounts (BLOCKED on user input)
+- [ ] Brevo: `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` (verified sender identity)
+- [ ] Sentry: backend DSN + frontend DSN (+ auth token for Vercel source-map upload)
+
+#### Phase 1 — SMTP (Brevo)
+- [ ] Set `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASS` + `MAIL_FROM` on Railway backend
+- [ ] Harden `MailService`: email failures never break the request (try/catch + 1 retry + log + Sentry breadcrumb)
+- [ ] Branded HTML templates (platformName, button links, plain-text fallback)
+- [ ] Test-send helper; RUNBOOKS + PROGRESS updates
+- Gate: real OTP / reset / account-created emails delivered.
+
+#### Phase 2 — OTP UX + hardening
+- [x] Backend: 60s per-email resend cooldown (429 + "wait Xs"); response includes `data.expiresInSeconds`; when SMTP is NOT configured the code is returned as `data.devCode` so registration works without email — done 2026-08-11
+- [x] Registration usable WITHOUT SMTP: dev code shown inline on the register page (toast + persistent box) — done 2026-08-11
+- [x] Change password section in Settings → Profile (current + new + confirm, PASSWORD_RULE, revokes other sessions, keeps current) — added beyond original plan, done 2026-08-11
+- [ ] Frontend: 3-step register wizard — Details → Verify (email-sent screen, 6-digit OTP, auto-submit, resend + expiry countdowns, retry-able inline wrong-code error) → Pending-approval success screen (lightweight single-page version shipped first)
+- [ ] Remove duplicate error display (inline Alert + toast firing together)
+- [ ] Password visibility toggle + a11y accessible-name fix for password inputs (P3 note)
+- Gate: vitest + e2e green, live smoke.
+
+#### Phase 3 — Sentry
+- [ ] Backend: `@sentry/nestjs` global filter; `environment` + `release` from Railway commit SHA; `requestId` tag; user/community context; unhandled-rejection hook
+- [ ] Frontend: `@sentry/react` init + ErrorBoundary + `@sentry/vite-plugin` source maps (auth token as Vercel env var)
+- Gate: forced test error shows stack + source map in Sentry.
+
+#### Phase 4 — Notifications: SSE + email
+- [ ] Backend: `GET /notifications/stream` (SSE, emits on `notifyMany` + unread-count); keep REST as fallback
+- [ ] Backend: new `emailNotifications` community setting → `notifyMany` also emails when enabled + SMTP configured (event/poll reminders reuse)
+- [ ] Frontend: subscribe with reconnect/backoff, fallback to 60s poll; topbar bell badge updates live
+- Gate: two-tab live test.
+
+#### Phase 5 — UI polish + feature gaps
+- [ ] a11y/focus/contrast audit + empty/loading states + mobile pass
+- [ ] Landing page: FAQ / Contact / footer polish
+- [ ] Command Menu (Ctrl+K) — global route/nav search + quick actions
+- [ ] Events RSVP/attendee model — schema + migration + endpoints + UI + dashboard widget
+- [ ] Registration mode `APPROVAL`: OPEN → auto-approve immediately; APPROVAL → PENDING; CLOSED → block
+- Gate: per-item verify + CI green.
+
+#### Phase 6 — P4 remainder + ops + docs
+- [ ] Index audit on hot queries (`otpVerification` email+purpose, `refreshToken` token, `session` accountId, `notification` userId, `auditLog` createdAt) + migration
+- [ ] Scheduled backups: Railway cron service running `pg_dump` → volume, 7-day retention (off-site R2 deferred)
+- [ ] RUNBOOKS: SMTP (Brevo) setup, Sentry setup, backup/restore, monitoring/alerts
+- [ ] Re-enumerate the B0–B7 backlog (future capabilities) in PROGRESS.md
+
 ---
 
-## Known gaps / notes (not yet scheduled)
-- Events have no RSVP/attendee model
-- Registration gate is binary OPEN/CLOSED (no APPROVAL/pending-account workflow yet)
-- Command Menu (Ctrl+K) — concept "Later Phase 2" item, not built
-- Potential future capabilities (require explicit approval): online payments / GCash-Maya, QR visitor management, mobile apps, push notifications, advanced analytics, AI assistance, automated reports, cloud file storage
+## Known gaps / notes
+- Scheduled in the Post-launch plan (Phase 5): Events RSVP/attendee model · Command Menu (Ctrl+K) · registration-mode APPROVAL
+- Future capabilities (deferred; require explicit approval): online payments / GCash-Maya, QR visitor management, mobile apps, push notifications, advanced analytics, AI assistance, automated reports, cloud file storage
+- Backlog B0–B7: referenced in the B8–B13 batch but never enumerated — re-enumerate in Post-launch Phase 6
 
 ---
 
@@ -434,8 +491,20 @@ Decisions: code-ready first, deploy later · few communities (single instance, n
 - Extended `.github/workflows/ci.yml` (was backend-only lint/build/test/docker) to the full approved P3 scope. All jobs Node 22 + `npm ci` (cached per project lockfile). Jobs: `backend-lint` (prisma generate + `eslint src test` **without** `--fix`), `backend-build` (prisma generate + `tsc --noEmit` + `nest build`), `backend-unit` (`npm test -- --runInBand`), `backend-e2e` (**Postgres 16 service container**; `DATABASE_URL` set; `setup-test-db.ts` auto-creates `community_os_test` on the `/postgres` maintenance DB), `migration` (`prisma validate` + `prisma migrate diff --from-empty --to-schema-datamodel ... --script` dry-run), `frontend` (lint + `vitest run` + `tsc && vite build`), `docker` (unchanged, now `needs: [backend-lint, backend-build, backend-unit]`). Added `concurrency: cancel-in-progress`. Backend jobs set a dummy `DATABASE_URL` env (prisma requires the datasource var resolvable).
 - Verified every CI command locally first: backend eslint/tsc/unit/e2e green, `prisma validate` + `migrate diff` exit 0, frontend lint + `vitest run` 10/10 + build green; workflow YAML parses (js-yaml).
 
+### 2026-08-11 — Deployment live + Post-launch improvement plan recorded (docs only; no code changed)
+- Deployment completed and verified: backend on Railway (`https://backend-production-c9f3e.up.railway.app`) — `/api/health`, `/api/health/ready` (`database: up`), `/api/docs` all 200; frontend on Vercel (`https://community-os-red.vercel.app`); `vercel.json` `/api` rewrite → Railway verified end-to-end. Postgres migrations (26) + seed applied, `SEED_DB` set back to `false`; `CORS_ORIGINS` + `APP_URL` = frontend URL; uploads volume mounted at `/app/uploads`.
+- Recorded the approved **Post-launch improvement plan** in the Todo section (Phases 0–6: SMTP/Brevo, OTP UX, Sentry, SSE+email notifications, UI polish + Command Menu/RSVP/APPROVAL mode, P4 remainder + backups + docs). Decisions locked: Brevo SMTP, Sentry cloud free tier, SSE realtime (60s poll fallback), scheduled `pg_dump` backups, "everything" scope.
+- Synced P4 todos: structured JSON logs + request-ID + `/health` + `/ready` and `.env.example` + runbooks marked `[x]`; Sentry wiring + index audit re-scoped into the Post-launch plan.
+- Known gaps section updated: RSVP / Command Menu / APPROVAL mode now scheduled (Phase 5); B0–B7 noted as never-enumerated (re-enumerate in Phase 6).
+- **Blocked on user input (Phase 0):** Brevo SMTP creds (`SMTP_USER`/`SMTP_PASS`/`MAIL_FROM`) + Sentry DSNs (backend + frontend, plus auth token for Vercel source maps). Until SMTP is set, self-serve registration stays console-log-only; platform-admin + admin-created users remain the working login path.
+
+### 2026-08-11 — Registration usable without SMTP + Change password (done)
+- **SMTP-independent registration:** backend `mail.service.ts` gained `isConfigured` getter. `auth.service.ts sendRegistrationOtp()` now enforces a **60s per-email resend cooldown** (latest OTP row; within cooldown → 429 with "Please wait Xs…") and, when email delivery is NOT configured, returns the generated code as `data.devCode` (plus `data.expiresInSeconds`) — self-serve registration works with no SMTP. When SMTP is configured the code is never exposed.
+- **Change password:** new `POST /auth/change-password` (`JwtAuthGuard`; `ChangePasswordDto` enforces `PASSWORD_RULE`) → `auth.service.changePassword()`: bcrypt-verifies the current password, rejects new == current, persists the new hash, and revokes **all other** refresh tokens (keeps the current session via the refresh cookie) so other devices are signed out.
+- Frontend `auth.ts`: `sendOtp` typed `ApiEnvelope<SendOtpResult | null>`; added `changePassword()`. `use-auth.ts`: `useSendOtp` toasts the dev code when present; added `useChangePassword`. `register-page.tsx`: the returned dev code is shown inline (persistent box) in the OTP section when email isn't configured.
+- Frontend new `features/settings/components/change-password-form.tsx` + `validation/change-password.ts` (current/new/confirm, show-password toggles, strength rules, mismatch refine) wired as a "Password" card at the top of Settings → Profile's right column; form resets on success.
+- Verified: backend `tsc --noEmit` + `nest build` clean, unit 29/29; frontend `tsc --noEmit` clean, eslint 0 errors (45 pre-existing warnings), `vitest run` 10/10, `vite build` OK. Not pushed yet — deployment pending.
 
 
-always read this md and add todo and progress here 
 
 always read this md and add todo and progress here 

@@ -4,7 +4,7 @@ import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import { tokenStore } from '@/lib/token'
 import { useAuthStore } from '@/store/auth-store'
-import { authService, type LoginInput, type RegisterInput } from '@/features/auth/services/auth'
+import { authService, type LoginInput, type RegisterInput, type ChangePasswordInput } from '@/features/auth/services/auth'
 function useRedirectAfterAuth() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -53,11 +53,27 @@ export function useRegister() {
 export function useSendOtp() {
   return useMutation({
     mutationFn: (input: { email: string; communityId: string }) => authService.sendOtp(input),
-    onSuccess: () => {
-      toast.success('Verification code sent to your email.')
+    onSuccess: (data) => {
+      if (data.data?.devCode) {
+        toast.success(`Email delivery is off — your code: ${data.data.devCode}`)
+      } else {
+        toast.success('Verification code sent to your email.')
+      }
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Could not send the verification code.'))
+    },
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (input: ChangePasswordInput) => authService.changePassword(input),
+    onSuccess: () => {
+      toast.success('Password changed successfully.')
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Could not change your password.'))
     },
   })
 }

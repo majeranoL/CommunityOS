@@ -31,6 +31,10 @@ export class MailService {
     });
   }
 
+  get isConfigured(): boolean {
+    return this.transporter !== null;
+  }
+
   private async send(to: string, subject: string, html: string) {
     if (!this.transporter) {
       this.logger.log(`[DEV] Email to ${to} — subject: "${subject}"`);

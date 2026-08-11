@@ -1,5 +1,6 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
@@ -155,6 +156,127 @@ export class UsersService {
     }
 
     // ==========================================
+    // Resolve Resident / Household link
+    // (every account must be linked so there are
+    // no ghost accounts with no unit)
+    // ==========================================
+
+    if (dto.residentId && dto.householdId) {
+      throw new BadRequestException(
+        'Link the account to either an existing resident or a household, not both.',
+      );
+    }
+
+    if (!dto.residentId && !dto.householdId) {
+      throw new BadRequestException(
+        'Link the account to a resident or a household.',
+      );
+    }
+
+    let residentId: string | null = null;
+    let householdId: string | null = null;
+    let newResidentNumber: string | null = null;
+
+    const names: {
+      firstName: string;
+      middleName: string | null;
+      lastName: string;
+    } = {
+      firstName: dto.firstName,
+      middleName: dto.middleName ?? null,
+      lastName: dto.lastName,
+    };
+
+    if (dto.residentId) {
+      const resident = await this.prisma.resident.findFirst({
+        where: {
+          id: dto.residentId,
+          communityId,
+          deletedAt: null,
+        },
+        include: {
+          user: {
+            select: { id: true },
+          },
+        },
+      });
+
+      if (!resident) {
+        throw new NotFoundException('Resident not found.');
+      }
+
+      if (resident.user) {
+        throw new ConflictException(
+          'This resident is already linked to an account.',
+        );
+      }
+
+      residentId = resident.id;
+
+      // The resident registry is the source of truth — the account
+      // takes the resident's name and contact details.
+      names.firstName = resident.firstName;
+      names.middleName = resident.middleName;
+      names.lastName = resident.lastName;
+      dto.phoneNumber = dto.phoneNumber?.trim() || resident.phoneNumber || undefined;
+    } else {
+      const household = await this.prisma.household.findFirst({
+        where: {
+          id: dto.householdId,
+          communityId,
+          deletedAt: null,
+        },
+      });
+
+      if (!household) {
+        throw new NotFoundException('Household not found.');
+      }
+
+      // 1-account-per-household: refuse to create a second holder
+      // on a unit that already has one.
+      const existingHolder = await this.prisma.user.findFirst({
+        where: {
+          status: { in: [UserStatus.ACTIVE, UserStatus.PENDING] },
+          deletedAt: null,
+          resident: {
+            householdId: household.id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingHolder) {
+        throw new ConflictException(
+          'This household already has an account holder. Link the new account to the existing resident, or use "Assign renter" to replace the holder.',
+        );
+      }
+
+      householdId = household.id;
+
+      const latestResident = await this.prisma.resident.findFirst({
+        where: {
+          communityId,
+        },
+        orderBy: {
+          residentNumber: 'desc',
+        },
+        select: {
+          residentNumber: true,
+        },
+      });
+
+      newResidentNumber = 'RES-000001';
+
+      if (latestResident) {
+        const latestNumber = Number(
+          latestResident.residentNumber.replace('RES-', ''),
+        );
+
+        newResidentNumber = `RES-${String(latestNumber + 1).padStart(6, '0')}`;
+      }
+    }
+
+    // ==========================================
     // Hash Password
     // ==========================================
 
@@ -167,16 +289,31 @@ export class UsersService {
     // Generate User Reference Number
     // ==========================================
 
-    const totalUsers = await this.prisma.user.count({
+    const latestUser = await this.prisma.user.findFirst({
       where: {
         communityId,
       },
+      orderBy: {
+        referenceNumber: 'desc',
+      },
+      select: {
+        referenceNumber: true,
+      },
     });
 
-    const referenceNumber = `USR-${String(totalUsers + 1).padStart(6, '0')}`;
+    let referenceNumber = 'USR-000001';
+
+    if (latestUser) {
+      const latestNumber = Number(
+        latestUser.referenceNumber.replace('USR-', ''),
+      );
+
+      referenceNumber = `USR-${String(latestNumber + 1).padStart(6, '0')}`;
+    }
 
     // ==========================================
-    // Create Account + User + User Role
+    // Create Account + Resident (when linking a
+    // household) + User + User Role
     // ==========================================
 
     const user = await this.prisma.$transaction(async (prisma) => {
@@ -188,16 +325,38 @@ export class UsersService {
         },
       });
 
+      let createdResidentId: string | null = residentId;
+
+      if (householdId && newResidentNumber) {
+        const resident = await prisma.resident.create({
+          data: {
+            communityId,
+            residentNumber: newResidentNumber,
+            householdId,
+            firstName: names.firstName,
+            middleName: names.middleName,
+            lastName: names.lastName,
+            phoneNumber: dto.phoneNumber,
+            email: dto.email,
+            gender: dto.gender ?? null,
+            status: ResidentStatus.ACTIVE,
+          },
+        });
+
+        createdResidentId = resident.id;
+      }
+
       const createdUser = await prisma.user.create({
         data: {
           accountId: account.id,
           communityId,
 
+          residentId: createdResidentId,
           referenceNumber,
 
-          firstName: dto.firstName,
-          middleName: dto.middleName,
-          lastName: dto.lastName,
+          firstName: names.firstName,
+          middleName: names.middleName,
+          lastName: names.lastName,
 
           phoneNumber: dto.phoneNumber,
           avatarUrl: dto.avatarUrl,

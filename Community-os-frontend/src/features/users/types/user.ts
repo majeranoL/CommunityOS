@@ -44,6 +44,9 @@ export interface CreateUserInput {
   lastName: string
   phoneNumber?: string
   roleId: string
+  residentId?: string
+  householdId?: string
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'
 }
 
 export interface CreateRenterInput {

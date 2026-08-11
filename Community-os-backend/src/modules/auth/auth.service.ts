@@ -5,6 +5,8 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
@@ -227,6 +229,7 @@ export class AuthService {
 
   private static readonly OTP_TTL_MS = 10 * 60 * 1000;
   private static readonly OTP_MAX_ATTEMPTS = 5;
+  private static readonly OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
   async sendRegistrationOtp(dto: SendOtpDto) {
     const email = dto.email.trim().toLowerCase();
@@ -242,6 +245,34 @@ export class AuthService {
 
     if (existing) {
       throw new ConflictException('Email is already registered.');
+    }
+
+    const latest = await this.prisma.otpVerification.findFirst({
+      where: {
+        email,
+        purpose: OtpPurpose.REGISTER,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    if (latest) {
+      const elapsedMs = Date.now() - latest.createdAt.getTime();
+
+      if (elapsedMs < AuthService.OTP_RESEND_COOLDOWN_MS) {
+        const waitSeconds = Math.ceil(
+          (AuthService.OTP_RESEND_COOLDOWN_MS - elapsedMs) / 1000,
+        );
+
+        throw new HttpException(
+          `Please wait ${waitSeconds}s before requesting a new code.`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
     }
 
     await this.prisma.otpVerification.updateMany({
@@ -272,9 +303,25 @@ export class AuthService {
 
     await this.mailService.sendRegistrationOtpEmail(email, name, code, 10);
 
+    const data: { devCode?: string; expiresInSeconds: number } = {
+      expiresInSeconds: AuthService.OTP_TTL_MS / 1000,
+    };
+
+    if (!this.mailService.isConfigured) {
+      data.devCode = code;
+
+      return {
+        success: true,
+        message:
+          'Email delivery is not configured. Use the code below to complete your registration.',
+        data,
+      };
+    }
+
     return {
       success: true,
       message: 'A one-time verification code has been sent to your email.',
+      data,
     };
   }
 
@@ -867,6 +914,72 @@ export class AuthService {
     return {
       success: true,
       message: 'Logged out successfully.',
+    };
+  }
+
+  // ==========================================
+  // Change Password
+  // ==========================================
+
+  async changePassword(
+    accountId: string,
+    currentPassword: string,
+    newPassword: string,
+    currentRefreshToken?: string,
+  ) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { passwordHash: true },
+    });
+
+    if (!account) {
+      throw new UnauthorizedException('Account not found');
+    }
+
+    const currentIsValid = await bcrypt.compare(
+      currentPassword,
+      account.passwordHash,
+    );
+
+    if (!currentIsValid) {
+      throw new UnauthorizedException('Current password is incorrect.');
+    }
+
+    const isSame = await bcrypt.compare(newPassword, account.passwordHash);
+
+    if (isSame) {
+      throw new BadRequestException(
+        'New password must be different from the current one.',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(
+      newPassword,
+      Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+    );
+
+    // Revoke every other refresh token so other devices are signed out,
+    // while the current session stays logged in.
+    await this.prisma.$transaction([
+      this.prisma.account.update({
+        where: { id: accountId },
+        data: { passwordHash },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: {
+          accountId,
+          revokedAt: null,
+          ...(currentRefreshToken
+            ? { token: { not: this.hashToken(currentRefreshToken) } }
+            : {}),
+        },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Password changed successfully. Other sessions were signed out.',
     };
   }
 

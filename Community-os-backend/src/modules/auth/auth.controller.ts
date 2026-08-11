@@ -5,6 +5,7 @@ import { RegisterDto } from './dto/register.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../../common/guards/csrf.guard';
 import {
@@ -110,6 +111,19 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  changePassword(@Request() req: any, @Body() dto: ChangePasswordDto) {
+    const refreshToken = getRefreshToken(req);
+
+    return this.authService.changePassword(
+      req.user.account.id,
+      dto.currentPassword,
+      dto.newPassword,
+      refreshToken,
+    );
   }
 
   @Get('me')

@@ -19,7 +19,7 @@ import { useHouseholds } from '@/features/households/hooks/use-households'
 import { HouseholdFormDialog } from '@/features/households/components/household-form-dialog'
 import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
 import type { HouseholdListItem } from '@/features/households/types/household'
-import { formatDate } from '@/lib/format'
+import { formatCurrency, formatDate } from '@/lib/format'
 
 const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE'] as const
 
@@ -79,6 +79,22 @@ export default function HouseholdsPage() {
       key: 'status',
       header: 'Status',
       cell: (row) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: 'standing',
+      header: 'Standing',
+      cell: (row) =>
+        row.finance ? (
+          <div className="space-y-0.5">
+            <StatusBadge status={row.finance.standing} />
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(row.finance.outstanding)} outstanding
+            </p>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+      hideBelow: 'md',
     },
     {
       key: 'createdAt',

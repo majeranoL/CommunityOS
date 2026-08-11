@@ -4,13 +4,28 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { HouseholdStatus, UserStatus } from '@prisma/client';
+import {
+  AssessmentStatus,
+  HouseholdStatus,
+  PaymentStatus,
+  UserStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
+
+type HouseholdStanding = 'GOOD' | 'WATCH' | 'BAD';
+
+export interface HouseholdFinanceSummary {
+  totalBilled: number;
+  totalPaid: number;
+  outstanding: number;
+  monthsBehind: number;
+  standing: HouseholdStanding;
+}
 
 @Injectable()
 export class HouseholdsService {
@@ -42,6 +57,115 @@ export class HouseholdsService {
         status: UserStatus.INACTIVE,
       },
     });
+  }
+
+  // ==========================================
+  // Finance summary per household
+  // (billed / paid / outstanding / standing)
+  // ==========================================
+
+  private async financeSummary(
+    communityId: string,
+    householdIds: string[],
+  ): Promise<Map<string, HouseholdFinanceSummary>> {
+    const [assessments, payments] = await this.prisma.$transaction([
+      this.prisma.assessment.findMany({
+        where: {
+          communityId,
+          householdId: { in: householdIds },
+          deletedAt: null,
+          status: {
+            notIn: [
+              AssessmentStatus.DRAFT,
+              AssessmentStatus.CANCELLED,
+            ],
+          },
+        },
+        select: {
+          householdId: true,
+          amount: true,
+          dueDate: true,
+          status: true,
+        },
+      }),
+      this.prisma.payment.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: PaymentStatus.CONFIRMED,
+          assessment: {
+            householdId: { in: householdIds },
+            deletedAt: null,
+          },
+        },
+        select: {
+          amount: true,
+          assessment: {
+            select: {
+              householdId: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const summary = new Map<string, HouseholdFinanceSummary>();
+
+    for (const id of householdIds) {
+      summary.set(id, {
+        totalBilled: 0,
+        totalPaid: 0,
+        outstanding: 0,
+        monthsBehind: 0,
+        standing: 'GOOD',
+      });
+    }
+
+    const now = new Date();
+    const overdueMonths = new Map<string, Set<string>>();
+
+    for (const assessment of assessments) {
+      const entry = summary.get(assessment.householdId);
+      if (!entry) continue;
+
+      entry.totalBilled += assessment.amount.toNumber();
+
+      const isUnpaid =
+        assessment.status === AssessmentStatus.ISSUED ||
+        assessment.status === AssessmentStatus.PARTIALLY_PAID ||
+        assessment.status === AssessmentStatus.OVERDUE;
+
+      if (isUnpaid && assessment.dueDate < now) {
+        const key = `${assessment.dueDate.getFullYear()}-${assessment.dueDate.getMonth()}`;
+
+        if (!overdueMonths.has(assessment.householdId)) {
+          overdueMonths.set(assessment.householdId, new Set());
+        }
+
+        overdueMonths.get(assessment.householdId)!.add(key);
+      }
+    }
+
+    for (const payment of payments) {
+      const entry = summary.get(payment.assessment.householdId);
+      if (entry) {
+        entry.totalPaid += payment.amount.toNumber();
+      }
+    }
+
+    for (const [householdId, entry] of summary) {
+      entry.outstanding = entry.totalBilled - entry.totalPaid;
+      entry.monthsBehind = overdueMonths.get(householdId)?.size ?? 0;
+
+      entry.standing =
+        entry.monthsBehind >= 3
+          ? 'BAD'
+          : entry.monthsBehind >= 1
+            ? 'WATCH'
+            : 'GOOD';
+    }
+
+    return summary;
   }
 
   // ==========================================
@@ -193,6 +317,11 @@ export class HouseholdsService {
       }),
     ]);
 
+    const finance = await this.financeSummary(
+      communityId,
+      households.map((household) => household.id),
+    );
+
     return {
       success: true,
       message: 'Households retrieved successfully.',
@@ -200,6 +329,7 @@ export class HouseholdsService {
         ...household,
         residentCount: household._count.residents,
         _count: undefined,
+        finance: finance.get(household.id),
       })),
 
       pagination: {
@@ -259,6 +389,40 @@ export class HouseholdsService {
             },
           },
         },
+
+        assessments: {
+          where: {
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            assessmentNumber: true,
+            title: true,
+            period: true,
+            amount: true,
+            paidAmount: true,
+            dueDate: true,
+            status: true,
+            payments: {
+              where: {
+                deletedAt: null,
+              },
+              select: {
+                id: true,
+                paymentNumber: true,
+                amount: true,
+                paymentDate: true,
+                status: true,
+              },
+              orderBy: {
+                paymentDate: 'desc',
+              },
+            },
+          },
+          orderBy: {
+            dueDate: 'desc',
+          },
+        },
       },
     });
 
@@ -266,10 +430,15 @@ export class HouseholdsService {
       throw new NotFoundException('Household not found.');
     }
 
+    const finance = (await this.financeSummary(communityId, [id])).get(id);
+
     return {
       success: true,
       message: 'Household retrieved successfully.',
-      data: household,
+      data: {
+        ...household,
+        finance,
+      },
     };
   }
 

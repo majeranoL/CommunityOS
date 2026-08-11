@@ -22,7 +22,8 @@ import {
 import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { initials } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import { formatCurrency, formatDate, initials } from '@/lib/format'
 import type { HouseholdDetail } from '@/features/households/types/household'
 
 interface HouseholdDetailsDialogProps {
@@ -127,6 +128,87 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                     </Button>
                   ) : null}
                 </div>
+              )}
+            </div>
+
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h4 className="text-sm font-medium">Billing & payments</h4>
+                {household.finance ? (
+                  <StatusBadge status={household.finance.standing} />
+                ) : null}
+              </div>
+
+              {household.finance ? (
+                <>
+                  <div className="grid grid-cols-3 gap-2 rounded-lg border p-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Billed</p>
+                      <p className="font-medium">
+                        {formatCurrency(household.finance.totalBilled)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Paid</p>
+                      <p className="font-medium">
+                        {formatCurrency(household.finance.totalPaid)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Outstanding</p>
+                      <p
+                        className={cn(
+                          'font-medium',
+                          household.finance.outstanding > 0
+                            ? 'text-destructive'
+                            : 'text-success',
+                        )}
+                      >
+                        {formatCurrency(household.finance.outstanding)}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {household.finance.monthsBehind === 0
+                      ? 'Up to date with assessments.'
+                      : `${household.finance.monthsBehind} month${
+                          household.finance.monthsBehind === 1 ? '' : 's'
+                        } behind on payments.`}
+                  </p>
+                </>
+              ) : null}
+
+              {household.assessments.length ? (
+                <ul className="mt-3 space-y-2">
+                  {household.assessments.map((assessment) => (
+                    <li key={assessment.id} className="rounded-lg border p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {assessment.title || assessment.assessmentNumber}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {assessment.assessmentNumber} ·{' '}
+                            {assessment.period ?? formatDate(assessment.dueDate)}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-sm font-medium">
+                            {formatCurrency(assessment.amount)}
+                          </span>
+                          <StatusBadge status={assessment.status} />
+                        </div>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Paid {formatCurrency(assessment.paidAmount)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No assessments recorded for this unit yet.
+                </p>
               )}
             </div>
 

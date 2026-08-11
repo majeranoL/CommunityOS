@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { useAuthStore } from '@/store/auth-store'
 import { useTheme } from '@/components/theme-provider'
 import { CommunitySettings } from '@/features/settings/components/community-settings'
+import { ChangePasswordForm } from '@/features/settings/components/change-password-form'
 import { initials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Theme } from '@/components/theme-provider'
@@ -103,6 +104,8 @@ export default function SettingsPage() {
         </Card>
 
         <div className="space-y-6 lg:col-span-3">
+          <ChangePasswordForm />
+
           <Card>
             <CardHeader>
               <CardTitle>Appearance</CardTitle>
