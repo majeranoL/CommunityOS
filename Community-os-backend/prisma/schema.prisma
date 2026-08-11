@@ -15,13 +15,14 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+  PENDING
+  REJECTED
 }
 
 enum ResidentStatus {
   ACTIVE
   INACTIVE
   MOVED_OUT
-  DECEASED
 }
 
 enum Gender {
@@ -221,12 +222,6 @@ enum DocumentStatus {
   ARCHIVED
 }
 
-enum MessageStatus {
-  SENT
-  DELIVERED
-  READ
-}
-
 enum EventStatus {
   DRAFT
   UPCOMING
@@ -311,7 +306,6 @@ model Community {
   assessments   Assessment[]
   payments      Payment[]
   documents     Document[]
-  messages      Message[]
   events        Event[]
   notifications Notification[]
   subscription  Subscription?
@@ -319,6 +313,7 @@ model Community {
   polls         Poll[]
   auditLogs     AuditLog[]
   settings      Setting[]
+  uploads       Upload[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -342,6 +337,9 @@ model Account {
 
   status AccountStatus @default(PENDING)
 
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   user User?
 
   sessions      Session[]
@@ -353,6 +351,28 @@ model Account {
 
   @@index([email])
   @@index([status])
+}
+
+/////////////////////////////////////////////////////
+// OTP VERIFICATION
+/////////////////////////////////////////////////////
+
+enum OtpPurpose {
+  REGISTER
+}
+
+model OtpVerification {
+  id     String     @id @default(uuid()) @db.Uuid
+  email  String     @db.VarChar(255)
+  purpose OtpPurpose @default(REGISTER)
+  code   String     @db.VarChar(64)
+  expiresAt DateTime
+  consumedAt DateTime?
+  attempts Int       @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
 }
 
 /////////////////////////////////////////////////////
@@ -388,13 +408,12 @@ model User {
   assignedComplaints Complaint[]    @relation("ComplaintAssignedTo")
   notifications      Notification[]
 
-  sentMessages      Message[]  @relation("MessageSender")
-  receivedMessages  Message[]  @relation("MessageRecipient")
   uploadedDocuments Document[]
   organizedEvents   Event[]
   createdPolls      Poll[]     @relation("PollCreatedBy")
   pollVotes         PollVote[]
   auditLogs         AuditLog[]
+  uploads           Upload[]
   updatedSettings        Setting[]         @relation("SettingUpdatedBy")
   updatedPlatformSettings PlatformSetting[] @relation("PlatformSettingUpdatedBy")
 
@@ -610,6 +629,8 @@ model Resident {
   /////////////////////////////////////////////////////
 
   status ResidentStatus @default(ACTIVE)
+
+  movedOutAt DateTime?
 
   /////////////////////////////////////////////////////
   // AUDIT
@@ -1075,40 +1096,6 @@ model Document {
 }
 
 /////////////////////////////////////////////////////
-// MESSAGE
-/////////////////////////////////////////////////////
-
-model Message {
-  id String @id @default(uuid()) @db.Uuid
-
-  communityId String    @db.Uuid
-  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
-
-  senderId String @db.Uuid
-  sender   User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-
-  recipientId String? @db.Uuid
-  recipient   User?   @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
-
-  subject String @db.VarChar(200)
-  body    String
-
-  status MessageStatus @default(SENT)
-
-  sentAt DateTime?
-  readAt DateTime?
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([communityId])
-  @@index([senderId])
-  @@index([recipientId])
-  @@index([status])
-}
-
-/////////////////////////////////////////////////////
 // EVENT
 /////////////////////////////////////////////////////
 
@@ -1403,4 +1390,31 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 
   @@index([group])
+}
+
+/////////////////////////////////////////////////////
+// UPLOAD
+/////////////////////////////////////////////////////
+
+model Upload {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  uploadedById String @db.Uuid
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  module       String @default("document") @db.VarChar(50)
+  access       String @default("private") @db.VarChar(20)
+  filename     String @db.VarChar(255)
+  originalName String @db.VarChar(255)
+  mimetype     String @db.VarChar(100)
+  size         Int
+
+  createdAt DateTime @default(now())
+
+  @@index([communityId])
+  @@index([uploadedById])
+  @@index([communityId, createdAt])
 }

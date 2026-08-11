@@ -6,6 +6,8 @@ export interface LoginInput {
   password: string
 }
 
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
+
 export interface RegisterInput {
   firstName: string
   middleName?: string
@@ -18,6 +20,8 @@ export interface RegisterInput {
   lot?: string
   unit?: string
   address?: string
+  gender?: Gender
+  otpCode: string
 }
 
 export const authService = {
@@ -26,9 +30,14 @@ export const authService = {
     return data.data
   },
 
+  async sendOtp(input: { email: string; communityId: string }) {
+    const { data } = await api.post<ApiEnvelope<null>>('/auth/otp/send', input)
+    return data
+  },
+
   async register(input: RegisterInput) {
-    const { data } = await api.post<ApiEnvelope<Session>>('/auth/register', input)
-    return data.data
+    const { data } = await api.post<ApiEnvelope<null>>('/auth/register', input)
+    return data
   },
 
   async me() {

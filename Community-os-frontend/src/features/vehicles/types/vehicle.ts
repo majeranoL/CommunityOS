@@ -1,4 +1,5 @@
-export type VehicleType = 'CAR' | 'MOTORCYCLE' | 'TRUCK' | 'VAN' | 'BICYCLE' | 'OTHER'
+export type VehicleType =
+  'CAR' | 'MOTORCYCLE' | 'TRUCK' | 'VAN' | 'BICYCLE' | 'OTHER'
 export type VehicleStatus = 'ACTIVE' | 'INACTIVE'
 
 export interface VehicleResidentRef {
@@ -32,4 +33,4 @@ export interface CreateVehicleInput {
   status?: VehicleStatus
 }
 
-export interface UpdateVehicleInput extends Partial<CreateVehicleInput> {}
+export type UpdateVehicleInput = Partial<CreateVehicleInput>

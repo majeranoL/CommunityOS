@@ -7,7 +7,6 @@ import {
   EventStatus,
   FacilityStatus,
   MaintenanceStatus,
-  MessageStatus,
   PaymentStatus,
   ReservationStatus,
   VisitorStatus,
@@ -27,7 +26,7 @@ export class DashboardService {
   // Overview
   // ==========================================
 
-  async overview(communityId: string, userId: string) {
+  async overview(communityId: string) {
     const now = new Date();
 
     const startOfMonth = new Date(
@@ -52,7 +51,6 @@ export class DashboardService {
       assessmentAgg,
       monthlyCollected,
       pendingPayments,
-      unreadMessages,
     ] = await this.prisma.$transaction([
       this.prisma.household.count({
         where: { communityId, deletedAt: null },
@@ -168,18 +166,6 @@ export class DashboardService {
           status: PaymentStatus.PENDING,
         },
       }),
-
-      this.prisma.message.count({
-        where: {
-          communityId,
-          deletedAt: null,
-          status: { not: MessageStatus.READ },
-          OR: [
-            { recipientId: userId },
-            { recipientId: null, senderId: { not: userId } },
-          ],
-        },
-      }),
     ]);
 
     const assessmentStatusCounts = await this.prisma.assessment.groupBy({
@@ -291,8 +277,6 @@ export class DashboardService {
             ...statusCounts,
           },
         },
-
-        unreadMessages,
 
         upcomingEvents,
 

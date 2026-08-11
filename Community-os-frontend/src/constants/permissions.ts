@@ -80,11 +80,6 @@ export const PERMISSIONS = {
   notificationView: 'notification.view',
   notificationUpdate: 'notification.update',
 
-  messageCreate: 'message.create',
-  messageView: 'message.view',
-  messageUpdate: 'message.update',
-  messageDelete: 'message.delete',
-
   facilityView: 'facility.view',
   facilityCreate: 'facility.create',
   facilityUpdate: 'facility.update',

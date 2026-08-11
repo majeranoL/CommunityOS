@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { EventStatus } from '@prisma/client';
+import { EventStatus, NotificationType } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -15,7 +17,10 @@ import { EventQueryDto } from './dto/event-query.dto';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private validateTimeRange(startAt: Date, endAt?: Date) {
     if (isNaN(startAt.getTime())) {
@@ -328,11 +333,39 @@ export class EventsService {
     }
 
     const target =
-      event.startAt > new Date()
-        ? EventStatus.UPCOMING
-        : EventStatus.PUBLISHED;
+      event.startAt > new Date() ? EventStatus.UPCOMING : EventStatus.PUBLISHED;
 
-    return this.updateStatus(communityId, id, target);
+    const published = await this.updateStatus(communityId, id, target);
+
+    const remindersSetting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'eventReminders',
+        },
+      },
+    });
+
+    const remindersEnabled =
+      (remindersSetting?.value as boolean | undefined) ?? true;
+
+    if (remindersEnabled) {
+      const userIds = await this.notifications.userIdsWithPermission(
+        communityId,
+        'event.view',
+      );
+
+      await this.notifications.notifyMany(
+        communityId,
+        userIds,
+        NotificationType.EVENT,
+        `Upcoming event: ${event.title}`,
+        event.description ?? 'A new event has been published.',
+        `/events/${event.id}`,
+      );
+    }
+
+    return published;
   }
 
   // ==========================================

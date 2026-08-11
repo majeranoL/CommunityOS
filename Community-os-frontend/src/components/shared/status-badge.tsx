@@ -26,6 +26,7 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   SUSPENDED: 'destructive',
   ARCHIVED: 'muted',
   INACTIVE: 'muted',
+  MOVED_OUT: 'muted',
   DISABLED: 'muted',
   AVAILABLE: 'success',
   MAINTENANCE: 'warning',
@@ -48,7 +49,10 @@ export function StatusBadge({
   status,
   variant,
   ...props
-}: { status: string; variant?: BadgeProps['variant'] } & HTMLAttributes<HTMLDivElement>) {
+}: {
+  status: string
+  variant?: BadgeProps['variant']
+} & HTMLAttributes<HTMLDivElement>) {
   const resolved = variant ?? STATUS_VARIANTS[status] ?? 'secondary'
   return (
     <Badge variant={resolved} {...props}>

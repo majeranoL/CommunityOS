@@ -7,7 +7,7 @@ export type AuthStatus = 'idle' | 'loading' | 'authenticated' | 'unauthenticated
 type AuthState = {
   user: SessionUser | null
   status: AuthStatus
-  setSession: (session: { user: SessionUser; accessToken: string; refreshToken: string }) => void
+  setSession: (session: { user: SessionUser; accessToken: string }) => void
   setUser: (user: SessionUser) => void
   setStatus: (status: AuthStatus) => void
   clear: () => void
@@ -17,8 +17,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   status: 'idle',
 
-  setSession: ({ user, accessToken, refreshToken }) => {
-    tokenStore.set(accessToken, refreshToken)
+  setSession: ({ user, accessToken }) => {
+    tokenStore.set(accessToken)
     set({ user, status: 'authenticated' })
   },
 

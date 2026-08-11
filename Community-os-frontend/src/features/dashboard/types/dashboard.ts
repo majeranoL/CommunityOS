@@ -49,7 +49,6 @@ export interface DashboardOverview {
     monthlyCollected: number
     monthlyPaymentsCount: number
   }
-  unreadMessages: number
   upcomingEvents: UpcomingEvent[]
   recentReservations: RecentReservation[]
   recentComplaints: RecentComplaint[]

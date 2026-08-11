@@ -24,7 +24,7 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: UserDetailsDia
   const { data: user, isLoading } = useUser(userId)
   const updateUser = useUpdateUser(() => onOpenChange(false))
 
-  const changeStatus = (status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED') => {
+  const changeStatus = (status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'REJECTED') => {
     if (!userId) return
     updateUser.mutate({ id: userId, input: { status } })
   }
@@ -66,7 +66,17 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: UserDetailsDia
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={user.status === 'ACTIVE' ? 'success' : user.status === 'SUSPENDED' ? 'destructive' : 'muted'}>
+              <Badge
+                variant={
+                  user.status === 'ACTIVE'
+                    ? 'success'
+                    : user.status === 'SUSPENDED' || user.status === 'REJECTED'
+                      ? 'destructive'
+                      : user.status === 'PENDING'
+                        ? 'warning'
+                        : 'muted'
+                }
+              >
                 {user.status}
               </Badge>
               {user.roles.map((role) => (
@@ -92,6 +102,30 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: UserDetailsDia
         )}
 
         <DialogFooter className="gap-2">
+          {user?.status === 'PENDING' ? (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => changeStatus('ACTIVE')}
+                disabled={updateUser.isPending}
+              >
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => changeStatus('REJECTED')}
+                disabled={updateUser.isPending}
+              >
+                Deny
+              </Button>
+            </>
+          ) : null}
+          {user?.status === 'REJECTED' ? (
+            <Button variant="outline" onClick={() => changeStatus('ACTIVE')} disabled={updateUser.isPending}>
+              Approve
+            </Button>
+          ) : null}
           {user?.status === 'SUSPENDED' ? (
             <Button
               variant="outline"

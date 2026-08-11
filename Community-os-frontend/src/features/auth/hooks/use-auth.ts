@@ -5,7 +5,6 @@ import { apiErrorMessage } from '@/lib/api'
 import { tokenStore } from '@/lib/token'
 import { useAuthStore } from '@/store/auth-store'
 import { authService, type LoginInput, type RegisterInput } from '@/features/auth/services/auth'
-
 function useRedirectAfterAuth() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -37,18 +36,28 @@ export function useLogin() {
 }
 
 export function useRegister() {
-  const setSession = useAuthStore((state) => state.setSession)
-  const redirectAfterAuth = useRedirectAfterAuth()
+  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: (input: RegisterInput) => authService.register(input),
-    onSuccess: (session) => {
-      setSession(session)
-      toast.success('Account created. Welcome to CommunityOS!')
-      redirectAfterAuth()
+    onSuccess: () => {
+      toast.success('Registration submitted for approval. Check your email.')
+      navigate('/login')
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Registration failed. Please try again.'))
+    },
+  })
+}
+
+export function useSendOtp() {
+  return useMutation({
+    mutationFn: (input: { email: string; communityId: string }) => authService.sendOtp(input),
+    onSuccess: () => {
+      toast.success('Verification code sent to your email.')
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Could not send the verification code.'))
     },
   })
 }

@@ -11,6 +11,12 @@ import {
   ValidateNested,
 } from 'class-validator';
 
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_RULE,
+  PASSWORD_RULE_MESSAGE,
+} from '../../../common/utils/password';
+
 export class ProvisionOwnerDto {
   @IsString()
   @IsNotEmpty()
@@ -27,10 +33,8 @@ export class ProvisionOwnerDto {
   email!: string;
 
   @IsString()
-  @MinLength(8)
-  @Matches(/^(?=.*[A-Za-z])(?=.*\d).+$/, {
-    message: 'Password must contain at least one letter and one number.',
-  })
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_RULE, { message: PASSWORD_RULE_MESSAGE })
   password!: string;
 }
 

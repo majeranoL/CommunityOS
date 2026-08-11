@@ -15,7 +15,9 @@ import {
 } from '@/components/ui/select'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
+import { toast } from '@/components/ui/sonner'
 import { useArchiveDocument, useDocuments, usePublishDocument } from '@/features/documents/hooks/use-documents'
+import { documentsService } from '@/features/documents/services/documents'
 import { DocumentFormDialog } from '@/features/documents/components/document-form-dialog'
 import type { DocumentListItem } from '@/features/documents/types/document'
 import { formatDate, formatFileSize, getFileExtension, toTitleCase } from '@/lib/format'
@@ -47,7 +49,9 @@ export default function DocumentsPage() {
   const archiveDocument = useArchiveDocument()
 
   const openFile = (row: DocumentListItem) => {
-    window.open(row.fileUrl, '_blank', 'noopener,noreferrer')
+    documentsService.openFile(row).catch(() => {
+      toast.error('Unable to open this file.')
+    })
   }
 
   const columns: Column<DocumentListItem>[] = [

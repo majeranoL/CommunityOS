@@ -4,8 +4,15 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MinLength,
 } from 'class-validator';
+
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_RULE,
+  PASSWORD_RULE_MESSAGE,
+} from '../../../common/utils/password';
 
 export class CreateUserDto {
   @IsEmail()
@@ -14,7 +21,8 @@ export class CreateUserDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_RULE, { message: PASSWORD_RULE_MESSAGE })
   password!: string;
 
   @IsString()

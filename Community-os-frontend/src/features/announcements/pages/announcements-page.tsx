@@ -7,7 +7,13 @@ import { DataTable, type Column } from '@/components/shared/data-table'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useHasPermission } from '@/store/auth-store'
+import { useHasAnyPermission, useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import {
   useAnnouncements,
@@ -24,11 +30,20 @@ import {
 } from '@/features/announcements/hooks/use-announcements'
 import { AnnouncementFormDialog } from '@/features/announcements/components/announcement-form-dialog'
 import { AnnouncementDetailDialog } from '@/features/announcements/components/announcement-detail-dialog'
-import type { Announcement, AnnouncementListItem } from '@/features/announcements/types/announcement'
+import type {
+  Announcement,
+  AnnouncementListItem,
+} from '@/features/announcements/types/announcement'
 import { formatDate } from '@/lib/format'
 import { useViewParam } from '@/lib/use-view-param'
 
-const STATUS_FILTERS = ['ALL', 'PUBLISHED', 'REVIEW', 'DRAFT', 'ARCHIVED'] as const
+const STATUS_FILTERS = [
+  'ALL',
+  'PUBLISHED',
+  'REVIEW',
+  'DRAFT',
+  'ARCHIVED',
+] as const
 
 export default function AnnouncementsPage() {
   const [search, setSearch] = useState('')
@@ -42,7 +57,10 @@ export default function AnnouncementsPage() {
   const canCreate = useHasPermission(PERMISSIONS.announcementCreate)
   const canUpdate = useHasPermission(PERMISSIONS.announcementUpdate)
   const canDelete = useHasPermission(PERMISSIONS.announcementDelete)
-  const canPublish = useHasPermission(PERMISSIONS.announcementUpdate) || useHasPermission(PERMISSIONS.announcementCreate)
+  const canPublish = useHasAnyPermission([
+    PERMISSIONS.announcementUpdate,
+    PERMISSIONS.announcementCreate,
+  ])
 
   const { data, isLoading, isFetching } = useAnnouncements({
     page,
@@ -88,7 +106,11 @@ export default function AnnouncementsPage() {
     {
       key: 'createdAt',
       header: 'Created',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.createdAt)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {formatDate(row.createdAt)}
+        </span>
+      ),
       hideBelow: 'lg',
     },
     ...(canUpdate || canDelete || canPublish
@@ -99,14 +121,21 @@ export default function AnnouncementsPage() {
             cell: (row: AnnouncementListItem) => (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-sm" onClick={(e) => e.stopPropagation()}>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <MoreHorizontal className="h-4 w-4" />
                     <span className="sr-only">Actions</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setDetailId(row.id)}>View</DropdownMenuItem>
-                  {(row.status === 'DRAFT' || row.status === 'REVIEW') && canPublish ? (
+                  <DropdownMenuItem onClick={() => setDetailId(row.id)}>
+                    View
+                  </DropdownMenuItem>
+                  {(row.status === 'DRAFT' || row.status === 'REVIEW') &&
+                  canPublish ? (
                     <DropdownMenuItem
                       onClick={() => publishAnnouncement.mutate(row.id)}
                       disabled={publishAnnouncement.isPending}
@@ -116,7 +145,9 @@ export default function AnnouncementsPage() {
                     </DropdownMenuItem>
                   ) : null}
                   {row.status !== 'ARCHIVED' && canUpdate ? (
-                    <DropdownMenuItem onClick={() => setEditing(row as unknown as Announcement)}>
+                    <DropdownMenuItem
+                      onClick={() => setEditing(row as unknown as Announcement)}
+                    >
                       Edit
                     </DropdownMenuItem>
                   ) : null}
@@ -184,12 +215,16 @@ export default function AnnouncementsPage() {
           <SelectContent>
             {STATUS_FILTERS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option === 'ALL' ? 'All statuses' : option.charAt(0) + option.slice(1).toLowerCase()}
+                {option === 'ALL'
+                  ? 'All statuses'
+                  : option.charAt(0) + option.slice(1).toLowerCase()}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
+        {isFetching ? (
+          <span className="text-xs text-muted-foreground">Updating…</span>
+        ) : null}
       </div>
 
       <DataTable
@@ -225,7 +260,10 @@ export default function AnnouncementsPage() {
         destructive
         loading={deleteAnnouncement.isPending}
         onConfirm={() => {
-          if (deleting) deleteAnnouncement.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+          if (deleting)
+            deleteAnnouncement.mutate(deleting.id, {
+              onSuccess: () => setDeleting(null),
+            })
         }}
       />
     </div>

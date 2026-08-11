@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import { residentsService } from '@/features/residents/services/residents'
-import type { CreateResidentInput, UpdateResidentInput } from '@/features/residents/types/resident'
+import type {
+  CreateResidentInput,
+  UpdateResidentInput,
+} from '@/features/residents/types/resident'
 import type { ListQuery } from '@/types/api'
 
 export const residentKeys = {
@@ -36,7 +39,8 @@ export function useCreateResident(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: residentKeys.all })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to add resident.')),
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to add resident.')),
   })
 }
 
@@ -50,7 +54,8 @@ export function useUpdateResident(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: residentKeys.all })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update resident.')),
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to update resident.')),
   })
 }
 
@@ -63,6 +68,23 @@ export function useDeleteResident(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: residentKeys.all })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to remove resident.')),
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to remove resident.')),
+  })
+}
+
+export function useMoveOutResident(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => residentsService.moveOut(id),
+    onSuccess: () => {
+      toast.success('Resident marked as moved out.')
+      queryClient.invalidateQueries({ queryKey: residentKeys.all })
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(
+        apiErrorMessage(error, 'Failed to mark resident as moved out.'),
+      ),
   })
 }

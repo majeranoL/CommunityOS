@@ -58,4 +58,36 @@ export class MailService {
       `,
     );
   }
+
+  async sendRegistrationOtpEmail(
+    to: string,
+    name: string,
+    code: string,
+    expiresInMinutes: number,
+  ) {
+    await this.send(
+      to,
+      'Your CommunityOS registration code',
+      `
+        <p>Hi ${name},</p>
+        <p>Use the code below to complete your CommunityOS registration:</p>
+        <p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">${code}</p>
+        <p>This code is valid for ${expiresInMinutes} minutes. If you did not request this, you can safely ignore this email.</p>
+      `,
+    );
+  }
+
+  async sendAccountCreatedEmail(to: string, name: string, resetUrl: string) {
+    await this.send(
+      to,
+      'Your CommunityOS account is ready',
+      `
+        <p>Hi ${name},</p>
+        <p>An account was created for you in CommunityOS.</p>
+        <p>Set your password to start using it:</p>
+        <p><a href="${resetUrl}">Set your password</a></p>
+        <p>This link is valid for 30 minutes.</p>
+      `,
+    );
+  }
 }

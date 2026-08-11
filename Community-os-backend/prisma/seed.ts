@@ -22,7 +22,6 @@ import {
   PaymentMethod,
   DocumentCategory,
   DocumentStatus,
-  MessageStatus,
   EventStatus,
   BillingCycle,
   SubscriptionStatus,
@@ -30,14 +29,17 @@ import {
   PollStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { mkdir, rm, writeFile } from 'fs/promises';
+import { join } from 'path';
+import { randomUUID } from 'crypto';
 import { permissions } from './permissions';
 const prisma = new PrismaClient();
 
 async function main() {
   // Clean database (development only)
   await prisma.event.deleteMany();
-  await prisma.message.deleteMany();
   await prisma.document.deleteMany();
+  await prisma.upload.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.assessment.deleteMany();
   await prisma.maintenance.deleteMany();
@@ -178,6 +180,17 @@ async function main() {
 
   console.log('✅ Member role created');
 
+  const renterRole = await prisma.role.create({
+    data: {
+      communityId: community.id,
+      name: 'Renter',
+      description: 'Renter (tenant) - limited account for a rented unit',
+      isSystem: true,
+    },
+  });
+
+  console.log('✅ Renter role created');
+
   for (const item of permissions) {
     const permission = await prisma.permission.create({
       data: {
@@ -200,10 +213,6 @@ async function main() {
 
   const memberPermissionCodes = [
     'dashboard.view',
-    'message.create',
-    'message.view',
-    'message.update',
-    'message.delete',
     'event.view',
     'document.view',
     'assessment.view',
@@ -240,6 +249,26 @@ async function main() {
   }
 
   console.log('✅ Member permissions assigned');
+
+  for (const code of memberPermissionCodes) {
+    const permission = await prisma.permission.findFirst({
+      where: {
+        communityId: community.id,
+        code,
+      },
+    });
+
+    if (permission) {
+      await prisma.rolePermission.create({
+        data: {
+          roleId: renterRole.id,
+          permissionId: permission.id,
+        },
+      });
+    }
+  }
+
+  console.log('✅ Renter permissions assigned');
 
   // =====================================================
   // ACCOUNT
@@ -793,9 +822,7 @@ async function seedSampleData(
       title: 'Community Rules and Regulations',
       description: 'Official rules and regulations of the HOA.',
       category: DocumentCategory.POLICY,
-      fileUrl: '/uploads/documents/rules-and-regulations.pdf',
       fileName: 'rules-and-regulations.pdf',
-      fileSize: 245760,
       mimeType: 'application/pdf',
       status: DocumentStatus.PUBLISHED,
     },
@@ -803,9 +830,7 @@ async function seedSampleData(
       title: 'Board Meeting Minutes - July 2026',
       description: 'Minutes from the July 2026 board meeting.',
       category: DocumentCategory.MINUTES,
-      fileUrl: '/uploads/documents/minutes-july-2026.pdf',
       fileName: 'minutes-july-2026.pdf',
-      fileSize: 143360,
       mimeType: 'application/pdf',
       status: DocumentStatus.PUBLISHED,
     },
@@ -813,21 +838,52 @@ async function seedSampleData(
       title: 'Annual Budget 2026 (Draft)',
       description: 'Draft of the 2026 annual budget for review.',
       category: DocumentCategory.FINANCIAL,
-      fileUrl: '/uploads/documents/budget-2026-draft.xlsx',
       fileName: 'budget-2026-draft.xlsx',
-      fileSize: 38912,
       mimeType:
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       status: DocumentStatus.DRAFT,
     },
   ];
 
+  const uploadsDir = join(process.cwd(), 'uploads');
+
+  await rm(uploadsDir, { recursive: true, force: true });
+  await mkdir(uploadsDir, { recursive: true });
+
   for (const item of documentData) {
+    const buffer = Buffer.from(
+      `CommunityOS placeholder file: ${item.fileName}. Uploaded during database seeding.`,
+      'utf-8',
+    );
+
+    const storedFilename = `${randomUUID()}-${item.fileName}`;
+
+    await writeFile(join(uploadsDir, storedFilename), buffer);
+
+    const upload = await prisma.upload.create({
+      data: {
+        communityId,
+        uploadedById: userId,
+        module: 'document',
+        filename: storedFilename,
+        originalName: item.fileName,
+        mimetype: item.mimeType,
+        size: buffer.byteLength,
+      },
+    });
+
     await prisma.document.create({
       data: {
         communityId,
         uploadedById: userId,
-        ...item,
+        title: item.title,
+        description: item.description,
+        category: item.category,
+        status: item.status,
+        fileUrl: `/api/uploads/${upload.id}`,
+        fileName: item.fileName,
+        fileSize: buffer.byteLength,
+        mimeType: item.mimeType,
       },
     });
   }
@@ -899,52 +955,6 @@ async function seedSampleData(
   }
 
   console.log('✅ Demo users created');
-
-  // =====================================================
-  // MESSAGES
-  // =====================================================
-
-  const messageData = [
-    {
-      subject: 'Reminder: August dues are due',
-      body: 'Please settle your August 2026 association dues on or before August 31.',
-      recipientIndex: 0,
-      status: MessageStatus.READ,
-      sentAt: new Date('2026-08-01T08:00:00.000Z'),
-      readAt: new Date('2026-08-01T09:30:00.000Z'),
-    },
-    {
-      subject: 'Water interruption advisory',
-      body: 'There will be a water interruption on Saturday from 8:00 AM to 12:00 PM.',
-      recipientIndex: 1,
-      status: MessageStatus.DELIVERED,
-      sentAt: new Date('2026-08-04T16:00:00.000Z'),
-    },
-    {
-      subject: 'General community announcement',
-      body: 'Welcome to the new CommunityOS portal! All announcements will be posted here.',
-      status: MessageStatus.SENT,
-      sentAt: new Date('2026-08-02T10:00:00.000Z'),
-    },
-  ];
-
-  for (const item of messageData) {
-    const { recipientIndex, ...data } = item;
-
-    await prisma.message.create({
-      data: {
-        communityId,
-        senderId: userId,
-        recipientId:
-          recipientIndex !== undefined
-            ? demoUsers[recipientIndex].id
-            : undefined,
-        ...data,
-      },
-    });
-  }
-
-  console.log('✅ Messages created');
 
   // =====================================================
   // EVENTS

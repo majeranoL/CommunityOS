@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import { usersService, type UserListResult } from '@/features/users/services/users'
-import type { CreateUserInput, UpdateUserInput } from '@/features/users/types/user'
+import type { CreateRenterInput, CreateUserInput, UpdateUserInput } from '@/features/users/types/user'
 import type { ListQuery } from '@/types/api'
 
 export const userKeys = {
@@ -44,6 +44,20 @@ export function useCreateUser() {
       queryClient.invalidateQueries({ queryKey: userKeys.all })
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to create user.')),
+  })
+}
+
+export function useCreateRenter(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateRenterInput) => usersService.createRenter(input),
+    onSuccess: () => {
+      toast.success('Renter account created. They will receive an email to set their password.')
+      queryClient.invalidateQueries({ queryKey: userKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['households'] })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to create renter account.')),
   })
 }
 

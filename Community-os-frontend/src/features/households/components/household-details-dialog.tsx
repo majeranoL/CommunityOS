@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, Home, UserRound } from 'lucide-react'
+import { AlertTriangle, Home, KeyRound, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,6 +19,9 @@ import {
   useHousehold,
   useUpdateHousehold,
 } from '@/features/households/hooks/use-households'
+import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
+import { useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
 import { initials } from '@/lib/format'
 import type { HouseholdDetail } from '@/features/households/types/household'
 
@@ -40,6 +43,8 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
   const updateHousehold = useUpdateHousehold()
   const deleteHousehold = useDeleteHousehold(() => onOpenChange(false))
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [renterOpen, setRenterOpen] = useState(false)
+  const canCreateUser = useHasPermission(PERMISSIONS.userCreate)
 
   const toggleStatus = () => {
     if (!household) return
@@ -106,9 +111,22 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                   <StatusBadge status={owner.status} className="ml-auto" />
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No account holder yet — anyone can register into this unit.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No account holder yet — anyone can register into this unit.
+                  </p>
+                  {household.status === 'ACTIVE' && canCreateUser ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setRenterOpen(true)}
+                      disabled={renterOpen}
+                    >
+                      <KeyRound className="h-4 w-4" />
+                      Assign renter
+                    </Button>
+                  ) : null}
+                </div>
               )}
             </div>
 
@@ -175,6 +193,13 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
             </Button>
           ) : null}
         </DialogFooter>
+
+        <CreateRenterDialog
+          householdId={household?.id ?? null}
+          unitLabel={household ? unitLabel(household) : ''}
+          open={renterOpen}
+          onOpenChange={setRenterOpen}
+        />
 
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <DialogContent className="sm:max-w-md">

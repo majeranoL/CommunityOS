@@ -15,6 +15,7 @@ import {
 import { UsersService } from './users.service';
 
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateRenterDto } from './dto/create-renter.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 
@@ -36,6 +37,16 @@ export class UsersController {
   @Permissions('user.create')
   create(@Request() req: any, @Body() dto: CreateUserDto) {
     return this.usersService.create(req.user.community.id, dto);
+  }
+
+  // ==========================================
+  // Create Renter (limited tenant account)
+  // ==========================================
+
+  @Post('renters')
+  @Permissions('user.create')
+  createRenter(@Request() req: any, @Body() dto: CreateRenterDto) {
+    return this.usersService.createRenter(req.user.community.id, dto);
   }
 
   // ==========================================

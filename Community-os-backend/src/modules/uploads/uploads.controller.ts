@@ -1,6 +1,11 @@
 import {
+  BadRequestException,
   Controller,
+  Get,
+  Param,
   Post,
+  Req,
+  Res,
   UploadedFile,
   UploadedFiles,
   UseGuards,
@@ -9,9 +14,9 @@ import {
 
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
-import { diskStorage } from 'multer';
-import { extname } from 'path';
-import { randomUUID } from 'crypto';
+import { memoryStorage } from 'multer';
+import { existsSync, createReadStream } from 'fs';
+import { join } from 'path';
 
 import { UploadsService } from './uploads.service';
 
@@ -20,16 +25,31 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+import {
+  isAllowedExtension,
+  MAX_FILE_SIZE,
+} from '../../common/utils/file-validation';
 
-const storage = diskStorage({
-  destination: './uploads',
-  filename: (_req, file, cb) => {
-    const uniqueName = randomUUID();
-    const extension = extname(file.originalname);
-    cb(null, `${uniqueName}${extension}`);
-  },
-});
+import type { Response } from 'express';
+
+const storage = memoryStorage();
+
+const fileFilter = (
+  _req: any,
+  file: Express.Multer.File,
+  cb: (error: Error | null, acceptFile: boolean) => void,
+) => {
+  if (!isAllowedExtension(file.originalname)) {
+    cb(
+      new BadRequestException(
+        `File extension of "${file.originalname}" is not allowed`,
+      ),
+      false,
+    );
+    return;
+  }
+  cb(null, true);
+};
 
 @Controller('uploads')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -45,11 +65,16 @@ export class UploadsController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage,
+      fileFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    return this.uploadsService.uploadFile(file);
+  uploadFile(@Req() req: any, @UploadedFile() file: Express.Multer.File) {
+    return this.uploadsService.uploadFile(
+      req.user.community.id,
+      req.user.id,
+      file,
+    );
   }
 
   // ==========================================
@@ -61,10 +86,53 @@ export class UploadsController {
   @UseInterceptors(
     FilesInterceptor('files', 10, {
       storage,
+      fileFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
   )
-  uploadFiles(@UploadedFiles() files: Express.Multer.File[]) {
-    return this.uploadsService.uploadFiles(files);
+  uploadFiles(@Req() req: any, @UploadedFiles() files: Express.Multer.File[]) {
+    return this.uploadsService.uploadFiles(
+      req.user.community.id,
+      req.user.id,
+      files,
+    );
+  }
+
+  // ==========================================
+  // Stream a file (JWT-gated, community-scoped)
+  // ==========================================
+
+  @Get(':id')
+  async download(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const record = await this.uploadsService.getUploadForCommunity(
+      req.user.community.id,
+      id,
+    );
+
+    const filePath = join(process.cwd(), 'uploads', record.filename);
+
+    if (!existsSync(filePath)) {
+      res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: 'File missing on disk',
+      });
+      return;
+    }
+
+    res.setHeader('Content-Type', record.mimetype);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Disposition',
+      record.module === 'document'
+        ? `inline; filename="${record.originalName}"`
+        : `attachment; filename="${record.originalName}"`,
+    );
+
+    createReadStream(filePath).pipe(res);
   }
 }

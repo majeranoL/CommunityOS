@@ -30,9 +30,15 @@ export const registerSchema = z
       .regex(/^[0-9+\-\s()]*$/, 'Enter a valid phone number')
       .optional()
       .or(z.literal('')),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional().or(z.literal('')),
     password: passwordSchema,
     confirmPassword: z.string().min(1, 'Confirm your password'),
     communityId: z.string().uuid('Select your community'),
+    otpCode: z
+      .string()
+      .min(6, 'Enter the 6-digit verification code')
+      .max(6, 'Enter the 6-digit verification code')
+      .regex(/^[0-9]+$/, 'Code must contain only digits'),
     block: z.string().max(20).optional().or(z.literal('')),
     lot: z.string().max(20).optional().or(z.literal('')),
     unit: z.string().max(20).optional().or(z.literal('')),

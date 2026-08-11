@@ -54,4 +54,17 @@ export const documentsService = {
     const { data } = await api.post<ApiEnvelope<UploadFileResult>>('/uploads', form)
     return data.data
   },
+
+  async openFile(doc: { fileUrl?: string | null }) {
+    const uploadId = doc.fileUrl?.split('/').pop()
+    if (!uploadId) return
+
+    const { data } = await api.get<Blob>(`/uploads/${uploadId}`, {
+      responseType: 'blob',
+    })
+
+    const url = URL.createObjectURL(data)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  },
 }

@@ -18,8 +18,9 @@ Working tracker for closing the gap between the concept (`docs/Community-os-conc
 ## How to run / verify
 
 - Backend: `npm run start:dev` in `Community-os-backend` (watch mode; env vars in `.env`, must have `DATABASE_URL`, `JWT_SECRET`, `REFRESH_SECRET`, etc.)
-- Frontend: `npm run dev` in `Community-os-frontend` (proxies `/api` + `/uploads` → :3000)
+- Frontend: `npm run dev` in `Community-os-frontend` (proxies `/api` → :3000)
 - Typecheck: `npx tsc --noEmit` (frontend) · Build: `npx nest build` (backend)
+- Frontend tests: `npm run test` (vitest) · E2E smoke: `npm run test:e2e` in `Community-os-frontend` (Playwright; auto-starts backend via `nest build` + `node dist/src/main.js` and vite dev — or reuses already-running servers; requires Postgres up + seeded DB: `admin@communityos.com` / `Admin123!`)
 - Migrations: `npx prisma migrate dev` in backend (requires DB running)
 
 ---
@@ -31,9 +32,9 @@ Working tracker for closing the gap between the concept (`docs/Community-os-conc
 - [x] Auth: login / register / refresh (rotating) / logout / forgot+reset password / `/auth/me`
 - [x] Access token (JWT, 15m) + refresh token (7d) persisted in localStorage; axios single-flight 401→refresh→retry
 - [x] RBAC: `User → Role → Permission` (per-community), `JwtAuthGuard` + `PermissionsGuard` + `@Permissions()`
-- [x] Seed: demo community, 122-permission catalog, President (all) + Member (20) system roles, `admin@communityos.com` platform admin
+- [x] Seed: demo community, 118-permission catalog, President (all) + Member (16) + Renter (16) system roles, `admin@communityos.com` platform admin
 - [x] Response envelope `{ success, message, data }` + pagination envelope
-- [x] Soft deletes, audit-log interceptor (all mutating requests), uploads (`/uploads`, local disk)
+- [x] Soft deletes, audit-log interceptor (all mutating requests), uploads (auth-gated `Upload` model + local disk, streaming)
 - [x] Global validation pipe, Prisma exception filter, CORS, Swagger
 
 ### Backend modules (all present + mapped)
@@ -61,7 +62,7 @@ Working tracker for closing the gap between the concept (`docs/Community-os-conc
 
 ## Concept alignment check (verified against `docs/Community-os-concept.md`)
 
-Re-verified on this session against the actual codebase. All claims in this file confirmed accurate (React 19.2.8 / Vite 8.2 / router-dom 7.18; 122 permission codes in `prisma/permissions.ts`; Member role = 20 perms; frontend routes match the list above).
+Re-verified on this session against the actual codebase. All claims in this file confirmed accurate (React 19.2.8 / Vite 8.2 / router-dom 7.18; 118 permission codes in `prisma/permissions.ts` after B8 removed the 4 `message.*` codes; Member role = 16 perms; frontend routes match the list above).
 
 **Matches concept:** multi-tenant isolation, Account→User→Resident/Household/Role model, registration flow, RBAC (frontend gates UX / backend enforces), response envelope, session flow (401→single-flight refresh), all lifecycle state machines (complaints, reservations incl. approve/reject/cancel/complete, maintenance, finance, visitors, polls, announcements/events/docs), notifications via polling, local uploads, soft deletes, audit interceptor, SaaS subscription→plan→billing→invoice, HOA onboarding wizard, dashboard evolution, design system.
 
@@ -157,31 +158,40 @@ Re-verified on this session against the actual codebase. All claims in this file
 Decisions: code-ready first, deploy later · few communities (single instance, no queue) · payments stay manual · full testing (backend unit + e2e, frontend vitest, Playwright).
 
 #### Phase P1 — Security hardening
-- [ ] Auth cookies — refresh token → `httpOnly` + `Secure` + `SameSite=Strict` cookie (DB-backed rotation stays); access token stays in-memory; CSRF guard on cookie-bearing routes; frontend switches to `credentials`, drops refresh-token localStorage
-- [ ] Throttling — per-route `@Throttle` on `/auth/login`, `/register`, `/forgot-password` (keep the global rule)
-- [ ] Uploads — new `Upload` model (communityId, uploadedById, module, access) + migration; JWT-gated, community-scoped streaming replaces static `/uploads`; mimetype + magic-byte allowlist; block SVG/HTML; keep 10MB cap
-- [ ] Headers/secrets — Helmet + HSTS + CSP; remove docker-compose fallback secrets (`CommunityOSSecretKey`); cookie/`APP_URL` vars in `validateEnv` + `.env.example`
-- [ ] Auth hardening — login lockout (failed-attempt tracking) + password strength validation
+- [x] Auth cookies — refresh token → `httpOnly` + `Secure` + `SameSite=Strict` cookie (DB-backed rotation stays); access token stays in-memory; CSRF origin/referer guard on the cookie-bearing routes (`refresh`/`logout`); frontend on `credentials`, no refresh-token localStorage *(already implemented — verified, no changes needed)*
+- [x] Throttling — per-route `@Throttle` on `/auth/login`, `/register`, `/forgot-password` (keep the global rule) *(already implemented — 5/60s on login/register/forgot/reset, global 100/min; verified)*
+- [x] Uploads — new `Upload` model (communityId, uploadedById, module, filename, originalName, mimetype, size) + migration `20260810041439_add_upload_model`; JWT-gated, community-scoped streaming (`GET /api/uploads/:id`) replaces static `/uploads`; mimetype + magic-byte allowlist (pre-existing `file-validation.ts`, now enforced) + SVG/HTML blocked; 10MB cap kept; cascade cleanup of row + file on document delete/replace; `access` field dropped (single consumer, JWT-gated)
+- [x] Headers/secrets — Helmet + HSTS + CSP; remove docker-compose fallback secrets (`CommunityOSSecretKey`); cookie/`APP_URL` vars in `validateEnv` + `.env.example`
+- [x] Auth hardening — login lockout (failed-attempt tracking) + password strength validation *(both already implemented — Account `failedLoginAttempts`/`lockedUntil` lockout in `auth.service.ts`; `PASSWORD_RULE` on register/reset-password/create-user/provision-community; verified — marking done)*
 
 #### Phase P2 — Correctness
-- [ ] Wire dormant settings — `eventReminders`/`pollReminders` → `notifyMany()` on publish; `guestPassAutoApprove` → auto-approve on visitor create
-- [ ] Tenant-scoping audit — sweep `prisma.*` queries for missing `communityId` filters; fix + add an isolation test
-- [ ] Audit-log gap review — confirm all mutating routes are covered
+- [x] Wire dormant settings — `eventReminders`/`pollReminders` → `notifyMany()` on publish; `guestPassAutoApprove` → auto-approve on visitor create *(already implemented — events.service.ts `publish()` reads `eventReminders`, polls.service.ts `notifyVotersIfEnabled()` reads `pollReminders`, visitors.service.ts `create()` reads `guestPassAutoApprove`; verified, no changes needed)*
+- [x] Tenant-scoping audit — swept all 36 services: 30 scoped (`communityId` filter on every prisma query), 6 intentionally global (auth/jwt/upload-token/upload-serve/provision/admin) with no tenant data cross-leak. Zero gaps found. Added isolation regression test `src/modules/documents/documents.service.spec.ts` (5 tests: cross-community access throws NotFound, no mutation occurs, upload cleanup stays scoped) — all pass.
+- [x] Audit-log gap review — `AuditInterceptor` is registered globally via `APP_INTERCEPTOR` (audit-logs.module.ts), so every mutating POST/PUT/PATCH/DELETE on authenticated routes is covered; non-authenticated routes (register/login/refresh/forgot/reset/provision) have no `req.user` and are intentionally skipped.
 
 #### Phase P3 — Testing + CI
-- [ ] Backend unit — register gate (OPEN/CLOSED/ownership), settings merge, billing sweep, upload gating
-- [ ] Backend e2e (supertest + test DB) — auth lifecycle with cookies, tenant isolation, uploads auth
-- [ ] Frontend vitest + Testing Library — session bootstrap, login, register, settings save
-- [ ] Playwright smoke — login → dashboard → register gate → admin settings
-- [ ] CI (GitHub Actions) — typecheck, lint, build, backend tests, frontend tests, migration dry-run; add frontend eslint/prettier (missing today)
+- [x] Backend unit — register gate (OPEN/CLOSED/ownership), settings merge, billing sweep, upload gating. Added 4 specs (21 tests): `auth.service.spec.ts` (CLOSED→Forbidden no-op, default-OPEN, explicit-OPEN, active-household-owner→Conflict, INACTIVE household reactivation, email lowercase); `settings.service.spec.ts` (mergeDefaults: stored values win, configured flags, custom keys, sorted output — made `SettingsService.findAll` return merged settings sorted by key to match DB `orderBy`); `billing.service.spec.ts` (overdue marking, expired vs renewed, PAST_DUE never auto-renews, zero-price renews without invoice); `uploads.service.spec.ts` (valid PNG accepted, blocked ext, disallowed mimetype, HTML-in-text, empty file). Suite: 8 passed / 29 tests. `nest build` clean, eslint 0 errors.
+- [x] Backend e2e (supertest + test DB) — full suite built and green (4 suites / 15 tests). New test infra: `test/setup-test-db.ts` auto-creates `community_os_test` (via Prisma raw on the maintenance DB), applies all migrations, seeds 2 plans; `test/setup-e2e.ts` (jest setupFiles) points `DATABASE_URL` at the test DB; `test/bootstrap-app.ts` mirrors `main.ts` (global `api` prefix, cookie-parser, validation pipe, prisma filter) and disables throttling. Specs: `app.e2e-spec.ts` (public smoke), `auth.e2e-spec.ts` (signup → refresh-cookie session, `/me`, refresh rotation, logout invalidation, CLOSED register gate → 403, duplicate unit ownership → 409), `isolation.e2e-spec.ts` (cross-community read/update/delete of an event → 404 with no mutation; list scoping), `uploads.e2e-spec.ts` (401 unauthenticated, blocked extension → 400, upload + stream back, cross-community stream → 404). `npm run test:e2e` idempotent. eslint 0 errors.
+- [x] Frontend vitest + Testing Library — session bootstrap, login, register, settings save *(built in B12/B9; `src/features/auth/__tests__/auth.test.tsx` + `login-page.test.tsx` + `src/features/settings/__tests__/settings.test.tsx` — verified `vitest run` 10/10)*
+- [x] Playwright smoke — login → dashboard → register gate → admin settings
+- [x] CI (GitHub Actions) — typecheck, lint, build, backend tests (unit + e2e), frontend tests, migration dry-run; frontend eslint/prettier config landed first (done 2026-08-11)
 
 #### Phase P4 — Reliability + code quality
 - [ ] Structured JSON logs + request-ID middleware; `/health` + `/ready`; Sentry wiring
 - [ ] Index audit on hot queries
 - [ ] Complete `.env.example` + runbooks (backup/restore, deployment checklist)
-- [ ] Frontend lint config (none exists)
+- [x] Frontend lint config — `eslint.config.js` (tseslint + `react-hooks` recommended-latest + `react-refresh` + prettier), lint runs `0 errors` (45 pre-existing warnings) — done 2026-08-11
 
-**Explicitly deferred:** real hosting/TLS, object storage (auth-gated local disk is fine at this scale), payment gateway, email verification (until APPROVAL mode), queueing/Redis.
+**Explicitly deferred:** real hosting/TLS, object storage (auth-gated local disk is fine at this scale), payment gateway, queueing/Redis.
+
+#### New batch — 2026-08-11 (approved; code-first, sequential, verify after each)
+- [x] **B8 — Remove messaging system + sidebar Notifications item** — delete backend `messaging` module + `Message`/`MessageStatus` schema + message.* perms + dashboard `unreadMessages`; delete frontend `features/messages/`, route, nav items, `PERMISSIONS.message*`, Secretary template entries, `unreadMessages` type. KEEP notifications feature (navbar bell + `/app/notifications` page).
+- [x] **B11 — Fix suspend-login bug** — `login()`/`refresh()` reject non-ACTIVE `user.status` (PENDING/SUSPENDED/INACTIVE/REJECTED messages); suspend revokes the user's active sessions + refresh tokens.
+- [x] **B12 — Registration: gender + SMTP OTP + PENDING approval** — `UserStatus` += `PENDING`/`REJECTED`; new `OtpVerification` model; `POST /auth/otp/send` (email OTP via existing MailService/nodemailer); register requires verified OTP, creates Account+User **PENDING** (no session); gender field on register (stored on Resident); Approve/Deny (reuse `user.update`) in Users page.
+- [x] **B9 — Replace "Mark deceased" with "Mark moved out"** — `POST /residents/:id/move-out` sets `MOVED_OUT` + `movedOutAt`, deactivates linked account (frees unit for new owner, history kept); `remove` also deactivates; `DECEASED` removed from enum/type/filter/UI; ConfirmDialog; `MOVED_OUT` badge; household owner = ACTIVE holder only.
+- [x] **B13 — Roles dialog hides platform-scope modules** — exclude Communities/Subscriptions/Billing/Invoices (13 codes) from the role-permissions dialog; count only assignable (President shows 109).
+- [x] **B10 — Officer-created limited renter accounts** — seed/provision system `Renter` role (restricted perms); `POST /users/renters` (gate `user.create`) creates Account (temp password + forgot-password email) + Resident + User ACTIVE + Renter role, deactivates current holder; "Assign renter" action in Household details.
+- [ ] Then **P3/P4** (frontend vitest, Playwright, CI) + original feature backlog B0–B7.
 
 ---
 
@@ -324,14 +334,108 @@ Decisions: code-ready first, deploy later · few communities (single instance, n
 - **Housekeeping** — renamed `Cummunity-os-concept.md` → `docs/Community-os-concept.md` (git mv); fixed the 3 PROGRESS.md filename references; removed stale notes (roles-UI, concept-file typo) and stale "Partial/deviates" entries (token-in-memory, community-settings, platform-settings UI all since built); known gaps now: Events RSVP/attendee model + binary (non-approval) registration gate.
 - Verified: frontend `npx tsc --noEmit` + `vite build` exit 0; backend `npx tsc --noEmit` + `nest build` clean; all endpoints re-tested through the :5173 dev proxy. Note: migration's `prisma generate` hit the same Windows DLL EPERM (dev server running); backend was restarted, `prisma generate` re-ran clean, both servers relaunched detached (backend log `%TEMP%\opencode\backend.log`, frontend log `%TEMP%\opencode\frontend.log`).
 
-### 2026-08-09 — Production-readiness plan recorded (P1–P4, code-first)
+### 2026-08-10 — Production P1.4: Headers/secrets (complete); P1.1/P1.2/P1.5 verified already-implemented
+- **P1.4** Backend: installed `helmet` (8.3.0, bundled types); `src/main.ts` adds `app.use(helmet())` (default strict CSP `script-src 'self'`, HSTS on HTTPS, `nosniff`, `X-Frame-Options`, Referrer-Policy — Swagger UI unaffected because all its scripts are external same-origin files, no inline script). `docker-compose.yml`: removed the hardcoded fallback secrets — `JWT_SECRET`/`REFRESH_SECRET` now use `${VAR:?…}` (compose fails fast without them); added `COOKIE_SECURE` + `APP_URL` passthrough. `.env.example`: added `COOKIE_SECURE=false` + `NODE_ENV=development` (with comment). `src/config/env.ts`: `validateEnv` now also warns when `APP_URL`/`COOKIE_SECURE`/`NODE_ENV` are unset (falls back to documented defaults).
+- Verified: backend `npx tsc --noEmit` exit 0, `nest build` clean, eslint clean; live smoke 8/8 — server boots, JSON responses carry CSP/nosniff/X-Frame-Options/Referrer-Policy, Swagger loads + serves bundle + init.js under strict CSP; re-ran the P1.3 uploads smoke (12/12) confirming helmet doesn't break login/upload/streaming/cascade-cleanup.
+- **P1.1 (auth cookies)** verified already-implemented: `auth-cookies.ts` sets refresh token `httpOnly` + `Secure` (COOKIE_SECURE/NODE_ENV) + `SameSite=Strict` path `/api/auth`; `CsrfGuard` (origin/referer allowlist) guards `refresh`/`logout`; frontend `token.ts` keeps only an in-memory access token (no refresh-token localStorage), `api.ts` + refresh calls use `withCredentials`. No changes needed.
+- **P1.2 (throttling)** verified already-implemented: per-route `@Throttle` 5/60s on `/auth/login`, `/register`, `/forgot-password`, `/reset-password`; global `ThrottlerGuard` 100/min retained. No changes needed.
+- **P1.5 (auth hardening)** verified already-implemented: Account `failedLoginAttempts`/`lockedUntil` lockout (`MAX_FAILED_ATTEMPTS`/`LOCKOUT_MS`) in `auth.service.ts` with `recordFailedAttempt`/`clearFailedAttempts`; `PASSWORD_RULE` strength validator applied on register/reset-password/create-user/provision-community. No changes needed.
+- Note: PROGRESS.md now reflects P1.1–P1.5 all `[x]`; only the P1 remaining items after this are none — **Phase P1 complete**.
+- Housekeeping: the P1.3 work-log entry (below) plus this entry record the uploads overhaul and the P1 security hardening respectively.
+
+### 2026-08-10 — Production P1.3: Uploads overhaul (complete)
+- Backend `prisma/schema.prisma`: new `Upload` model (`communityId`, `uploadedById`, `module`, `filename` unique, `originalName`, `mimetype`, `size`, `createdAt`) + relations (Cascade on user delete) + migration `20260810041439_add_upload_model` + `prisma generate`.
+- Backend `src/modules/uploads/`: rewritten `uploads.service.ts` (`uploadFile`/`uploadFiles` persist to `uploads/<uuid><ext>`, create the `Upload` row, return `{ id, url: /api/uploads/:id, filename, originalName, mimetype, size }`; `getUploadForCommunity` community-scoped; new `removeUploadForCommunity` unlinks file + deletes row) and `uploads.controller.ts` (`POST /uploads`, `POST /uploads/multiple` gated by `upload.file`, multer memory storage + `fileFilter` allowlist with `BadRequestException`; `GET /uploads/:id` JWT + community-scoped stream, `inline` for `module=document` else `attachment`, `nosniff`). `uploads.module.ts` now imports `PrismaModule`.
+- Backend `src/main.ts`: removed static `express.static('/uploads')` serving + unused fs/path imports; `void bootstrap()`.
+- Backend `src/modules/documents/documents.service.ts`: on `remove()` and on `update()` when the file URL is replaced, cascade-deletes the old upload (row + disk file) only when no other live document references it; `documents.module.ts` imports `UploadsModule`.
+- Backend `prisma/seed.ts`: creates real `Upload` rows + placeholder files for the 3 seeded documents (fileUrl = `/api/uploads/<id>`); seed cleanup now `upload.deleteMany()` + wipes the `uploads/` dir (`rm` recursive) so reseeds stay clean.
+- Frontend `vite.config.ts`: dropped the `/uploads` proxy (only `/api` remains).
+- Frontend `features/documents/services/documents.ts`: new `openFile(doc)` — authenticated blob fetch of `/uploads/<id>` → object URL → new tab (old `window.open(fileUrl)` would 401); `documents-page.tsx` uses it with an error toast.
+- Verified: frontend + backend `npx tsc --noEmit` exit 0; `nest build` clean; eslint no errors (pre-existing `req.user` `any` warnings only); live smoke test 12/12 — login → upload → stream w/ auth 200 → stream w/o auth 401 → create doc → delete doc → upload row 404 + physical file gone, seed files intact; seed re-run leaves only the 3 seeded files.
 - User confirmed the direction shift: build for production, not demo. Decisions recorded: code-ready first, deploy later · few communities (single instance, no queue) · payments stay manual · full testing.
 - Replaced the tentative "Phase 7 — Recommendations" block in the Todo section with the approved **P1–P4 production plan** (Security hardening / Correctness / Testing + CI / Reliability + code quality), including an explicit "deferred" list (hosting/TLS, object storage, payment gateway, email verification, queueing).
 - Cleaned the Known gaps section: removed the dormant-settings line (now scheduled under P2); kept RSVP, APPROVAL registration mode, Command Menu, and the future-capabilities list.
 - Grounding research confirmed: no `Upload` model exists (uploads are unauthenticated static files), `NotificationsService.notifyMany()` exists (ready to wire dormant settings), Jest is configured but only scaffold specs exist, frontend has no lint/test tooling, docker-compose contains hardcoded fallback secrets.
 
+### 2026-08-11 — New batch planned + recorded (Step 0; no code changed yet)
+- Recorded the approved batch in the Todo section: **B8** messaging removal, **B11** suspend-login fix, **B12** registration (gender + SMTP OTP + PENDING approval), **B9** move-out/remove-resident, **B13** roles dialog platform-scope filter, **B10** officer-created limited renter accounts — then P3/P4 + B0–B7 backlog.
+- Decisions locked this session: move-out deactivates the account + frees the unit + keeps history + removes DECEASED; rentals keep one account per household with officer-created limited renter accounts; role-permission dialog hides platform-scope modules only; OTP is email-based via SMTP (nodemailer, existing MailService); approve/deny reuses `user.update`.
+- Grounding findings: login/refresh only check `Account.status` while suspend only flips `User.status` → suspended users can still log in (B11). `AccountStatus.PENDING` + `Account.emailVerifiedAt` already exist but are unused. Frontend register returns an authenticated session today (will change to pending-submission). `StatusBadge` already knows PENDING/REJECTED variants. Role-permission dialog counts the full 122-code catalog; President is granted all 122 (13 are platform-scope: Communities/Subscriptions/Billing/Invoices).
+
+### 2026-08-11 — B8 messaging removal (done)
+- Backend: deleted `src/modules/messaging/`; `app.module.ts` unregistered `MessagingModule`; schema dropped `Message` model + `MessageStatus` enum + `Community.messages` + `User.sentMessages/receivedMessages`; `prisma/permissions.ts` removed all 4 `message.*` codes; `seed.ts` removed `MessageStatus` import, `message.deleteMany()`, member `message.*` codes, and the whole MESSAGES seed section; `communities.service.ts` removed `message.*` from `PROVISION_MEMBER_PERMISSIONS`; `dashboard.service.ts` removed `MessageStatus` import, the `unreadMessages` count query, destructure slot, return field, and the now-unused `userId` param (controller call updated).
+- Migration: created `20260811000000_remove_messaging` (drop table + type) manually via `migrate diff` + `db execute` + `migrate resolve --applied` (migrate dev is blocked in non-interactive shells; winpty needs a real console).
+- Frontend: deleted `src/features/messages/`; `router.tsx` removed MessagesPage + route; `nav-items.tsx` removed the Messages and Notifications sidebar items (+ unused `Bell`/`MessageSquare` imports; notifications stay reachable via topbar bell → `/app/notifications`); `constants/permissions.ts` removed `message*`; `role-templates.ts` removed message perms (President) + "messages" from Secretary description; `features/dashboard/types/dashboard.ts` removed `unreadMessages`.
+- Verified: frontend `npx tsc --noEmit` exit 0, backend `nest build` clean, `prisma generate` clean, `prisma migrate status` = "Database schema is up to date", `prisma db seed` success.
+
+### 2026-08-11 — B11 suspend-login fix (done)
+- `auth.service.ts`: new private `ensureActiveUser(user)` helper — throws tailored `UnauthorizedException` for non-ACTIVE `UserStatus` (PENDING approval / SUSPENDED / INACTIVE / REJECTED); `login()` and `refresh()` now call it after the account checks (previously only `Account.status` was checked, so a suspended user could still log in).
+- `users.service.ts`: new private `revokeUserSessions(accountId)` — revokes ACTIVE sessions (`SessionStatus.REVOKED`) + unexpired refresh tokens (`revokedAt`). Called in `update()` when status changes away from ACTIVE, and in `remove()` (account deactivation).
+- Schema: `UserStatus` extended with `PENDING` + `REJECTED`; migration `20260811000001_user_status_pending_rejected` applied (2× `ALTER TYPE ADD VALUE`). `prisma generate` + `nest build` clean; `prisma migrate status` = up to date.
+
+### 2026-08-11 — B12 registration: gender + SMTP OTP + PENDING approval (done)
+- Schema: new `OtpPurpose` enum (`REGISTER`) + `OtpVerification` model (`email`, `purpose`, hashed `code`, `expiresAt`, `consumedAt`, `attempts`, indexes on email+purpose and expiresAt); migration `20260811000002_add_otp_verification` applied/resolved.
+- Backend auth: `POST /auth/otp/send` (`SendOtpDto` = email + communityId, throttled 5/min) → `sendRegistrationOtp()` (409 if email already registered, invalidates prior unconsumed OTPs, generates 6-digit code stored as sha256, emails via `MailService.sendRegistrationOtpEmail`); private `verifyRegistrationOtp()` (expiry + max 5 attempts + hash compare, consume on match). `register()` now: requires `otpCode` + optional `gender`, verifies the OTP, creates Account + User as **PENDING** (no session), stores gender on Resident, returns "Registration submitted for approval…".
+- Backend users: `update()` sets Account `ACTIVE` + `emailVerifiedAt` when approving (`status === ACTIVE`), enabling the Users-page Approve/Deny flow via existing `user.update`.
+- Frontend: `register-page.tsx` added gender `Select` (Male/Female/Other) + "Send code" section (button enabled once email + community are filled) + 6-digit OTP input; success now shows a toast and redirects to `/login` instead of auto-login; `authService` gained `sendOtp()` and `register` now sends `gender`/`otpCode` (returns `ApiEnvelope<null>`); `useSendOtp` hook added; `registerSchema` + `RegisterValues` extended; `user-details-dialog.tsx` added Approve/Deny (PENDING) + Approve (REJECTED) buttons with `warning`/`destructive` badge variants; `user.ts` status union += `PENDING`/`REJECTED`; auth test updated (pending-approval flow, no session).
+- Verified: frontend `tsc --noEmit` exit 0, `vitest run src/features/auth` 8/8 pass, `npm run build` (vite) OK; backend `nest build` clean, `prisma migrate status` = up to date (25), `prisma db seed` success.
+
+### 2026-08-11 — B9 move-out / remove-resident (done)
+- Schema: `ResidentStatus` dropped `DECEASED`; `Resident` gained `movedOutAt DateTime?`. Migration `20260811000003_resident_moved_out` (prepends an `UPDATE` mapping legacy `DECEASED` → `MOVED_OUT`, then Prisma's recreate-enum pattern + `ADD COLUMN`) applied/resolved.
+- Backend `resident.service.ts`: new private `deactivateLinkedAccount(user)` (Account → `DISABLED`, User → `INACTIVE`, revokes ACTIVE sessions + refresh tokens); new `moveOut()` — 404 if missing, 400 if already `MOVED_OUT`, deactivates linked account, sets `MOVED_OUT` + `movedOutAt`, returns updated resident; `remove()` now also deactivates the linked account before soft-deleting; `findOne()` select includes `movedOutAt`. New route `POST /residents/:id/move-out` (`resident.update`).
+- Frontend: `resident.ts` type dropped `DECEASED` (+ `movedOutAt` on detail); `residentsService.moveOut()` + `useMoveOutResident` hook; `resident-details-dialog.tsx` "Mark moved out" button opens a `ConfirmDialog` (destructive, warns account deactivation + unit freed), shows "Moved out" date row for `MOVED_OUT`, badge now maps `MOVED_OUT`; `residents-page.tsx` filter dropped `DECEASED`; `StatusBadge` gained `MOVED_OUT: muted`.
+- Verified: frontend `tsc --noEmit` exit 0, `vitest run` 10/10 pass, `npm run build` OK; backend `nest build` clean, `prisma generate` clean, `prisma migrate status` = up to date (26), `prisma db seed` success. Live endpoint smoke test deferred (dev servers stopped by user choice).
+
+### 2026-08-11 — B13 roles dialog platform-scope filter (done)
+- `role-permissions-dialog.tsx`: `PLATFORM_SCOPE_MODULES` = Communities/Subscriptions/Billing/Invoices (13 codes total: 4+2+5+2). The assignable catalog now excludes those modules from the grouped list, the counter shows only assignable permissions (President: 109/109), and applying a template replaces only the assignable set while preserving any hidden platform-scope grants. Added an inline note explaining platform-scope modules are managed by platform admins. Frontend-only — no schema/backend change.
+- Verified: `tsc --noEmit` exit 0, `npm run build` OK, `vitest run` 10/10 pass.
+
+### 2026-08-11 — B10 officer-created limited renter accounts (done)
+- Backend `src/modules/users/`: new `dto/create-renter.dto.ts` (`CreateRenterDto`: names, email, phone, optional gender, `householdId`); `users.service.ts` new `createRenter(communityId, dto)` — cleans inputs (capitalize/trim/lowercase), duplicate-email → 409, validates household (community-scoped, not deleted) → 404, resolves system `Renter` role → 404 if absent, generates `USR-*/RES-*` numbers (max-based, matching existing generators), random temp password (bcrypt, never revealed), then in a `$transaction`: deactivates the current ACTIVE holder of the unit (Account → DISABLED, User → INACTIVE, revokes ACTIVE sessions + unexpired refresh tokens), creates Account (ACTIVE) + Resident (ACTIVE, linked to the household) + User (ACTIVE, `residentId` set) + `userRole` → Renter; then signs a 30m `password_reset` JWT (same payload as `forgotPassword`) and emails a set-password link via new `MailService.sendAccountCreatedEmail`. `users.controller.ts` new `POST /users/renters` gated by `user.create`; `users.module.ts` now imports `MailModule` + `JwtModule.register` (same secret/signOptions as auth).
+- Backend provisioning: `communities.service.ts` `provision()` creates a system **Renter** role (same 16 `PROVISION_MEMBER_PERMISSIONS` as Member) in the same transaction; `prisma/seed.ts` creates the Renter role + assigns the member permission codes.
+- Frontend: `features/users` — `CreateRenterInput` type, `usersService.createRenter()`, `useCreateRenter` hook (toasts + invalidates users + households); `features/households/components/create-renter-dialog.tsx` (firstName/middle/last/email/phone/gender form, zod `validation/create-renter.ts`); `household-details-dialog.tsx` gained an "Assign renter" button in the Account holder section — shown only when the unit is ACTIVE, has no holder yet, and the caller has `user.create`.
+- Verified: backend `nest build` clean, eslint 0 errors (pre-existing `req.user` `any` warnings only); frontend `tsc --noEmit` exit 0, eslint clean; reset-token payload/route matches the existing `forgotPassword`/`resetPassword` flow. (Note: backend `tsc --noEmit` still reports pre-existing B12-era type errors in `src/modules/auth/auth.service.spec.ts` + `test/auth.e2e-spec.ts`; those files are compiled by jest, not `nest build`, and are untouched by B10.)
+
+### 2026-08-11 — DB reset: keep only the Superadmin (done)
+- Provisioned the Renter role into the existing live community non-destructively (temp script, `rolePermission` createMany), then — per user request — wiped all demo data while keeping only the Superadmin. Kept: `admin@communityos.com` Account + System Administrator User (`isPlatformAdmin`), its anchor Community (required by schema: `User.communityId` + `formatUser` reads `user.community`), the 3 system roles (President/Member/Renter) + all 118 permissions + rolePermissions, the superadmin's userRole, the 3 subscription plans, and 2 platform settings. Deleted: 2 demo users/accounts, 5 households, 4 residents, 4 facilities, 3 vehicles, 2 visitors, 3 staff, 3 maintenance, 3 assessments, 3 payments, 3 documents, 3 uploads, 3 events, polls, 2 invoices, the demo subscription, 9 settings, and all sessions/refresh tokens/OTPs. Temp scripts cleaned up.
+
+### 2026-08-11 — P3 Playwright smoke suite (done)
+- New `Community-os-frontend/playwright.config.ts`: testDir `e2e`, chromium only, 1 worker, `test:e2e` npm script; auto-starts both servers via `webServer` (backend `npm run build && node dist/src/main.js` on `/api/docs`, frontend `npm run dev` on :5173) with `reuseExistingServer` locally (CI restarts clean). Added `pg` + `@types/pg` devDeps; `npx playwright install chromium`.
+- New `e2e/db.ts` test helper (raw `pg`, reads `DATABASE_URL` from backend `.env` when the var is unset): seeds a valid registration OTP (`gen_random_uuid()` id + sha256 code — Prisma `@default(uuid())` is client-side, the DB column has no default), seeds a minimal ACTIVE tenant **Member** user (reuses the superadmin's password hash so it can log in), flips the community `registrationMode` Setting (JSON-encoded value) with prior-state capture/restore, and cleans up created accounts/households. All inserts supply `updatedAt`/`id` explicitly (`@updatedAt` and `uuid()` have no DB defaults).
+- New `e2e/smoke.spec.ts` — 4 tests, all green:
+  1. **tenant login → dashboard** — seeds a Member user, logs in via the UI, asserts `/app/dashboard` + greeting heading + resident KPI card.
+  2. **register page renders** — heading, Send code, Submit for approval.
+  3. **registration gate** — seeds OTP, sets `registrationMode=CLOSED` → `POST /api/auth/register` returns 403 "Registration is closed"; restores `OPEN` with a fresh OTP → 201 "Registration submitted for approval"; restores the prior mode + deletes the created account/household/OTPs (verified zero DB leftovers).
+  4. **platform settings** — superadmin login lands on `/admin/overview` (Decision 12: platform admin redirect), `/admin/settings` renders heading + `#setting-platformName` + Save settings.
+- Pitfalls fixed along the way: superadmin redirects to the **platform shell** (`/admin/overview`), not the tenant dashboard; the app's password inputs are wrapped in a div inside `FormControl`, so the shadcn `id` lands on the div and the input's accessible name falls back to the placeholder `••••••••` (login test targets the placeholder — logged as a minor a11y issue, left unfixed); dashboard greeting is time-based ("Good morning/afternoon/evening"), assertion matches the name only; vitest `exclude` in `vite.config.ts` now skips `e2e/**` so `npm run test` doesn't pick up Playwright specs; `.gitignore` += `playwright-report` + `test-results`.
+- Verified: `npx playwright test` 4/4 pass (against a freshly built backend + vite dev), DB left clean (0 smoke rows, no leftover `registrationMode`), frontend `npx tsc --noEmit` exit 0, `eslint e2e` 0 errors, `vitest run` 10/10 pass.
+
+### 2026-08-11 — Frontend lint: fixed all 9 errors + added eslint config (done)
+- Root cause: the frontend had no working eslint setup; this session established `eslint.config.js` (tseslint + `react-hooks` recommended-latest + `react-refresh` + `eslint-config-prettier`) and fixed **every** error it surfaced (9 errors → 0).
+- `react-hooks/set-state-in-effect` (6 files, 8 calls) — refactored the "load data → copy into local state" anti-pattern to React's recommended **key-remount + lazy `useState`** approach:
+  - `admin-platform-settings-page.tsx` + `community-settings.tsx` — extracted inner form components (`PlatformSettingsForm` / `CommunitySettingsForm`) with lazy init from the query data, keyed by a serialized snapshot of the settings so identical refetches don't remount; parent gates on `isLoading || !data`.
+  - `role-permissions-dialog.tsx` — extracted `PermissionsEditor` keyed by `role.id`, lazy `useState(() => new Set(role.permissions...))` so selections reset on every open (also fixed the old bug where reopened dialogs kept stale selections); parent renders a skeleton until the role loads.
+  - `document-form-dialog.tsx` — extracted keyed `DocumentForm` mounted only while `open`; `useForm` `defaultValues` + lazy `fileUrl` replace the reset effect entirely.
+  - `community-picker.tsx` — removed the `value`↔`selected` sync effect (derived `selectedItem` in render) and the `setResults([])` in the fetch effect (dropdown now gates on `open && query.trim() !== ''`; `setLoading` moved into the debounce callback).
+- `react-hooks/rules-of-hooks` (announcements-page) — conditional `useHasPermission(A) || useHasPermission(B)` in a `||` chain → `useHasAnyPermission([A, B])`.
+- `@typescript-eslint/no-empty-object-type` (2) — `interface Payment extends PaymentListItem {}` → `type Payment = PaymentListItem`; `interface UpdateVehicleInput extends Partial<CreateVehicleInput> {}` → type alias.
+- Verified: `npm run lint` exit 0 (0 errors, 45 pre-existing warnings), `npx tsc --noEmit` exit 0, `prettier --write` on all touched files. **Unblocks the P3 CI item** (frontend lint config was a stated prerequisite).
+
+### 2026-08-11 — Backend lint cleanup (done)
+- Ran `npm run lint` (`--fix`) to clear the prettier-format errors in `src/**` + `test/**`, then fixed the 3 remaining `@typescript-eslint/no-unused-vars` errors in `src/modules/auth/auth.service.ts`: `register()` dropped its unused `ipAddress`/`userAgent` params (`register(dto: RegisterDto)`); `const createdAccount = await this.prisma.$transaction(...)` → `await this.prisma.$transaction(...)`; `auth.controller.ts` register handler simplified to `register(@Body() dto: RegisterDto) { return this.authService.register(dto); }` (removed req/res + `applySession` chain; `applySession` stays on login/refresh).
+- Verified: `npx eslint "src/**/*.ts" "test/**/*.ts"` exit 0 (0 errors, 647 pre-existing `any` warnings), `npx tsc --noEmit` exit 0, unit `npm test` 29/29 (8 suites). (Backend lint is now a clean CI gate without `--fix`.)
+
+### 2026-08-11 — Backend e2e fixes: OTP-gated registration + PENDING ownership (done)
+- B12 made registration OTP-gated, which broke the pre-B12 `test/auth.e2e-spec.ts` registration tests (register returned 400 validation instead of 403/201). Fix: `test/test-helpers.ts` gained `seedRegistrationOtp(prisma, email, code)` (sha256-hashes the code, writes an `OtpVerification` row with `expiresAt` 10min; Prisma client-side `@default(uuid())`/`@default(now())` fill id/createdAt) + exported `TEST_OTP_CODE='123456'`; the CLOSED and OPEN tests now seed an OTP per email and send `otpCode`.
+- Found and fixed a real B12 regression in `auth.service.ts register()`: the duplicate-unit ownership check only blocked an **ACTIVE** owner, but B12 registers users as **PENDING** → two people could register the same unit. The check now blocks `status: { in: [ACTIVE, PENDING] }` (a pending application claims the unit; REJECTED frees it).
+- Verified: `npm run test:e2e` 4 suites / 15 tests all pass; `npx tsc --noEmit` exit 0; `npx eslint "src/**/*.ts" "test/**/*.ts"` exit 0; unit 29/29.
+
+### 2026-08-11 — P3 CI: GitHub Actions workflow (done)
+- Extended `.github/workflows/ci.yml` (was backend-only lint/build/test/docker) to the full approved P3 scope. All jobs Node 22 + `npm ci` (cached per project lockfile). Jobs: `backend-lint` (prisma generate + `eslint src test` **without** `--fix`), `backend-build` (prisma generate + `tsc --noEmit` + `nest build`), `backend-unit` (`npm test -- --runInBand`), `backend-e2e` (**Postgres 16 service container**; `DATABASE_URL` set; `setup-test-db.ts` auto-creates `community_os_test` on the `/postgres` maintenance DB), `migration` (`prisma validate` + `prisma migrate diff --from-empty --to-schema-datamodel ... --script` dry-run), `frontend` (lint + `vitest run` + `tsc && vite build`), `docker` (unchanged, now `needs: [backend-lint, backend-build, backend-unit]`). Added `concurrency: cancel-in-progress`. Backend jobs set a dummy `DATABASE_URL` env (prisma requires the datasource var resolvable).
+- Verified every CI command locally first: backend eslint/tsc/unit/e2e green, `prisma validate` + `migrate diff` exit 0, frontend lint + `vitest run` 10/10 + build green; workflow YAML parses (js-yaml).
 
 
 
+always read this md and add todo and progress here 
 
 always read this md and add todo and progress here 

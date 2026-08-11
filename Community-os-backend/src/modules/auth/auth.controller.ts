@@ -2,9 +2,16 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../../common/guards/csrf.guard';
+import {
+  clearRefreshTokenCookie,
+  getRefreshToken,
+  setRefreshTokenCookie,
+} from './auth-cookies';
 
 import {
   Controller,
@@ -12,49 +19,95 @@ import {
   Body,
   Get,
   Request,
+  Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  private applySession(res: Response, result: any) {
+    const data = result?.data;
+
+    if (data && data.refreshToken) {
+      setRefreshTokenCookie(res, data.refreshToken);
+      delete data.refreshToken;
+    }
+
+    return result;
+  }
+
+  @Post('otp/send')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  sendOtp(@Body() dto: SendOtpDto) {
+    return this.authService.sendRegistrationOtp(dto);
+  }
+
   @Post('register')
-  register(@Request() req: any, @Body() dto: RegisterDto) {
-    return this.authService.register(dto, req.ip, req.headers?.['user-agent']);
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
   }
 
   @Post('login')
-  login(@Request() req: any, @Body() dto: LoginDto) {
-    return this.authService.login(
-      dto.email,
-      dto.password,
-      req.ip,
-      req.headers?.['user-agent'],
-    );
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  login(
+    @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: LoginDto,
+  ) {
+    return this.authService
+      .login(dto.email, dto.password, req.ip, req.headers?.['user-agent'])
+      .then((result) => this.applySession(res, result));
   }
 
   @Post('refresh')
-  refresh(@Request() req: any, @Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(
-      dto.refreshToken,
-      req.ip,
-      req.headers?.['user-agent'],
-    );
+  @UseGuards(CsrfGuard)
+  refresh(
+    @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: RefreshTokenDto,
+  ) {
+    const refreshToken = getRefreshToken(req) ?? dto.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+
+    return this.authService
+      .refresh(refreshToken, req.ip, req.headers?.['user-agent'])
+      .then((result) => this.applySession(res, result));
   }
 
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
-  logout(@Request() req: any, @Body() dto: RefreshTokenDto) {
-    return this.authService.logout(req.user.account.id, dto.refreshToken);
+  @UseGuards(JwtAuthGuard, CsrfGuard)
+  logout(
+    @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: RefreshTokenDto,
+  ) {
+    const refreshToken = getRefreshToken(req) ?? dto.refreshToken;
+    clearRefreshTokenCookie(res);
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+
+    return this.authService.logout(req.user.account.id, refreshToken);
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }
 
   @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
   }

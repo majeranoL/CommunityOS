@@ -67,6 +67,16 @@ export class ResidentController {
   ) {
     return this.residentService.update(req.user.community.id, id, dto);
   }
+
+  // ==========================================
+  // Mark Resident as Moved Out
+  // ==========================================
+
+  @Post(':id/move-out')
+  @Permissions('resident.update')
+  moveOut(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.residentService.moveOut(req.user.community.id, id);
+  }
   @Delete(':id')
   @Permissions('resident.delete')
   remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {

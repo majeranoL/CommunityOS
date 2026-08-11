@@ -2,9 +2,8 @@ import 'dotenv/config';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import * as express from 'express';
-import { existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { validateEnv } from './config/env';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -15,6 +14,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api');
+  app.use(cookieParser());
+  app.use(helmet());
 
   app.enableCors({
     origin: (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
@@ -25,15 +26,6 @@ async function bootstrap() {
   });
 
   app.useGlobalFilters(new PrismaExceptionFilter());
-
-  // Ensure uploads directory exists and serve uploaded files statically
-  const uploadsDir = join(process.cwd(), 'uploads');
-
-  if (!existsSync(uploadsDir)) {
-    mkdirSync(uploadsDir, { recursive: true });
-  }
-
-  app.use('/uploads', express.static(uploadsDir));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -60,4 +52,4 @@ async function bootstrap() {
   console.log('📘 Swagger available at http://localhost:3000/api/docs');
 }
 
-bootstrap();
+void bootstrap();

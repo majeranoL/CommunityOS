@@ -1,6 +1,8 @@
-export type AssessmentStatus = 'DRAFT' | 'ISSUED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED'
+export type AssessmentStatus =
+  'DRAFT' | 'ISSUED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED'
 export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'REFUNDED'
-export type PaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'GCASH' | 'CREDIT_CARD' | 'CHEQUE' | 'OTHER'
+export type PaymentMethod =
+  'CASH' | 'BANK_TRANSFER' | 'GCASH' | 'CREDIT_CARD' | 'CHEQUE' | 'OTHER'
 
 export interface HouseholdRef {
   id: string
@@ -78,7 +80,7 @@ export interface PaymentListItem {
   resident: { id: string; firstName: string; lastName: string } | null
 }
 
-export interface Payment extends PaymentListItem {}
+export type Payment = PaymentListItem
 
 export interface CreatePaymentInput {
   paymentNumber: string

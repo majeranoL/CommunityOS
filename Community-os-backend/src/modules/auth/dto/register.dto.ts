@@ -1,12 +1,22 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+import { Gender } from '@prisma/client';
+
+import {
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_RULE,
+  PASSWORD_RULE_MESSAGE,
+} from '../../../common/utils/password';
 
 export class RegisterDto {
   @IsEmail()
@@ -15,7 +25,8 @@ export class RegisterDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
+  @Matches(PASSWORD_RULE, { message: PASSWORD_RULE_MESSAGE })
   password!: string;
 
   @IsString()
@@ -56,4 +67,14 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(6)
+  otpCode!: string;
 }

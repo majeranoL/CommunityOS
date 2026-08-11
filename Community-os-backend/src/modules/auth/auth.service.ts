@@ -18,6 +18,7 @@ import {
   ResidentStatus,
   HouseholdStatus,
   CommunityStatus,
+  OtpPurpose,
 } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,6 +28,7 @@ import { MailService } from '../../mail/mail.service';
 import { UsersService } from '../users/users.service';
 
 import { RegisterDto } from './dto/register.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
 
 type AccountWithUser = {
   id: string;
@@ -223,7 +225,110 @@ export class AuthService {
   // Register
   // ==========================================
 
-  async register(dto: RegisterDto, ipAddress?: string, userAgent?: string) {
+  private static readonly OTP_TTL_MS = 10 * 60 * 1000;
+  private static readonly OTP_MAX_ATTEMPTS = 5;
+
+  async sendRegistrationOtp(dto: SendOtpDto) {
+    const email = dto.email.trim().toLowerCase();
+
+    const existing = await this.prisma.account.findUnique({
+      where: {
+        email,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('Email is already registered.');
+    }
+
+    await this.prisma.otpVerification.updateMany({
+      where: {
+        email,
+        purpose: OtpPurpose.REGISTER,
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: {
+        consumedAt: new Date(),
+      },
+    });
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = new Date(Date.now() + AuthService.OTP_TTL_MS);
+
+    await this.prisma.otpVerification.create({
+      data: {
+        email,
+        purpose: OtpPurpose.REGISTER,
+        code: createHash('sha256').update(code).digest('hex'),
+        expiresAt,
+      },
+    });
+
+    const name = email.split('@')[0];
+
+    await this.mailService.sendRegistrationOtpEmail(email, name, code, 10);
+
+    return {
+      success: true,
+      message: 'A one-time verification code has been sent to your email.',
+    };
+  }
+
+  private async verifyRegistrationOtp(email: string, code: string) {
+    const otpRecord = await this.prisma.otpVerification.findFirst({
+      where: {
+        email,
+        purpose: OtpPurpose.REGISTER,
+        consumedAt: null,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!otpRecord || otpRecord.expiresAt < new Date()) {
+      throw new BadRequestException(
+        'Verification code is invalid or has expired. Request a new one.',
+      );
+    }
+
+    if (otpRecord.attempts >= AuthService.OTP_MAX_ATTEMPTS) {
+      throw new BadRequestException(
+        'Too many verification attempts. Request a new code.',
+      );
+    }
+
+    const codeMatches =
+      otpRecord.code === createHash('sha256').update(code.trim()).digest('hex');
+
+    if (!codeMatches) {
+      await this.prisma.otpVerification.update({
+        where: {
+          id: otpRecord.id,
+        },
+        data: {
+          attempts: { increment: 1 },
+        },
+      });
+
+      throw new BadRequestException('Incorrect verification code.');
+    }
+
+    await this.prisma.otpVerification.update({
+      where: {
+        id: otpRecord.id,
+      },
+      data: {
+        consumedAt: new Date(),
+      },
+    });
+  }
+
+  async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
 
     const existing = await this.prisma.account.findUnique({
@@ -235,6 +340,12 @@ export class AuthService {
     if (existing) {
       throw new ConflictException('Email is already registered.');
     }
+
+    // ==========================================
+    // Verify Registration OTP
+    // ==========================================
+
+    await this.verifyRegistrationOtp(email, dto.otpCode);
 
     // ==========================================
     // Resolve Community
@@ -344,7 +455,7 @@ export class AuthService {
     // Create Account + User + User Role
     // ==========================================
 
-    const createdAccount = await this.prisma.$transaction(async (prisma) => {
+    await this.prisma.$transaction(async (prisma) => {
       // ==========================================
       // Find or Create Household (ownership rule)
       // ==========================================
@@ -372,7 +483,7 @@ export class AuthService {
             const owner = await prisma.user.findFirst({
               where: {
                 communityId: community.id,
-                status: UserStatus.ACTIVE,
+                status: { in: [UserStatus.ACTIVE, UserStatus.PENDING] },
                 deletedAt: null,
                 resident: {
                   householdId: household.id,
@@ -436,7 +547,7 @@ export class AuthService {
         data: {
           email,
           passwordHash,
-          status: AccountStatus.ACTIVE,
+          status: AccountStatus.PENDING,
         },
       });
 
@@ -476,6 +587,7 @@ export class AuthService {
           lastName: capitalize(dto.lastName),
           phoneNumber: dto.phoneNumber?.trim(),
           email,
+          gender: dto.gender ?? null,
           status: ResidentStatus.ACTIVE,
         },
       });
@@ -494,7 +606,7 @@ export class AuthService {
           middleName: dto.middleName ? capitalize(dto.middleName) : null,
           lastName: capitalize(dto.lastName),
           phoneNumber: dto.phoneNumber?.trim(),
-          status: UserStatus.ACTIVE,
+          status: UserStatus.PENDING,
         },
       });
 
@@ -510,49 +622,65 @@ export class AuthService {
       return account;
     });
 
-    const account = await this.prisma.account.findUnique({
-      where: {
-        id: createdAccount.id,
-      },
-      include: {
-        user: {
-          include: {
-            community: true,
-            resident: {
-              include: {
-                household: true,
-              },
-            },
-            roles: {
-              include: {
-                role: {
-                  include: {
-                    permissions: {
-                      include: {
-                        permission: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const session = await this.createSession(account!, ipAddress, userAgent);
-
     return {
       success: true,
-      message: 'Registration successful.',
-      data: session,
+      message:
+        'Registration submitted for approval. You will be able to sign in once an administrator approves your account.',
     };
   }
 
   // ==========================================
   // Login
   // ==========================================
+
+  private static readonly MAX_FAILED_ATTEMPTS = 5;
+  private static readonly LOCKOUT_MS = 15 * 60 * 1000;
+
+  private async recordFailedAttempt(accountId: string) {
+    const current = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { failedLoginAttempts: true },
+    });
+
+    const attempts = (current?.failedLoginAttempts ?? 0) + 1;
+
+    const lockedUntil =
+      attempts >= AuthService.MAX_FAILED_ATTEMPTS
+        ? new Date(Date.now() + AuthService.LOCKOUT_MS)
+        : null;
+
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { failedLoginAttempts: attempts, lockedUntil },
+    });
+  }
+
+  private async clearFailedAttempts(accountId: string) {
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  }
+
+  private ensureActiveUser(user: { status: UserStatus } | null | undefined) {
+    if (!user) {
+      throw new UnauthorizedException('Account has no user profile');
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      const message: Partial<Record<UserStatus, string>> = {
+        [UserStatus.PENDING]: 'Your registration is pending approval.',
+        [UserStatus.SUSPENDED]: 'Your account is suspended. Contact your HOA.',
+        [UserStatus.INACTIVE]: 'Your account is inactive.',
+        [UserStatus.REJECTED]:
+          'Your registration was declined. Contact your HOA.',
+      };
+
+      throw new UnauthorizedException(
+        message[user.status] ?? 'Account is not active',
+      );
+    }
+  }
 
   async login(
     email: string,
@@ -566,11 +694,20 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (account.lockedUntil && account.lockedUntil > new Date()) {
+      throw new UnauthorizedException(
+        'Account is temporarily locked. Try again in a few minutes.',
+      );
+    }
+
     const isValid = await bcrypt.compare(password, account.passwordHash);
 
     if (!isValid) {
+      await this.recordFailedAttempt(account.id);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    await this.clearFailedAttempts(account.id);
 
     if (account.status !== AccountStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not active');
@@ -579,6 +716,8 @@ export class AuthService {
     if (!account.user) {
       throw new UnauthorizedException('Account has no user profile');
     }
+
+    this.ensureActiveUser(account.user);
 
     const session = await this.createSession(account, ipAddress, userAgent);
 
@@ -671,9 +810,11 @@ export class AuthService {
       },
     });
 
-    if (!account || account.status !== AccountStatus.ACTIVE || !account.user) {
+    if (!account || account.status !== AccountStatus.ACTIVE) {
       throw new UnauthorizedException('Account is not active');
     }
+
+    this.ensureActiveUser(account.user);
 
     // ==========================================
     // Rotate: revoke old refresh token, issue a new one

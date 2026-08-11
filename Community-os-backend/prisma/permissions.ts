@@ -521,31 +521,6 @@ export const permissions = [
   },
 
   // =====================================================
-  // MESSAGES
-  // =====================================================
-
-  {
-    code: 'message.create',
-    module: 'Messages',
-    description: 'Send messages',
-  },
-  {
-    code: 'message.update',
-    module: 'Messages',
-    description: 'Update messages',
-  },
-  {
-    code: 'message.delete',
-    module: 'Messages',
-    description: 'Delete messages',
-  },
-  {
-    code: 'message.view',
-    module: 'Messages',
-    description: 'View messages',
-  },
-
-  // =====================================================
   // EVENTS
   // =====================================================
 

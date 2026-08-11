@@ -1,6 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Save } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -15,8 +21,14 @@ import {
 } from '@/components/ui/select'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useSettings, useUpdateSettings } from '@/features/settings/hooks/use-settings'
-import type { SettingValue } from '@/features/settings/types/setting'
+import {
+  useSettings,
+  useUpdateSettings,
+} from '@/features/settings/hooks/use-settings'
+import type {
+  SettingResult,
+  SettingValue,
+} from '@/features/settings/types/setting'
 
 type FieldType = 'text' | 'textarea' | 'email' | 'number' | 'switch' | 'select'
 
@@ -30,18 +42,76 @@ interface FieldDef {
 }
 
 const FIELDS: FieldDef[] = [
-  { key: 'communityName', group: 'general', label: 'Community name', type: 'text' },
-  { key: 'communityDescription', group: 'general', label: 'Description', type: 'textarea' },
-  { key: 'contactEmail', group: 'general', label: 'Contact email', type: 'email' },
-  { key: 'contactNumber', group: 'general', label: 'Contact number', type: 'text' },
+  {
+    key: 'communityName',
+    group: 'general',
+    label: 'Community name',
+    type: 'text',
+  },
+  {
+    key: 'communityDescription',
+    group: 'general',
+    label: 'Description',
+    type: 'textarea',
+  },
+  {
+    key: 'contactEmail',
+    group: 'general',
+    label: 'Contact email',
+    type: 'email',
+  },
+  {
+    key: 'contactNumber',
+    group: 'general',
+    label: 'Contact number',
+    type: 'text',
+  },
   { key: 'address', group: 'general', label: 'Address', type: 'text' },
   { key: 'logoUrl', group: 'general', label: 'Logo URL', type: 'text' },
-  { key: 'pollReminders', group: 'notifications', label: 'Poll reminders', description: 'Notify members about active polls.', type: 'switch' },
-  { key: 'eventReminders', group: 'notifications', label: 'Event reminders', description: 'Send reminders before events.', type: 'switch' },
-  { key: 'guestPassAutoApprove', group: 'security', label: 'Auto-approve guest passes', description: 'Approve guest passes without manual review.', type: 'switch' },
-  { key: 'registrationMode', group: 'security', label: 'Registration mode', description: 'CLOSED blocks self-registration; admins add members via the Users page.', type: 'select', options: ['OPEN', 'CLOSED'] },
-  { key: 'currency', group: 'billing', label: 'Currency', type: 'select', options: ['PHP', 'USD'] },
-  { key: 'paymentTermsDays', group: 'billing', label: 'Payment terms (days)', description: 'Days allowed for assessment payments.', type: 'number' },
+  {
+    key: 'pollReminders',
+    group: 'notifications',
+    label: 'Poll reminders',
+    description: 'Notify members about active polls.',
+    type: 'switch',
+  },
+  {
+    key: 'eventReminders',
+    group: 'notifications',
+    label: 'Event reminders',
+    description: 'Send reminders before events.',
+    type: 'switch',
+  },
+  {
+    key: 'guestPassAutoApprove',
+    group: 'security',
+    label: 'Auto-approve guest passes',
+    description: 'Approve guest passes without manual review.',
+    type: 'switch',
+  },
+  {
+    key: 'registrationMode',
+    group: 'security',
+    label: 'Registration mode',
+    description:
+      'CLOSED blocks self-registration; admins add members via the Users page.',
+    type: 'select',
+    options: ['OPEN', 'CLOSED'],
+  },
+  {
+    key: 'currency',
+    group: 'billing',
+    label: 'Currency',
+    type: 'select',
+    options: ['PHP', 'USD'],
+  },
+  {
+    key: 'paymentTermsDays',
+    group: 'billing',
+    label: 'Payment terms (days)',
+    description: 'Days allowed for assessment payments.',
+    type: 'number',
+  },
 ]
 
 const GROUP_LABELS: Record<string, string> = {
@@ -134,7 +204,11 @@ function FieldInput({
           value={textValue}
           disabled={disabled}
           onChange={(event) =>
-            onChange(field.type === 'number' ? Number(event.target.value) : event.target.value)
+            onChange(
+              field.type === 'number'
+                ? Number(event.target.value)
+                : event.target.value,
+            )
           }
         />
       )}
@@ -143,24 +217,22 @@ function FieldInput({
   )
 }
 
-export function CommunitySettings() {
-  const canManage = useHasPermission(PERMISSIONS.settingsManage)
-  const { data, isLoading } = useSettings()
+function CommunitySettingsForm({
+  canManage,
+  data,
+}: {
+  canManage: boolean
+  data: SettingResult[]
+}) {
   const updateSettings = useUpdateSettings()
 
-  const [values, setValues] = useState<Record<string, SettingValue>>({})
-
-  useEffect(() => {
-    if (data) {
-      setValues((previous) => {
-        const next = { ...previous }
-        for (const setting of data) {
-          next[setting.key] = setting.value as SettingValue
-        }
-        return next
-      })
+  const [values, setValues] = useState<Record<string, SettingValue>>(() => {
+    const initial: Record<string, SettingValue> = {}
+    for (const setting of data) {
+      initial[setting.key] = setting.value as SettingValue
     }
-  }, [data])
+    return initial
+  })
 
   const handleSave = () => {
     const entries = FIELDS.map((field) => ({
@@ -175,52 +247,76 @@ export function CommunitySettings() {
 
   return (
     <div className="space-y-6">
-      {isLoading ? (
-        <div className="space-y-6">
-          <Skeleton className="h-56 w-full" />
-          <Skeleton className="h-56 w-full" />
+      {!canManage ? (
+        <p className="text-sm text-muted-foreground">
+          You have read-only access to community settings.
+        </p>
+      ) : null}
+      {groups.map((group) => {
+        const fields = FIELDS.filter((field) => field.group === group)
+        return (
+          <Card key={group}>
+            <CardHeader>
+              <CardTitle>{GROUP_LABELS[group]}</CardTitle>
+              <CardDescription>
+                Community {GROUP_LABELS[group].toLowerCase()} preferences.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              {fields.map((field) => (
+                <FieldInput
+                  key={field.key}
+                  field={field}
+                  value={values[field.key]}
+                  disabled={!canManage}
+                  onChange={(value) =>
+                    setValues((previous) => ({
+                      ...previous,
+                      [field.key]: value,
+                    }))
+                  }
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )
+      })}
+      {canManage ? (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={handleSave}
+            disabled={updateSettings.isPending}
+          >
+            <Save className="h-4 w-4" />
+            {updateSettings.isPending ? 'Saving…' : 'Save settings'}
+          </Button>
         </div>
-      ) : (
-        <>
-          {!canManage ? (
-            <p className="text-sm text-muted-foreground">
-              You have read-only access to community settings.
-            </p>
-          ) : null}
-          {groups.map((group) => {
-            const fields = FIELDS.filter((field) => field.group === group)
-            return (
-              <Card key={group}>
-                <CardHeader>
-                  <CardTitle>{GROUP_LABELS[group]}</CardTitle>
-                  <CardDescription>Community {GROUP_LABELS[group].toLowerCase()} preferences.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-2">
-                  {fields.map((field) => (
-                    <FieldInput
-                      key={field.key}
-                      field={field}
-                      value={values[field.key]}
-                      disabled={!canManage}
-                      onChange={(value) =>
-                        setValues((previous) => ({ ...previous, [field.key]: value }))
-                      }
-                    />
-                  ))}
-                </CardContent>
-              </Card>
-            )
-          })}
-          {canManage ? (
-            <div className="flex justify-end">
-              <Button type="button" onClick={handleSave} disabled={updateSettings.isPending}>
-                <Save className="h-4 w-4" />
-                {updateSettings.isPending ? 'Saving…' : 'Save settings'}
-              </Button>
-            </div>
-          ) : null}
-        </>
-      )}
+      ) : null}
     </div>
+  )
+}
+
+export function CommunitySettings() {
+  const canManage = useHasPermission(PERMISSIONS.settingsManage)
+  const { data, isLoading } = useSettings()
+
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-56 w-full" />
+        <Skeleton className="h-56 w-full" />
+      </div>
+    )
+  }
+
+  return (
+    <CommunitySettingsForm
+      key={data
+        .map((setting) => `${setting.key}=${String(setting.value)}`)
+        .join('|')}
+      canManage={canManage}
+      data={data}
+    />
   )
 }

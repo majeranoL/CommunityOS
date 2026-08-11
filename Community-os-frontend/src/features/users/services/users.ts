@@ -1,6 +1,12 @@
 import api from '@/lib/api'
 import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
-import type { CreateUserInput, RoleSummary, UpdateUserInput, UserListItem } from '@/features/users/types/user'
+import type {
+  CreateRenterInput,
+  CreateUserInput,
+  RoleSummary,
+  UpdateUserInput,
+  UserListItem,
+} from '@/features/users/types/user'
 
 export interface UserListResult {
   items: UserListItem[]
@@ -20,6 +26,11 @@ export const usersService = {
 
   async create(input: CreateUserInput) {
     const { data } = await api.post<ApiEnvelope<UserListItem>>('/users', input)
+    return data.data
+  },
+
+  async createRenter(input: CreateRenterInput) {
+    const { data } = await api.post<ApiEnvelope<unknown>>('/users/renters', input)
     return data.data
   },
 

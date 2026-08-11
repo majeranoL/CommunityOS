@@ -14,7 +14,7 @@ export interface UserListItem {
   phoneNumber: string | null
   avatarUrl: string | null
   email: string
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING' | 'REJECTED'
   household: {
     id: string
     block: string | null
@@ -44,6 +44,16 @@ export interface CreateUserInput {
   lastName: string
   phoneNumber?: string
   roleId: string
+}
+
+export interface CreateRenterInput {
+  email: string
+  firstName: string
+  middleName?: string
+  lastName: string
+  phoneNumber?: string
+  gender?: 'MALE' | 'FEMALE' | 'OTHER'
+  householdId: string
 }
 
 export interface UpdateUserInput {

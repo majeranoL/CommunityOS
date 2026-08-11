@@ -21,12 +21,16 @@ import { ResidentDetailsDialog } from '@/features/residents/components/resident-
 import type { ResidentListItem } from '@/features/residents/types/resident'
 import { formatDate, toTitleCase } from '@/lib/format'
 
-const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE', 'MOVED_OUT', 'DECEASED'] as const
+const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE', 'MOVED_OUT'] as const
 const GENDER_FILTERS = ['ALL', 'MALE', 'FEMALE', 'OTHER'] as const
 
 function formatHousehold(household: ResidentListItem['household']) {
   if (!household) return null
-  return [household.block, household.lot, household.unit, household.address].filter(Boolean).join(', ') || null
+  return (
+    [household.block, household.lot, household.unit, household.address]
+      .filter(Boolean)
+      .join(', ') || null
+  )
 }
 
 export default function ResidentsPage() {
@@ -70,7 +74,9 @@ export default function ResidentsPage() {
               {row.firstName} {row.lastName}
               {row.suffix ? ` ${row.suffix}` : ''}
             </p>
-            <p className="text-xs text-muted-foreground">{row.residentNumber}</p>
+            <p className="text-xs text-muted-foreground">
+              {row.residentNumber}
+            </p>
           </div>
         </button>
       ),
@@ -88,14 +94,20 @@ export default function ResidentsPage() {
       key: 'contact',
       header: 'Contact',
       cell: (row) => (
-        <span className="text-muted-foreground">{row.phoneNumber || row.email || '—'}</span>
+        <span className="text-muted-foreground">
+          {row.phoneNumber || row.email || '—'}
+        </span>
       ),
       hideBelow: 'lg',
     },
     {
       key: 'gender',
       header: 'Gender',
-      cell: (row) => <span className="text-muted-foreground">{row.gender ? toTitleCase(row.gender) : '—'}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {row.gender ? toTitleCase(row.gender) : '—'}
+        </span>
+      ),
       hideBelow: 'md',
     },
     {
@@ -106,7 +118,11 @@ export default function ResidentsPage() {
     {
       key: 'createdAt',
       header: 'Joined',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.createdAt)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {formatDate(row.createdAt)}
+        </span>
+      ),
       hideBelow: 'lg',
     },
     {
@@ -192,7 +208,9 @@ export default function ResidentsPage() {
             ))}
           </SelectContent>
         </Select>
-        {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
+        {isFetching ? (
+          <span className="text-xs text-muted-foreground">Updating…</span>
+        ) : null}
       </div>
 
       <DataTable
@@ -206,7 +224,11 @@ export default function ResidentsPage() {
       <Pagination pagination={data?.pagination} onPageChange={setPage} />
 
       <ResidentFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <ResidentFormDialog open={Boolean(editId)} onOpenChange={(open) => !open && setEditId(null)} residentId={editId} />
+      <ResidentFormDialog
+        open={Boolean(editId)}
+        onOpenChange={(open) => !open && setEditId(null)}
+        residentId={editId}
+      />
       <ResidentDetailsDialog
         residentId={selectedId}
         open={Boolean(selectedId)}

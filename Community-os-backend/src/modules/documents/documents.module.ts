@@ -5,8 +5,10 @@ import { DocumentsService } from './documents.service';
 
 import { PrismaModule } from '../../prisma/prisma.module';
 
+import { UploadsModule } from '../uploads/uploads.module';
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, UploadsModule],
   controllers: [DocumentsController],
   providers: [DocumentsService],
   exports: [DocumentsService],

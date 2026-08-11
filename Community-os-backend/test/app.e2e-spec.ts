@@ -1,29 +1,38 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+import { createTestApp } from './bootstrap-app';
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+describe('App (e2e)', () => {
+  let app: INestApplication;
 
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createTestApp();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
+  });
+
+  it('exposes the public plans endpoint without auth', async () => {
+    const res = await request(app.getHttpServer()).get('/api/public/plans');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it('lists public communities without auth', async () => {
+    const res = await request(app.getHttpServer()).get(
+      '/api/public/communities',
+    );
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it('rejects an unknown API route with 404', async () => {
+    const res = await request(app.getHttpServer()).get('/api/does-not-exist');
+
+    expect(res.status).toBe(404);
   });
 });

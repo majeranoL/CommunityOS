@@ -1,6 +1,17 @@
-import { Body, Controller, Get, Post, Query, Request } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Request,
+  Res,
+} from '@nestjs/common';
+import type { Response } from 'express';
 
 import { PublicService } from './public.service';
+
+import { setRefreshTokenCookie } from '../auth/auth-cookies';
 
 import { PublicCommunitiesQueryDto } from './dto/public-communities-query.dto';
 import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
@@ -20,7 +31,22 @@ export class PublicController {
   }
 
   @Post('hoa/signup')
-  signup(@Request() req: any, @Body() dto: ProvisionCommunityDto) {
-    return this.publicService.signup(dto, req.ip, req.headers?.['user-agent']);
+  signup(
+    @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: ProvisionCommunityDto,
+  ) {
+    return this.publicService
+      .signup(dto, req.ip, req.headers?.['user-agent'])
+      .then((result) => {
+        const session: any = result?.data?.session;
+
+        if (session && session.refreshToken) {
+          setRefreshTokenCookie(res, session.refreshToken);
+          delete session.refreshToken;
+        }
+
+        return result;
+      });
   }
 }

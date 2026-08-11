@@ -9,11 +9,62 @@ import { UpdateResidentDto } from './dto/update-resident.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResidentDto } from './dto/create-resident.dto';
 import { ResidentQueryDto } from './dto/resident-query.dto';
-import { ResidentStatus } from '@prisma/client';
+import {
+  AccountStatus,
+  ResidentStatus,
+  SessionStatus,
+  UserStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class ResidentService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ==========================================
+  // Deactivate Linked Account
+  // ==========================================
+
+  private async deactivateLinkedAccount(user: {
+    id: string;
+    accountId: string;
+  }) {
+    await this.prisma.$transaction([
+      this.prisma.account.update({
+        where: {
+          id: user.accountId,
+        },
+        data: {
+          status: AccountStatus.DISABLED,
+        },
+      }),
+      this.prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          status: UserStatus.INACTIVE,
+        },
+      }),
+      this.prisma.session.updateMany({
+        where: {
+          accountId: user.accountId,
+          status: SessionStatus.ACTIVE,
+        },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: {
+          accountId: user.accountId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      }),
+    ]);
+  }
 
   private capitalize(value?: string) {
     if (!value) return value;
@@ -399,6 +450,7 @@ export class ResidentService {
         remarks: true,
 
         status: true,
+        movedOutAt: true,
 
         createdAt: true,
         updatedAt: true,
@@ -611,6 +663,70 @@ export class ResidentService {
       data: updatedResident,
     };
   }
+  async moveOut(communityId: string, id: string) {
+    const resident = await this.prisma.resident.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            accountId: true,
+          },
+        },
+      },
+    });
+
+    if (!resident) {
+      throw new NotFoundException('Resident not found.');
+    }
+
+    if (resident.status === ResidentStatus.MOVED_OUT) {
+      throw new BadRequestException('Resident has already moved out.');
+    }
+
+    if (resident.user) {
+      await this.deactivateLinkedAccount(resident.user);
+    }
+
+    const updatedResident = await this.prisma.resident.update({
+      where: {
+        id,
+      },
+      data: {
+        status: ResidentStatus.MOVED_OUT,
+        movedOutAt: new Date(),
+      },
+      select: {
+        id: true,
+        residentNumber: true,
+        householdId: true,
+
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        suffix: true,
+
+        gender: true,
+        civilStatus: true,
+
+        status: true,
+        movedOutAt: true,
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Resident marked as moved out.',
+      data: updatedResident,
+    };
+  }
   async remove(communityId: string, id: string) {
     const resident = await this.prisma.resident.findFirst({
       where: {
@@ -618,10 +734,22 @@ export class ResidentService {
         communityId,
         deletedAt: null,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            accountId: true,
+          },
+        },
+      },
     });
 
     if (!resident) {
       throw new NotFoundException('Resident not found.');
+    }
+
+    if (resident.user) {
+      await this.deactivateLinkedAccount(resident.user);
     }
 
     await this.prisma.resident.update({

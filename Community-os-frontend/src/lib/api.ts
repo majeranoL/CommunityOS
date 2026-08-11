@@ -3,6 +3,7 @@ import { tokenStore } from './token'
 
 const api: AxiosInstance = axios.create({
   baseURL: '/api',
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
 

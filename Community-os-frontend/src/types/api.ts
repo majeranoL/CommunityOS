@@ -54,7 +54,6 @@ export interface SessionUser {
 
 export interface Session {
   accessToken: string
-  refreshToken: string
   user: SessionUser
 }
 

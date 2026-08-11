@@ -36,7 +36,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
     key: 'secretary',
     label: 'Secretary',
-    description: 'Communication office-holder: announcements, events, polls, documents, messages',
+    description: 'Communication office-holder: announcements, events, polls, documents',
     permissionCodes: [
       PERMISSIONS.dashboardView,
       PERMISSIONS.announcementCreate,
@@ -63,10 +63,6 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       PERMISSIONS.documentDelete,
       PERMISSIONS.documentPublish,
       PERMISSIONS.documentArchive,
-      PERMISSIONS.messageCreate,
-      PERMISSIONS.messageView,
-      PERMISSIONS.messageUpdate,
-      PERMISSIONS.messageDelete,
       PERMISSIONS.notificationView,
       PERMISSIONS.notificationUpdate,
       PERMISSIONS.settingsView,

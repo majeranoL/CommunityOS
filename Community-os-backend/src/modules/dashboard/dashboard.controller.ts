@@ -19,6 +19,6 @@ export class DashboardController {
   @Get('overview')
   @Permissions('dashboard.view')
   overview(@Request() req: any) {
-    return this.dashboardService.overview(req.user.community.id, req.user.id);
+    return this.dashboardService.overview(req.user.community.id);
   }
 }

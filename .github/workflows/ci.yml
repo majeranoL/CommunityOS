@@ -6,26 +6,16 @@ on:
   pull_request:
     branches: [main, develop]
 
-jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Community-os-backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: Community-os-backend/package-lock.json
-      - run: npm ci
-      - run: npm run lint
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
-  build:
-    name: Build
+jobs:
+  backend-lint:
+    name: Backend Lint
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
     defaults:
       run:
         working-directory: Community-os-backend
@@ -38,11 +28,13 @@ jobs:
           cache-dependency-path: Community-os-backend/package-lock.json
       - run: npm ci
       - run: npx prisma generate
-      - run: npm run build
+      - run: npx eslint "src/**/*.ts" "test/**/*.ts"
 
-  test:
-    name: Test
+  backend-build:
+    name: Backend Typecheck & Build
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
     defaults:
       run:
         working-directory: Community-os-backend
@@ -54,12 +46,105 @@ jobs:
           cache: npm
           cache-dependency-path: Community-os-backend/package-lock.json
       - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npm run build
+
+  backend-unit:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+    defaults:
+      run:
+        working-directory: Community-os-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Community-os-backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
       - run: npm test -- --runInBand
+
+  backend-e2e:
+    name: Backend E2E Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+    defaults:
+      run:
+        working-directory: Community-os-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Community-os-backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run test:e2e
+
+  migration:
+    name: Migration Dry-Run
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=public
+    defaults:
+      run:
+        working-directory: Community-os-backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Community-os-backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma validate
+      - run: >-
+          npx prisma migrate diff --from-empty
+          --to-schema-datamodel prisma/schema.prisma --script
+
+  frontend:
+    name: Frontend Lint, Test & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Community-os-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: Community-os-frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
 
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs: [lint, build, test]
+    needs: [backend-lint, backend-build, backend-unit]
     steps:
       - uses: actions/checkout@v4
       - name: Build image

@@ -21,15 +21,23 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CommunityPicker } from '@/features/auth/components/community-picker'
-import { useRegister } from '@/features/auth/hooks/use-auth'
+import { useRegister, useSendOtp } from '@/features/auth/hooks/use-auth'
 import { registerSchema, type RegisterValues } from '@/features/auth/validation/register'
 import { usePageTitle } from '@/lib/use-page-title'
 import { apiErrorMessage } from '@/lib/api'
 
 export default function RegisterPage() {
   const register = useRegister()
+  const sendOtp = useSendOtp()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
@@ -43,15 +51,26 @@ export default function RegisterPage() {
       lastName: '',
       email: '',
       phoneNumber: '',
+      gender: '',
       password: '',
       confirmPassword: '',
       communityId: '',
+      otpCode: '',
       block: '',
       lot: '',
       unit: '',
       address: '',
     },
   })
+
+  const email = form.watch('email')
+  const communityId = form.watch('communityId')
+  const canSendOtp = Boolean(email && communityId && !sendOtp.isPending)
+
+  const handleSendOtp = () => {
+    if (!canSendOtp) return
+    sendOtp.mutate({ email, communityId })
+  }
 
   const onSubmit = (values: RegisterValues) => {
     register.mutate({
@@ -62,6 +81,8 @@ export default function RegisterPage() {
       password: values.password,
       phoneNumber: values.phoneNumber || undefined,
       communityId: values.communityId,
+      gender: (values.gender as 'MALE' | 'FEMALE' | 'OTHER') || undefined,
+      otpCode: values.otpCode,
       block: values.block || undefined,
       lot: values.lot || undefined,
       unit: values.unit || undefined,
@@ -79,7 +100,7 @@ export default function RegisterPage() {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
             <p className="text-sm text-muted-foreground">
-              Join your community to access announcements, events, and more.
+              Join your community. Your account becomes active once an administrator approves it.
             </p>
           </div>
         </div>
@@ -154,6 +175,29 @@ export default function RegisterPage() {
                   )}
                 />
 
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select value={field.value || undefined} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select your gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="MALE">Male</SelectItem>
+                          <SelectItem value="FEMALE">Female</SelectItem>
+                          <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}
@@ -181,6 +225,42 @@ export default function RegisterPage() {
                       </FormItem>
                     )}
                   />
+                </div>
+
+                <div className="rounded-lg border bg-muted/40 p-4">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-0 flex-1">
+                      <FormField
+                        control={form.control}
+                        name="otpCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Verification code</FormLabel>
+                            <FormControl>
+                              <Input
+                                inputMode="numeric"
+                                placeholder="6-digit code"
+                                maxLength={6}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendOtp}
+                      disabled={!canSendOtp}
+                    >
+                      {sendOtp.isPending ? 'Sending…' : 'Send code'}
+                    </Button>
+                  </div>
+                  <FormDescription className="mt-2">
+                    We'll email you a 6-digit code to confirm this address belongs to you.
+                  </FormDescription>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -315,7 +395,7 @@ export default function RegisterPage() {
                 </div>
 
                 <Button type="submit" className="w-full" disabled={register.isPending}>
-                  {register.isPending ? 'Creating account…' : 'Create account'}
+                  {register.isPending ? 'Submitting…' : 'Submit for approval'}
                 </Button>
               </form>
             </Form>

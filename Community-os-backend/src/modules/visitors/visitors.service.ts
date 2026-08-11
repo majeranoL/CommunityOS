@@ -83,6 +83,28 @@ export class VisitorsService {
     }
 
     // ==========================================
+    // Auto-Approve Guest Passes
+    // ==========================================
+
+    const autoApproveSetting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'guestPassAutoApprove',
+        },
+      },
+    });
+
+    const autoApprove =
+      (autoApproveSetting?.value as boolean | undefined) ?? false;
+
+    const status = autoApprove
+      ? VisitorStatus.CHECKED_IN
+      : (dto.status ?? VisitorStatus.EXPECTED);
+
+    const effectiveEntryAt = autoApprove ? (entryAt ?? new Date()) : entryAt;
+
+    // ==========================================
     // Create Visitor
     // ==========================================
 
@@ -98,10 +120,10 @@ export class VisitorsService {
         hostResidentId: dto.hostResidentId,
         vehicleId: dto.vehicleId,
 
-        entryAt,
+        entryAt: effectiveEntryAt,
         exitAt,
 
-        status: dto.status ?? VisitorStatus.EXPECTED,
+        status,
       },
 
       include: {

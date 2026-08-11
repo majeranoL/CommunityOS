@@ -14,7 +14,12 @@ interface CommunityPickerProps {
   error?: string
 }
 
-export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPickerProps) {
+export function CommunityPicker({
+  value,
+  onChange,
+  onBlur,
+  error,
+}: CommunityPickerProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<CommunitySummary[]>([])
   const [selected, setSelected] = useState<CommunitySummary | null>(null)
@@ -22,24 +27,16 @@ export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPic
   const [loading, setLoading] = useState(false)
   const requestIdRef = useRef(0)
 
-  useEffect(() => {
-    if (value) {
-      const community = results.find((item) => item.id === value)
-      if (community) setSelected(community)
-    } else {
-      setSelected(null)
-    }
-  }, [value, results])
+  const selectedItem =
+    selected ??
+    (value ? (results.find((item) => item.id === value) ?? null) : null)
 
   useEffect(() => {
-    if (!open || query.trim() === '') {
-      setResults([])
-      return
-    }
+    if (!open || query.trim() === '') return
 
     const id = ++requestIdRef.current
-    setLoading(true)
     const timer = setTimeout(async () => {
+      setLoading(true)
       try {
         const items = await searchCommunities(query.trim())
         if (requestIdRef.current === id) setResults(items)
@@ -53,15 +50,17 @@ export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPic
     return () => clearTimeout(timer)
   }, [query, open])
 
-  if (selected) {
+  if (selectedItem) {
     return (
       <div>
         <div className="flex items-center justify-between rounded-md border bg-muted/40 px-3 py-2">
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-primary" />
             <div className="leading-tight">
-              <p className="text-sm font-medium">{selected.displayName}</p>
-              <p className="text-xs text-muted-foreground">{selected.slug}</p>
+              <p className="text-sm font-medium">{selectedItem.displayName}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedItem.slug}
+              </p>
             </div>
           </div>
           <Button
@@ -101,7 +100,7 @@ export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPic
           autoComplete="off"
         />
       </div>
-      {open && (
+      {open && query.trim() !== '' && (
         <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
           {loading ? (
             <div className="space-y-2 p-3">
@@ -109,7 +108,9 @@ export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPic
               <Skeleton className="h-8 w-full" />
             </div>
           ) : results.length === 0 ? (
-            <p className="p-3 text-sm text-muted-foreground">No communities found. Try a different search.</p>
+            <p className="p-3 text-sm text-muted-foreground">
+              No communities found. Try a different search.
+            </p>
           ) : (
             <ul className="max-h-64 overflow-y-auto py-1">
               {results.map((community) => (
@@ -130,7 +131,9 @@ export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPic
                     <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <div className="leading-tight">
                       <p className="font-medium">{community.displayName}</p>
-                      <p className="text-xs text-muted-foreground">{community.slug}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {community.slug}
+                      </p>
                     </div>
                   </button>
                 </li>
@@ -139,7 +142,9 @@ export function CommunityPicker({ value, onChange, onBlur, error }: CommunityPic
           )}
         </div>
       )}
-      {error ? <p className="mt-1 text-sm font-medium text-destructive">{error}</p> : null}
+      {error ? (
+        <p className="mt-1 text-sm font-medium text-destructive">{error}</p>
+      ) : null}
     </div>
   )
 }

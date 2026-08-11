@@ -26,10 +26,6 @@ const PROVISION_TRIAL_DAYS = 14;
 
 const PROVISION_MEMBER_PERMISSIONS = [
   'dashboard.view',
-  'message.create',
-  'message.view',
-  'message.update',
-  'message.delete',
   'event.view',
   'document.view',
   'assessment.view',
@@ -584,6 +580,15 @@ export class CommunitiesService {
         },
       });
 
+      const renterRole = await tx.role.create({
+        data: {
+          communityId: community.id,
+          name: 'Renter',
+          description: 'Renter (tenant) - limited account for a rented unit',
+          isSystem: true,
+        },
+      });
+
       // ---------- Permissions ----------
 
       await tx.permission.createMany({
@@ -614,6 +619,13 @@ export class CommunitiesService {
       await tx.rolePermission.createMany({
         data: memberPermissions.map((permission) => ({
           roleId: memberRole.id,
+          permissionId: permission.id,
+        })),
+      });
+
+      await tx.rolePermission.createMany({
+        data: memberPermissions.map((permission) => ({
+          roleId: renterRole.id,
           permissionId: permission.id,
         })),
       });

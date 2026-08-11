@@ -27,7 +27,6 @@ const VisitorsPage = lazy(() => import('@/features/visitors/pages/visitors-page'
 const StaffPage = lazy(() => import('@/features/staff/pages/staff-page'))
 const MaintenancePage = lazy(() => import('@/features/maintenance/pages/maintenance-page'))
 const DocumentsPage = lazy(() => import('@/features/documents/pages/documents-page'))
-const MessagesPage = lazy(() => import('@/features/messages/pages/messages-page'))
 const ReportsPage = lazy(() => import('@/features/reports/pages/reports-page'))
 const AnalyticsPage = lazy(() => import('@/features/analytics/pages/analytics-page'))
 const AuditLogsPage = lazy(() => import('@/features/audit-logs/pages/audit-logs-page'))
@@ -186,14 +185,6 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute permission={PERMISSIONS.announcementView}>
             {withSuspense(<AnnouncementsPage />)}
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: 'messages',
-        element: (
-          <PermissionRoute permission={PERMISSIONS.messageView}>
-            {withSuspense(<MessagesPage />)}
           </PermissionRoute>
         ),
       },

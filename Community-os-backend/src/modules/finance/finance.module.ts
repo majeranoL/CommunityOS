@@ -14,7 +14,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [PrismaModule, NotificationsModule],
-  controllers: [AssessmentsController, PaymentsController, FinanceOptionsController],
+  controllers: [
+    AssessmentsController,
+    PaymentsController,
+    FinanceOptionsController,
+  ],
   providers: [AssessmentsService, PaymentsService, FinanceOptionsService],
   exports: [AssessmentsService, PaymentsService],
 })

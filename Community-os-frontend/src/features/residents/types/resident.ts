@@ -1,6 +1,7 @@
-export type ResidentStatus = 'ACTIVE' | 'INACTIVE' | 'MOVED_OUT' | 'DECEASED'
+export type ResidentStatus = 'ACTIVE' | 'INACTIVE' | 'MOVED_OUT'
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
-export type CivilStatus = 'SINGLE' | 'MARRIED' | 'WIDOWED' | 'DIVORCED' | 'SEPARATED'
+export type CivilStatus =
+  'SINGLE' | 'MARRIED' | 'WIDOWED' | 'DIVORCED' | 'SEPARATED'
 
 export interface HouseholdReference {
   id: string
@@ -36,6 +37,7 @@ export interface ResidentDetail extends ResidentListItem {
   address: string | null
   profilePhotoUrl: string | null
   remarks: string | null
+  movedOutAt: string | null
   updatedAt: string
 }
 

@@ -21,7 +21,6 @@ import { StaffModule } from './modules/staff/staff.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { FinanceModule } from './modules/finance/finance.module';
 import { DocumentsModule } from './modules/documents/documents.module';
-import { MessagingModule } from './modules/messaging/messaging.module';
 import { EventsModule } from './modules/events/events.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -63,7 +62,6 @@ import { AdminModule } from './modules/admin/admin.module';
     MaintenanceModule,
     FinanceModule,
     DocumentsModule,
-    MessagingModule,
     EventsModule,
     DashboardModule,
     AnalyticsModule,

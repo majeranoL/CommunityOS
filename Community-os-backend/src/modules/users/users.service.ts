@@ -5,18 +5,32 @@ import {
 } from '@nestjs/common';
 
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
+import { JwtService } from '@nestjs/jwt';
+import { MailService } from '../../mail/mail.service';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
-import { AccountStatus, UserStatus } from '@prisma/client';
+import {
+  AccountStatus,
+  ResidentStatus,
+  SessionStatus,
+  UserStatus,
+} from '@prisma/client';
 
 import { CreateUserDto } from './dto/create-user.dto';
+import { CreateRenterDto } from './dto/create-renter.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserQueryDto } from './dto/user-query.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
+  ) {}
 
   private capitalize(value?: string) {
     if (!value) return value;
@@ -205,6 +219,270 @@ export class UsersService {
     return {
       success: true,
       message: 'User created successfully.',
+      data: user,
+    };
+  }
+
+  // ==========================================
+  // Create Renter (limited tenant account)
+  // ==========================================
+
+  async createRenter(communityId: string, dto: CreateRenterDto) {
+    // ==========================================
+    // Clean Inputs
+    // ==========================================
+
+    const firstName = this.capitalize(dto.firstName)!;
+    const middleName = this.capitalize(dto.middleName);
+    const lastName = this.capitalize(dto.lastName)!;
+
+    const email = dto.email.trim().toLowerCase();
+
+    const phoneNumber = dto.phoneNumber?.trim();
+
+    // ==========================================
+    // Duplicate Email
+    // ==========================================
+
+    const existingAccount = await this.prisma.account.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (existingAccount) {
+      throw new ConflictException('Email already exists.');
+    }
+
+    // ==========================================
+    // Validate Household
+    // ==========================================
+
+    const household = await this.prisma.household.findFirst({
+      where: {
+        id: dto.householdId,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!household) {
+      throw new NotFoundException('Household not found.');
+    }
+
+    // ==========================================
+    // Validate Renter Role
+    // ==========================================
+
+    const renterRole = await this.prisma.role.findFirst({
+      where: {
+        communityId,
+        name: 'Renter',
+        deletedAt: null,
+      },
+    });
+
+    if (!renterRole) {
+      throw new NotFoundException(
+        'Renter role not found. Contact a platform administrator.',
+      );
+    }
+
+    // ==========================================
+    // Generate Reference Numbers
+    // ==========================================
+
+    const latestUser = await this.prisma.user.findFirst({
+      where: {
+        communityId,
+      },
+      orderBy: {
+        referenceNumber: 'desc',
+      },
+      select: {
+        referenceNumber: true,
+      },
+    });
+
+    let referenceNumber = 'USR-000001';
+
+    if (latestUser) {
+      const latestNumber = Number(
+        latestUser.referenceNumber.replace('USR-', ''),
+      );
+
+      referenceNumber = `USR-${String(latestNumber + 1).padStart(6, '0')}`;
+    }
+
+    const latestResident = await this.prisma.resident.findFirst({
+      where: {
+        communityId,
+      },
+      orderBy: {
+        residentNumber: 'desc',
+      },
+      select: {
+        residentNumber: true,
+      },
+    });
+
+    let residentNumber = 'RES-000001';
+
+    if (latestResident) {
+      const latestNumber = Number(
+        latestResident.residentNumber.replace('RES-', ''),
+      );
+
+      residentNumber = `RES-${String(latestNumber + 1).padStart(6, '0')}`;
+    }
+
+    // ==========================================
+    // Temporary Password (never revealed)
+    // ==========================================
+
+    const tempPassword = crypto.randomBytes(16).toString('base64');
+
+    const passwordHash = await bcrypt.hash(
+      tempPassword,
+      Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
+    );
+
+    // ==========================================
+    // Transaction: deactivate current holder,
+    // then create Account + Resident + User
+    // ==========================================
+
+    const user = await this.prisma.$transaction(async (prisma) => {
+      const currentHolders = await prisma.user.findMany({
+        where: {
+          status: UserStatus.ACTIVE,
+          deletedAt: null,
+          resident: {
+            householdId: dto.householdId,
+          },
+        },
+        select: {
+          id: true,
+          accountId: true,
+        },
+      });
+
+      for (const holder of currentHolders) {
+        await prisma.account.update({
+          where: {
+            id: holder.accountId,
+          },
+          data: {
+            status: AccountStatus.DISABLED,
+          },
+        });
+
+        await prisma.user.update({
+          where: {
+            id: holder.id,
+          },
+          data: {
+            status: UserStatus.INACTIVE,
+          },
+        });
+
+        await prisma.session.updateMany({
+          where: {
+            accountId: holder.accountId,
+            status: SessionStatus.ACTIVE,
+          },
+          data: {
+            status: SessionStatus.REVOKED,
+          },
+        });
+
+        await prisma.refreshToken.updateMany({
+          where: {
+            accountId: holder.accountId,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: new Date(),
+          },
+        });
+      }
+
+      const account = await prisma.account.create({
+        data: {
+          email,
+          passwordHash,
+          status: AccountStatus.ACTIVE,
+        },
+      });
+
+      const resident = await prisma.resident.create({
+        data: {
+          communityId,
+          residentNumber,
+          householdId: dto.householdId,
+          firstName,
+          middleName,
+          lastName,
+          phoneNumber,
+          email,
+          gender: dto.gender ?? null,
+          status: ResidentStatus.ACTIVE,
+        },
+      });
+
+      const createdUser = await prisma.user.create({
+        data: {
+          accountId: account.id,
+          communityId,
+          residentId: resident.id,
+          referenceNumber,
+          firstName,
+          middleName,
+          lastName,
+          phoneNumber,
+          status: UserStatus.ACTIVE,
+        },
+      });
+
+      await prisma.userRole.create({
+        data: {
+          userId: createdUser.id,
+          roleId: renterRole.id,
+        },
+      });
+
+      return createdUser;
+    });
+
+    // ==========================================
+    // Send set-password email
+    // ==========================================
+
+    const token = await this.jwtService.signAsync(
+      {
+        sub: user.accountId,
+        type: 'password_reset',
+      },
+      {
+        expiresIn: '30m',
+      },
+    );
+
+    const appUrl = (process.env.APP_URL ?? 'http://localhost:5173').replace(
+      /\/$/,
+      '',
+    );
+
+    await this.mailService.sendAccountCreatedEmail(
+      email,
+      `${firstName} ${lastName}`,
+      `${appUrl}/reset-password?token=${encodeURIComponent(token)}`,
+    );
+
+    return {
+      success: true,
+      message:
+        'Renter account created. They will receive an email to set their password.',
       data: user,
     };
   }
@@ -432,6 +710,29 @@ export class UsersService {
     };
   }
 
+  private async revokeUserSessions(accountId: string) {
+    await this.prisma.$transaction([
+      this.prisma.session.updateMany({
+        where: {
+          accountId,
+          status: SessionStatus.ACTIVE,
+        },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: {
+          accountId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: new Date(),
+        },
+      }),
+    ]);
+  }
+
   async update(communityId: string, id: string, dto: UpdateUserDto) {
     // ==========================================
     // Check if User Exists
@@ -566,6 +867,22 @@ export class UsersService {
       }
     });
 
+    if (dto.status === UserStatus.ACTIVE) {
+      await this.prisma.account.update({
+        where: {
+          id: user.accountId,
+        },
+        data: {
+          status: AccountStatus.ACTIVE,
+          emailVerifiedAt: user.account?.emailVerifiedAt ?? new Date(),
+        },
+      });
+    }
+
+    if (dto.status && dto.status !== UserStatus.ACTIVE) {
+      await this.revokeUserSessions(user.accountId);
+    }
+
     return {
       success: true,
       message: 'User updated successfully.',
@@ -616,6 +933,8 @@ export class UsersService {
         },
       });
     });
+
+    await this.revokeUserSessions(user.accountId);
 
     return {
       success: true,

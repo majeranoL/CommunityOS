@@ -1,5 +1,4 @@
 import {
-  Bell,
   Briefcase,
   Building2,
   CalendarDays,
@@ -13,7 +12,6 @@ import {
   Home,
   LayoutDashboard,
   Megaphone,
-  MessageSquare,
   MessageSquareWarning,
   Settings,
   ShieldCheck,
@@ -62,8 +60,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Events', href: '/app/events', icon: CalendarDays, permission: PERMISSIONS.eventView },
       { label: 'Polls', href: '/app/polls', icon: Vote, permission: PERMISSIONS.pollView },
       { label: 'Documents', href: '/app/documents', icon: FileText, permission: PERMISSIONS.documentView },
-      { label: 'Messages', href: '/app/messages', icon: MessageSquare, permission: PERMISSIONS.messageView },
-      { label: 'Notifications', href: '/app/notifications', icon: Bell, permission: PERMISSIONS.notificationView },
     ],
   },
   {

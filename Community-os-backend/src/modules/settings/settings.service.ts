@@ -118,7 +118,7 @@ export class SettingsService {
       }
     }
 
-    return merged;
+    return merged.sort((a, b) => a.key.localeCompare(b.key));
   }
 
   // ==========================================

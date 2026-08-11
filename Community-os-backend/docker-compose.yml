@@ -25,12 +25,14 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-community_os}?schema=public
-      JWT_SECRET: ${JWT_SECRET:-CommunityOSSecretKey}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
-      REFRESH_SECRET: ${REFRESH_SECRET:-CommunityOSRefreshSecret}
+      REFRESH_SECRET: ${REFRESH_SECRET:?REFRESH_SECRET must be set}
       REFRESH_EXPIRES_IN: ${REFRESH_EXPIRES_IN:-7d}
       BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-10}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      APP_URL: ${APP_URL:-http://localhost:5173}
       SEED_DB: ${SEED_DB:-false}
     ports:
       - "${APP_PORT:-3000}:3000"

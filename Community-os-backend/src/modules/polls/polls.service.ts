@@ -513,7 +513,7 @@ export class PollsService {
       },
     });
 
-    await this.notifyVoters(communityId, poll);
+    await this.notifyVotersIfEnabled(communityId, poll);
 
     return {
       success: true,
@@ -693,10 +693,26 @@ export class PollsService {
   // Notify Eligible Voters
   // ==========================================
 
-  private async notifyVoters(
+  private async notifyVotersIfEnabled(
     communityId: string,
     poll: { id: string; title: string },
   ) {
+    const remindersSetting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'pollReminders',
+        },
+      },
+    });
+
+    const remindersEnabled =
+      (remindersSetting?.value as boolean | undefined) ?? true;
+
+    if (!remindersEnabled) {
+      return;
+    }
+
     const users = await this.prisma.user.findMany({
       where: {
         communityId,

@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  Query,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Query, Request, UseGuards } from '@nestjs/common';
 
 import { FinanceOptionsService } from './finance-options.service';
 

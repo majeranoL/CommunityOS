@@ -8,13 +8,18 @@ import { DocumentStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { UploadsService } from '../uploads/uploads.service';
+
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import { DocumentQueryDto } from './dto/document-query.dto';
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   // ==========================================
   // Create Document
@@ -269,6 +274,29 @@ export class DocumentsService {
       },
     });
 
+    // If the file was replaced, clean up the old upload once nothing else references it
+    if (dto.fileUrl && dto.fileUrl !== document.fileUrl) {
+      const oldUploadId = document.fileUrl?.split('/').pop();
+
+      if (oldUploadId) {
+        const otherReferences = await this.prisma.document.count({
+          where: {
+            communityId,
+            deletedAt: null,
+            NOT: { id },
+            fileUrl: document.fileUrl,
+          },
+        });
+
+        if (otherReferences === 0) {
+          await this.uploadsService.removeUploadForCommunity(
+            communityId,
+            oldUploadId,
+          );
+        }
+      }
+    }
+
     return {
       success: true,
       message: 'Document updated successfully.',
@@ -303,6 +331,27 @@ export class DocumentsService {
         deletedAt: new Date(),
       },
     });
+
+    // Clean up the underlying upload + file once nothing else references it
+    const uploadId = document.fileUrl?.split('/').pop();
+
+    if (uploadId) {
+      const otherReferences = await this.prisma.document.count({
+        where: {
+          communityId,
+          deletedAt: null,
+          NOT: { id },
+          fileUrl: document.fileUrl,
+        },
+      });
+
+      if (otherReferences === 0) {
+        await this.uploadsService.removeUploadForCommunity(
+          communityId,
+          uploadId,
+        );
+      }
+    }
 
     return {
       success: true,
