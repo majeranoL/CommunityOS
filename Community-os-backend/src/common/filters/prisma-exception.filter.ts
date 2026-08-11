@@ -6,12 +6,38 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 
 @Catch()
 export class PrismaExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(PrismaExceptionFilter.name);
+
+  private capture(
+    exception: unknown,
+    request: Request,
+    response: Response,
+  ): void {
+    if (!process.env.SENTRY_DSN) {
+      return;
+    }
+
+    const requestId = response.getHeader('x-request-id');
+
+    Sentry.captureException(
+      exception instanceof Error ? exception : new Error(String(exception)),
+      {
+        tags: {
+          requestId: typeof requestId === 'string' ? requestId : 'unknown',
+        },
+        extra: {
+          method: request.method,
+          url: request.url,
+        },
+      },
+    );
+  }
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -21,6 +47,10 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const body = exception.getResponse();
+
+      if (status >= 500) {
+        this.capture(exception, request, response);
+      }
 
       response
         .status(status)
@@ -74,6 +104,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         `${request.method} ${request.url}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+      this.capture(exception, request, response);
     }
 
     response.status(status).json({

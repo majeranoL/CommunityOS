@@ -7,7 +7,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 
-RUN npm ci
+# bcrypt@6 builds a native addon at install time (node-gyp) — needs a toolchain on alpine
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci \
+    && apk del .build-deps
 
 # ==============================================
 # Stage 2: Build
@@ -30,10 +33,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # prisma CLI + tsx (for seed) live in devDependencies,
-# keep them so migrate/seed can run from the entrypoint
+# keep them so migrate/seed can run from the entrypoint.
+# NODE_ENV=production makes `npm ci` omit devDeps by default,
+# so `--include=dev` is required here (otherwise `prisma generate`
+# would npx-fetch the latest CLI, breaking Prisma 6 schemas).
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
-RUN npm ci && npx prisma generate
+RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci --include=dev \
+    && npx prisma generate \
+    && apk del .build-deps
 
 COPY --from=build /app/dist ./dist
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

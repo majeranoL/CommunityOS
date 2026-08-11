@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
@@ -7,12 +8,24 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { validateEnv } from './config/env';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { requestLogger } from './common/middleware/request-logger.middleware';
+import { JsonLogger } from './common/logging/json.logger';
 
 async function bootstrap() {
   validateEnv();
 
-  const app = await NestFactory.create(AppModule);
+  if (process.env.SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV ?? 'development',
+      tracesSampleRate: 0.1,
+    });
+  }
 
+  const app = await NestFactory.create(AppModule);
+  app.useLogger(new JsonLogger());
+
+  app.use(requestLogger);
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.use(helmet());
@@ -46,10 +59,11 @@ async function bootstrap() {
 
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(3000);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
 
-  console.log('🚀 Server running at http://localhost:3000');
-  console.log('📘 Swagger available at http://localhost:3000/api/docs');
+  console.log(`🚀 Server running at http://localhost:${port}`);
+  console.log(`📘 Swagger available at http://localhost:${port}/api/docs`);
 }
 
 void bootstrap();

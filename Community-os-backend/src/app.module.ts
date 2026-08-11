@@ -33,6 +33,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { PlatformSettingsModule } from './modules/platform-settings/platform-settings.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { HealthModule } from './modules/health/health.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -74,6 +75,7 @@ import { AdminModule } from './modules/admin/admin.module';
     PlatformSettingsModule,
     PublicModule,
     AdminModule,
+    HealthModule,
   ],
   providers: [
     {

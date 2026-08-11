@@ -34,6 +34,14 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       APP_URL: ${APP_URL:-http://localhost:5173}
       SEED_DB: ${SEED_DB:-false}
+      PORT: ${PORT:-3000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
       - "${APP_PORT:-3000}:3000"
     volumes:
