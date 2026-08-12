@@ -11,6 +11,7 @@ import {
 import type {
   CreateAssessmentInput,
   CreatePaymentInput,
+  GenerateAssessmentsInput,
   UpdateAssessmentInput,
   UpdatePaymentInput,
 } from '@/features/finance/types/finance'
@@ -110,6 +111,24 @@ export function useDeleteAssessment(onSuccess?: () => void) {
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete assessment.')),
+  })
+}
+
+export function useGenerateAssessments(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: GenerateAssessmentsInput) => assessmentsService.generate(input),
+    onSuccess: (result) => {
+      toast.success(
+        result.skippedCount > 0
+          ? `Created ${result.createdCount} assessments (${result.skippedCount} skipped).`
+          : `Created ${result.createdCount} assessments.`,
+      )
+      invalidateAssessments(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to generate assessments.')),
   })
 }
 

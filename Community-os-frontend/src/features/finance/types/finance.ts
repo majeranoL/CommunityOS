@@ -114,3 +114,18 @@ export interface ResidentOption {
   lastName: string
   suffix: string | null
 }
+
+export interface GenerateAssessmentsInput {
+  title: string
+  description?: string
+  period?: string
+  amount: number
+  dueDate: string
+  remarks?: string
+}
+
+export interface GenerateAssessmentsResult {
+  createdCount: number
+  skippedCount: number
+  created: Assessment[]
+}

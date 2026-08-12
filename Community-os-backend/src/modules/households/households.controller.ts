@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   ParseUUIDPipe,
   Post,
@@ -46,6 +47,24 @@ export class HouseholdsController {
   @Permissions('household.view')
   findAll(@Request() req: any, @Query() query: HouseholdQueryDto) {
     return this.householdsService.findAll(req.user.community.id, query);
+  }
+
+  // ==========================================
+  // Get My Household (self-service statement)
+  // A member can read their own household's
+  // record without household.view
+  // ==========================================
+
+  @Get('me')
+  @Permissions('assessment.view')
+  findMe(@Request() req: any) {
+    const householdId = req.user.resident?.household?.id;
+
+    if (!householdId) {
+      throw new NotFoundException('No household is linked to your account.');
+    }
+
+    return this.householdsService.findOne(req.user.community.id, householdId);
   }
 
   // ==========================================

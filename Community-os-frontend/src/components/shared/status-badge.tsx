@@ -44,7 +44,6 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   PATCH: 'warning',
   DELETE: 'destructive',
   GOOD: 'success',
-  WATCH: 'warning',
   BAD: 'destructive',
 }
 

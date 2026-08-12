@@ -5,6 +5,8 @@ import type {
   AssessmentListItem,
   CreateAssessmentInput,
   CreatePaymentInput,
+  GenerateAssessmentsInput,
+  GenerateAssessmentsResult,
   Payment,
   PaymentListItem,
   ResidentOption,
@@ -40,6 +42,14 @@ export const assessmentsService = {
 
   async remove(id: string) {
     const { data } = await api.delete<ApiEnvelope<null>>(`/assessments/${id}`)
+    return data.data
+  },
+
+  async generate(input: GenerateAssessmentsInput) {
+    const { data } = await api.post<ApiEnvelope<GenerateAssessmentsResult>>(
+      '/assessments/generate',
+      input,
+    )
     return data.data
   },
 

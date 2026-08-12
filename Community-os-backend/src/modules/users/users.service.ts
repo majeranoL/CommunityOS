@@ -218,7 +218,8 @@ export class UsersService {
       names.firstName = resident.firstName;
       names.middleName = resident.middleName;
       names.lastName = resident.lastName;
-      dto.phoneNumber = dto.phoneNumber?.trim() || resident.phoneNumber || undefined;
+      dto.phoneNumber =
+        dto.phoneNumber?.trim() || resident.phoneNumber || undefined;
     } else {
       const household = await this.prisma.household.findFirst({
         where: {

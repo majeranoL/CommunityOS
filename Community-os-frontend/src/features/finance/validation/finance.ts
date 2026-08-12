@@ -13,6 +13,17 @@ export const assessmentSchema = z.object({
 
 export type AssessmentFormValues = z.infer<typeof assessmentSchema>
 
+export const generateAssessmentsSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().optional().or(z.literal('')),
+  period: z.string().max(20).optional().or(z.literal('')),
+  amount: z.number({ error: 'Enter an amount' }).min(0.01, 'Amount must be greater than 0'),
+  dueDate: z.string().min(1, 'Due date is required'),
+  remarks: z.string().optional().or(z.literal('')),
+})
+
+export type GenerateAssessmentsFormValues = z.infer<typeof generateAssessmentsSchema>
+
 export const paymentSchema = z.object({
   paymentNumber: z.string().min(1, 'Payment number is required').max(30),
   assessmentId: z.string().min(1, 'Select an assessment'),

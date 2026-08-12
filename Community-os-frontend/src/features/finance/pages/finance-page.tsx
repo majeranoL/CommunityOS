@@ -31,6 +31,8 @@ import {
 } from '@/features/finance/hooks/use-finance'
 import { AssessmentFormDialog } from '@/features/finance/components/assessment-form-dialog'
 import { AssessmentDetailDialog } from '@/features/finance/components/assessment-detail-dialog'
+import { GenerateDuesDialog } from '@/features/finance/components/generate-dues-dialog'
+import { MyBalanceCard } from '@/features/finance/components/my-balance-card'
 import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
 import { PaymentDetailDialog } from '@/features/finance/components/payment-detail-dialog'
 import { householdLabel } from '@/features/finance/components/household-select'
@@ -56,12 +58,17 @@ const PAYMENT_STATUSES: Array<{ value: PaymentStatus | 'ALL'; label: string }> =
 ]
 
 export default function FinancePage() {
+  const canCreateAssessment = useHasPermission(PERMISSIONS.assessmentCreate)
+  const canCreatePayment = useHasPermission(PERMISSIONS.paymentCreate)
+  const isManager = canCreateAssessment || canCreatePayment
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="Finance"
         description="Manage community assessments and resident payments."
       />
+      {!isManager ? <MyBalanceCard /> : null}
       <Tabs defaultValue="assessments">
         <TabsList>
           <TabsTrigger value="assessments">Assessments</TabsTrigger>
@@ -83,6 +90,7 @@ function AssessmentsTab() {
   const [status, setStatus] = useState<AssessmentStatus | 'ALL'>('ALL')
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
+  const [generateOpen, setGenerateOpen] = useState(false)
   const [editing, setEditing] = useState<AssessmentListItem | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<AssessmentListItem | null>(null)
@@ -231,10 +239,15 @@ function AssessmentsTab() {
           </SelectContent>
         </Select>
         {canCreate ? (
-          <Button className="sm:ml-auto" onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New assessment
-          </Button>
+          <>
+            <Button variant="outline" onClick={() => setGenerateOpen(true)}>
+              Generate dues
+            </Button>
+            <Button className="sm:ml-auto" onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New assessment
+            </Button>
+          </>
         ) : null}
         {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
       </div>
@@ -257,6 +270,7 @@ function AssessmentsTab() {
         }}
         assessment={editing}
       />
+      <GenerateDuesDialog open={generateOpen} onOpenChange={setGenerateOpen} />
       <AssessmentDetailDialog
         assessmentId={detailId}
         open={Boolean(detailId)}

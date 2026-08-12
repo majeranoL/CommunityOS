@@ -17,7 +17,7 @@ import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
 
-type HouseholdStanding = 'GOOD' | 'WATCH' | 'BAD';
+type HouseholdStanding = 'GOOD' | 'BAD';
 
 export interface HouseholdFinanceSummary {
   totalBilled: number;
@@ -25,6 +25,81 @@ export interface HouseholdFinanceSummary {
   outstanding: number;
   monthsBehind: number;
   standing: HouseholdStanding;
+}
+
+export interface FinanceAssessmentInput {
+  householdId: string;
+  amount: number;
+  dueDate: Date;
+  status: AssessmentStatus;
+}
+
+/**
+ * Pure computation of the per-household finance summary. The caller feeds
+ * billed (non-DRAFT / non-CANCELLED) assessments and the CONFIRMED payments
+ * (keyed by household) fetched from the database; this function derives the
+ * outstanding balance, months-behind count and GOOD/BAD standing.
+ *
+ * A household is BAD standing once it has unpaid assessments in 3+ distinct
+ * calendar months (year-month buckets of their due dates).
+ */
+export function summarizeFinance(
+  householdIds: string[],
+  assessments: FinanceAssessmentInput[],
+  paidByHousehold: Map<string, number>,
+  now: Date = new Date(),
+): Map<string, HouseholdFinanceSummary> {
+  const summary = new Map<string, HouseholdFinanceSummary>();
+
+  for (const id of householdIds) {
+    summary.set(id, {
+      totalBilled: 0,
+      totalPaid: 0,
+      outstanding: 0,
+      monthsBehind: 0,
+      standing: 'GOOD',
+    });
+  }
+
+  const overdueMonths = new Map<string, Set<string>>();
+
+  for (const assessment of assessments) {
+    const entry = summary.get(assessment.householdId);
+    if (!entry) continue;
+
+    entry.totalBilled += assessment.amount;
+
+    const isUnpaid =
+      assessment.status === AssessmentStatus.ISSUED ||
+      assessment.status === AssessmentStatus.PARTIALLY_PAID ||
+      assessment.status === AssessmentStatus.OVERDUE;
+
+    if (isUnpaid && assessment.dueDate < now) {
+      const key = `${assessment.dueDate.getFullYear()}-${assessment.dueDate.getMonth()}`;
+
+      if (!overdueMonths.has(assessment.householdId)) {
+        overdueMonths.set(assessment.householdId, new Set());
+      }
+
+      overdueMonths.get(assessment.householdId)!.add(key);
+    }
+  }
+
+  for (const [householdId, paid] of paidByHousehold) {
+    const entry = summary.get(householdId);
+    if (entry) {
+      entry.totalPaid += paid;
+    }
+  }
+
+  for (const [householdId, entry] of summary) {
+    entry.outstanding = entry.totalBilled - entry.totalPaid;
+    entry.monthsBehind = overdueMonths.get(householdId)?.size ?? 0;
+
+    entry.standing = entry.monthsBehind >= 3 ? 'BAD' : 'GOOD';
+  }
+
+  return summary;
 }
 
 @Injectable()
@@ -75,10 +150,7 @@ export class HouseholdsService {
           householdId: { in: householdIds },
           deletedAt: null,
           status: {
-            notIn: [
-              AssessmentStatus.DRAFT,
-              AssessmentStatus.CANCELLED,
-            ],
+            notIn: [AssessmentStatus.DRAFT, AssessmentStatus.CANCELLED],
           },
         },
         select: {
@@ -109,63 +181,26 @@ export class HouseholdsService {
       }),
     ]);
 
-    const summary = new Map<string, HouseholdFinanceSummary>();
-
-    for (const id of householdIds) {
-      summary.set(id, {
-        totalBilled: 0,
-        totalPaid: 0,
-        outstanding: 0,
-        monthsBehind: 0,
-        standing: 'GOOD',
-      });
-    }
-
-    const now = new Date();
-    const overdueMonths = new Map<string, Set<string>>();
-
-    for (const assessment of assessments) {
-      const entry = summary.get(assessment.householdId);
-      if (!entry) continue;
-
-      entry.totalBilled += assessment.amount.toNumber();
-
-      const isUnpaid =
-        assessment.status === AssessmentStatus.ISSUED ||
-        assessment.status === AssessmentStatus.PARTIALLY_PAID ||
-        assessment.status === AssessmentStatus.OVERDUE;
-
-      if (isUnpaid && assessment.dueDate < now) {
-        const key = `${assessment.dueDate.getFullYear()}-${assessment.dueDate.getMonth()}`;
-
-        if (!overdueMonths.has(assessment.householdId)) {
-          overdueMonths.set(assessment.householdId, new Set());
-        }
-
-        overdueMonths.get(assessment.householdId)!.add(key);
-      }
-    }
+    const paidByHousehold = new Map<string, number>();
 
     for (const payment of payments) {
-      const entry = summary.get(payment.assessment.householdId);
-      if (entry) {
-        entry.totalPaid += payment.amount.toNumber();
-      }
+      const householdId = payment.assessment.householdId;
+      paidByHousehold.set(
+        householdId,
+        (paidByHousehold.get(householdId) ?? 0) + payment.amount.toNumber(),
+      );
     }
 
-    for (const [householdId, entry] of summary) {
-      entry.outstanding = entry.totalBilled - entry.totalPaid;
-      entry.monthsBehind = overdueMonths.get(householdId)?.size ?? 0;
-
-      entry.standing =
-        entry.monthsBehind >= 3
-          ? 'BAD'
-          : entry.monthsBehind >= 1
-            ? 'WATCH'
-            : 'GOOD';
-    }
-
-    return summary;
+    return summarizeFinance(
+      householdIds,
+      assessments.map((assessment) => ({
+        householdId: assessment.householdId,
+        amount: assessment.amount.toNumber(),
+        dueDate: assessment.dueDate,
+        status: assessment.status,
+      })),
+      paidByHousehold,
+    );
   }
 
   // ==========================================
@@ -412,6 +447,8 @@ export class HouseholdsService {
                 paymentNumber: true,
                 amount: true,
                 paymentDate: true,
+                method: true,
+                referenceNumber: true,
                 status: true,
               },
               orderBy: {

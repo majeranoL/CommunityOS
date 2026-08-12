@@ -2,13 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import { householdsService } from '@/features/households/services/households'
-import type { CreateHouseholdInput, UpdateHouseholdInput } from '@/features/households/types/household'
+import type {
+  CreateHouseholdInput,
+  UpdateHouseholdInput,
+} from '@/features/households/types/household'
 import type { ListQuery } from '@/types/api'
 
 export const householdKeys = {
   all: ['households'] as const,
   list: (params: ListQuery) => ['households', 'list', params] as const,
   detail: (id: string) => ['households', 'detail', id] as const,
+  me: ['households', 'me'] as const,
 }
 
 export function useHouseholds(params: ListQuery) {
@@ -27,16 +31,25 @@ export function useHousehold(id: string | null) {
   })
 }
 
+export function useMyHousehold() {
+  return useQuery({
+    queryKey: householdKeys.me,
+    queryFn: () => householdsService.me(),
+  })
+}
+
 export function useCreateHousehold(onSuccess?: () => void) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: CreateHouseholdInput) => householdsService.create(input),
+    mutationFn: (input: CreateHouseholdInput) =>
+      householdsService.create(input),
     onSuccess: () => {
       toast.success('Household added.')
       queryClient.invalidateQueries({ queryKey: householdKeys.all })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to add household.')),
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to add household.')),
   })
 }
 
@@ -50,7 +63,8 @@ export function useUpdateHousehold(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: householdKeys.all })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update household.')),
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to update household.')),
   })
 }
 
@@ -63,6 +77,7 @@ export function useDeleteHousehold(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: householdKeys.all })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to remove household.')),
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to remove household.')),
   })
 }

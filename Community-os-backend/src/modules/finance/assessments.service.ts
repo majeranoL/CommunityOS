@@ -1,20 +1,27 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
-import { AssessmentStatus } from '@prisma/client';
+import { AssessmentStatus, HouseholdStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { FinanceSyncService } from './finance-sync.service';
 
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { AssessmentQueryDto } from './dto/assessment-query.dto';
+import { GenerateAssessmentsDto } from './dto/generate-assessments.dto';
 
 @Injectable()
 export class AssessmentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly financeSyncService: FinanceSyncService,
+  ) {}
 
   // ==========================================
   // Create Assessment
@@ -103,6 +110,135 @@ export class AssessmentsService {
   }
 
   // ==========================================
+  // Generate Assessments (bulk monthly dues)
+  // One assessment per ACTIVE household
+  // ==========================================
+
+  async generate(communityId: string, dto: GenerateAssessmentsDto) {
+    const { title, amount, dueDate, period, householdIds } = dto;
+
+    const where: any = {
+      communityId,
+      deletedAt: null,
+      status: HouseholdStatus.ACTIVE,
+    };
+
+    if (householdIds?.length) {
+      where.id = { in: householdIds };
+    }
+
+    const households = await this.prisma.household.findMany({
+      where,
+      select: { id: true },
+    });
+
+    if (households.length === 0) {
+      throw new BadRequestException('No active households to bill.');
+    }
+
+    let eligibleIds = households.map((household) => household.id);
+    let skippedCount = 0;
+
+    // Dedupe: households that already carry a non-cancelled assessment
+    // for this period are skipped so re-running doesn't double-bill
+    if (period) {
+      const existing = await this.prisma.assessment.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          period,
+          householdId: { in: eligibleIds },
+          status: { not: AssessmentStatus.CANCELLED },
+        },
+        select: { householdId: true },
+      });
+
+      const claimed = new Set(
+        existing.map((assessment) => assessment.householdId),
+      );
+      const before = eligibleIds.length;
+      eligibleIds = eligibleIds.filter((id) => !claimed.has(id));
+      skippedCount = before - eligibleIds.length;
+    }
+
+    if (eligibleIds.length === 0) {
+      throw new ConflictException(
+        'All selected households already have an assessment for this period.',
+      );
+    }
+
+    // Next assessment numbers
+    const latest = await this.prisma.assessment.findFirst({
+      where: { communityId },
+      orderBy: { assessmentNumber: 'desc' },
+      select: { assessmentNumber: true },
+    });
+
+    let nextNumber = 0;
+    if (latest) {
+      const parsed = parseInt(latest.assessmentNumber.replace(/^ASS-/, ''), 10);
+      if (!Number.isNaN(parsed)) nextNumber = parsed;
+    }
+
+    const due = new Date(dueDate);
+    const created: Prisma.AssessmentGetPayload<{
+      include: {
+        household: {
+          select: {
+            id: true;
+            block: true;
+            lot: true;
+            unit: true;
+          };
+        };
+      };
+    }>[] = [];
+
+    for (const householdId of eligibleIds) {
+      nextNumber += 1;
+
+      const assessment = await this.prisma.assessment.create({
+        data: {
+          communityId,
+          assessmentNumber: `ASS-${String(nextNumber).padStart(6, '0')}`,
+          title: title.trim(),
+          description: dto.description?.trim(),
+          householdId,
+          amount,
+          dueDate: due,
+          period: period?.trim(),
+          remarks: dto.remarks?.trim(),
+          status: AssessmentStatus.ISSUED,
+        },
+        include: {
+          household: {
+            select: {
+              id: true,
+              block: true,
+              lot: true,
+              unit: true,
+            },
+          },
+        },
+      });
+
+      created.push(assessment);
+    }
+
+    return {
+      success: true,
+      message: `Generated ${created.length} assessment${
+        created.length === 1 ? '' : 's'
+      }.`,
+      data: {
+        created,
+        createdCount: created.length,
+        skippedCount,
+      },
+    };
+  }
+
+  // ==========================================
   // Get All Assessments
   // ==========================================
 
@@ -111,6 +247,8 @@ export class AssessmentsService {
     query: AssessmentQueryDto,
     scopeHouseholdId?: string,
   ) {
+    await this.financeSyncService.sweepOverdue(communityId);
+
     const { page, limit, search, status, householdId, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
@@ -205,6 +343,8 @@ export class AssessmentsService {
   // ==========================================
 
   async findOne(communityId: string, id: string) {
+    await this.financeSyncService.sweepOverdue(communityId);
+
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id,
@@ -373,6 +513,15 @@ export class AssessmentsService {
         },
       },
     });
+
+    // ==========================================
+    // Recompute paidAmount / status when the
+    // amount changes (stored paidAmount would drift)
+    // ==========================================
+
+    if (dto.amount !== undefined) {
+      await this.financeSyncService.syncAssessment(communityId, id);
+    }
 
     return {
       success: true,

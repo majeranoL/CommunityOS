@@ -18,6 +18,7 @@ import { AssessmentsService } from './assessments.service';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { AssessmentQueryDto } from './dto/assessment-query.dto';
+import { GenerateAssessmentsDto } from './dto/generate-assessments.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -53,6 +54,16 @@ export class AssessmentsController {
   @Permissions('assessment.create')
   create(@Request() req: any, @Body() dto: CreateAssessmentDto) {
     return this.assessmentsService.create(req.user.community.id, dto);
+  }
+
+  // ==========================================
+  // Generate Assessments (bulk monthly dues)
+  // ==========================================
+
+  @Post('generate')
+  @Permissions('assessment.create')
+  generate(@Request() req: any, @Body() dto: GenerateAssessmentsDto) {
+    return this.assessmentsService.generate(req.user.community.id, dto);
   }
 
   // ==========================================

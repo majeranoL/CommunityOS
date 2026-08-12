@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Home, Plus, Search } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
@@ -23,16 +23,21 @@ import { formatCurrency, formatDate } from '@/lib/format'
 
 const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE'] as const
 
+const STANDING_FILTERS = ['ALL', 'GOOD', 'BAD'] as const
+
 function unitLabel(household: HouseholdListItem) {
   return (
-    [household.block, household.lot, household.unit, household.address].filter(Boolean).join(', ') ||
-    'Unnamed unit'
+    [household.block, household.lot, household.unit, household.address]
+      .filter(Boolean)
+      .join(', ') || 'Unnamed unit'
   )
 }
 
 export default function HouseholdsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
+  const [standing, setStanding] = useState<string>('ALL')
+  const [sortBy, setSortBy] = useState<string>('createdAt')
   const [page, setPage] = useState(1)
   const [createOpen, setCreateOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -47,6 +52,32 @@ export default function HouseholdsPage() {
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
   })
+
+  const rows = useMemo(() => {
+    const items = data?.items ?? []
+    const filtered =
+      standing === 'ALL'
+        ? items
+        : items.filter((row) => row.finance?.standing === standing)
+
+    if (sortBy === 'outstanding') {
+      return [...filtered].sort(
+        (a, b) => (b.finance?.outstanding ?? 0) - (a.finance?.outstanding ?? 0),
+      )
+    }
+
+    if (sortBy === 'monthsBehind') {
+      return [...filtered].sort(
+        (a, b) =>
+          (b.finance?.monthsBehind ?? 0) - (a.finance?.monthsBehind ?? 0),
+      )
+    }
+
+    return [...filtered].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+  }, [data, standing, sortBy])
 
   const columns: Column<HouseholdListItem>[] = [
     {
@@ -99,7 +130,11 @@ export default function HouseholdsPage() {
     {
       key: 'createdAt',
       header: 'Added',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.createdAt)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {formatDate(row.createdAt)}
+        </span>
+      ),
       hideBelow: 'lg',
     },
     {
@@ -162,17 +197,53 @@ export default function HouseholdsPage() {
           <SelectContent>
             {STATUS_FILTERS.map((option) => (
               <SelectItem key={option} value={option}>
-                {option === 'ALL' ? 'All statuses' : option.charAt(0) + option.slice(1).toLowerCase()}
+                {option === 'ALL'
+                  ? 'All statuses'
+                  : option.charAt(0) + option.slice(1).toLowerCase()}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
+        <Select
+          value={standing}
+          onValueChange={(value) => {
+            setStanding(value)
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="sm:w-44">
+            <SelectValue placeholder="Standing" />
+          </SelectTrigger>
+          <SelectContent>
+            {STANDING_FILTERS.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option === 'ALL'
+                  ? 'All standing'
+                  : option === 'GOOD'
+                    ? 'Good standing'
+                    : 'Bad standing'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger className="sm:w-44">
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="createdAt">Newest first</SelectItem>
+            <SelectItem value="outstanding">Highest outstanding</SelectItem>
+            <SelectItem value="monthsBehind">Most months behind</SelectItem>
+          </SelectContent>
+        </Select>
+        {isFetching ? (
+          <span className="text-xs text-muted-foreground">Updating…</span>
+        ) : null}
       </div>
 
       <DataTable
         columns={columns}
-        rows={data?.items ?? []}
+        rows={rows}
         keyExtractor={(row) => row.id}
         isLoading={isLoading}
         emptyMessage="No households found."
@@ -181,7 +252,11 @@ export default function HouseholdsPage() {
       <Pagination pagination={data?.pagination} onPageChange={setPage} />
 
       <HouseholdFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <HouseholdFormDialog open={Boolean(editId)} onOpenChange={(open) => !open && setEditId(null)} householdId={editId} />
+      <HouseholdFormDialog
+        open={Boolean(editId)}
+        onOpenChange={(open) => !open && setEditId(null)}
+        householdId={editId}
+      />
       <HouseholdDetailsDialog
         householdId={selectedId}
         open={Boolean(selectedId)}

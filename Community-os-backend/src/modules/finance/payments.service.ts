@@ -15,6 +15,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { NotificationsService } from '../notifications/notifications.service';
 
+import { FinanceSyncService } from './finance-sync.service';
+
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentQueryDto } from './dto/payment-query.dto';
@@ -24,6 +26,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly financeSyncService: FinanceSyncService,
   ) {}
 
   // ==========================================
@@ -93,6 +96,12 @@ export class PaymentsService {
       throw new NotFoundException('Resident not found.');
     }
 
+    if (resident.householdId !== assessment.householdId) {
+      throw new BadRequestException(
+        "Resident must belong to the assessment's household.",
+      );
+    }
+
     // ==========================================
     // Create Payment
     // ==========================================
@@ -153,6 +162,16 @@ export class PaymentsService {
         `/payments/${payment.id}`,
       );
     }
+
+    // ==========================================
+    // Sync assessment paidAmount / status
+    // (matters when a payment is created as CONFIRMED)
+    // ==========================================
+
+    await this.financeSyncService.syncAssessment(
+      communityId,
+      payment.assessmentId,
+    );
 
     return {
       success: true,
@@ -425,6 +444,44 @@ export class PaymentsService {
     }
 
     // ==========================================
+    // Cross-check resident ↔ assessment household
+    // ==========================================
+
+    if (dto.assessmentId || dto.residentId) {
+      const effectiveAssessmentId = dto.assessmentId ?? payment.assessmentId;
+      const effectiveResidentId = dto.residentId ?? payment.residentId;
+
+      const [effectiveAssessment, effectiveResident] = await Promise.all([
+        this.prisma.assessment.findFirst({
+          where: {
+            id: effectiveAssessmentId,
+            communityId,
+            deletedAt: null,
+          },
+          select: { householdId: true },
+        }),
+        this.prisma.resident.findFirst({
+          where: {
+            id: effectiveResidentId,
+            communityId,
+            deletedAt: null,
+          },
+          select: { householdId: true },
+        }),
+      ]);
+
+      if (
+        effectiveAssessment &&
+        effectiveResident &&
+        effectiveResident.householdId !== effectiveAssessment.householdId
+      ) {
+        throw new BadRequestException(
+          "Resident must belong to the assessment's household.",
+        );
+      }
+    }
+
+    // ==========================================
     // Update Payment
     // ==========================================
 
@@ -485,6 +542,22 @@ export class PaymentsService {
       },
     });
 
+    // ==========================================
+    // Recompute assessment when amount / status /
+    // target assessment changed
+    // ==========================================
+
+    if (
+      dto.assessmentId ||
+      dto.amount !== undefined ||
+      dto.status !== undefined
+    ) {
+      await this.financeSyncService.syncAssessment(
+        communityId,
+        dto.assessmentId ?? payment.assessmentId,
+      );
+    }
+
     return {
       success: true,
       message: 'Payment updated successfully.',
@@ -518,6 +591,11 @@ export class PaymentsService {
         deletedAt: new Date(),
       },
     });
+
+    await this.financeSyncService.syncAssessment(
+      communityId,
+      payment.assessmentId,
+    );
 
     return {
       success: true,
@@ -563,7 +641,10 @@ export class PaymentsService {
       },
     });
 
-    await this.syncAssessmentStatus(communityId, payment.assessmentId);
+    await this.financeSyncService.syncAssessment(
+      communityId,
+      payment.assessmentId,
+    );
 
     // ==========================================
     // Notify Finance Staff
@@ -645,7 +726,10 @@ export class PaymentsService {
       },
     });
 
-    await this.syncAssessmentStatus(communityId, payment.assessmentId);
+    await this.financeSyncService.syncAssessment(
+      communityId,
+      payment.assessmentId,
+    );
 
     return {
       success: true,
@@ -711,61 +795,5 @@ export class PaymentsService {
       message: `Payment ${status.toLowerCase().replace('_', ' ')} successfully.`,
       data: payment,
     };
-  }
-
-  private async syncAssessmentStatus(
-    communityId: string,
-    assessmentId: string,
-  ) {
-    const assessment = await this.prisma.assessment.findUnique({
-      where: {
-        id: assessmentId,
-      },
-    });
-
-    if (!assessment) {
-      return;
-    }
-
-    const confirmed = await this.prisma.payment.aggregate({
-      where: {
-        communityId,
-        assessmentId,
-        deletedAt: null,
-        status: PaymentStatus.CONFIRMED,
-      },
-      _sum: {
-        amount: true,
-      },
-    });
-
-    const paidAmount = confirmed._sum.amount
-      ? confirmed._sum.amount.toNumber()
-      : 0;
-
-    const assessmentAmount = assessment.amount.toNumber();
-
-    let status = assessment.status;
-
-    if (assessment.status !== AssessmentStatus.CANCELLED) {
-      if (paidAmount >= assessmentAmount) {
-        status = AssessmentStatus.PAID;
-      } else if (paidAmount > 0) {
-        status = AssessmentStatus.PARTIALLY_PAID;
-      } else {
-        status = AssessmentStatus.ISSUED;
-      }
-    }
-
-    await this.prisma.assessment.update({
-      where: {
-        id: assessmentId,
-      },
-
-      data: {
-        paidAmount,
-        status,
-      },
-    });
   }
 }

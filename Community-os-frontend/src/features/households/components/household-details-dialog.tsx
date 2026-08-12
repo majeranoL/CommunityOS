@@ -20,10 +20,11 @@ import {
   useUpdateHousehold,
 } from '@/features/households/hooks/use-households'
 import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
+import { HouseholdLedger } from '@/features/households/components/household-ledger'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatDate, initials } from '@/lib/format'
+import { formatCurrency, initials } from '@/lib/format'
 import type { HouseholdDetail } from '@/features/households/types/household'
 
 interface HouseholdDetailsDialogProps {
@@ -34,12 +35,17 @@ interface HouseholdDetailsDialogProps {
 
 function unitLabel(household: HouseholdDetail) {
   return (
-    [household.block, household.lot, household.unit, household.address].filter(Boolean).join(', ') ||
-    'Unnamed unit'
+    [household.block, household.lot, household.unit, household.address]
+      .filter(Boolean)
+      .join(', ') || 'Unnamed unit'
   )
 }
 
-export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: HouseholdDetailsDialogProps) {
+export function HouseholdDetailsDialog({
+  householdId,
+  open,
+  onOpenChange,
+}: HouseholdDetailsDialogProps) {
   const { data: household, isLoading } = useHousehold(householdId)
   const updateHousehold = useUpdateHousehold()
   const deleteHousehold = useDeleteHousehold(() => onOpenChange(false))
@@ -64,7 +70,9 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Household</DialogTitle>
-          <DialogDescription>{household ? unitLabel(household) : ''}</DialogDescription>
+          <DialogDescription>
+            {household ? unitLabel(household) : ''}
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading || !household ? (
@@ -83,7 +91,8 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                 <div>
                   <p className="font-medium">{unitLabel(household)}</p>
                   <p className="text-sm text-muted-foreground">
-                    {household.residentCount} resident{household.residentCount === 1 ? '' : 's'}
+                    {household.residentCount} resident
+                    {household.residentCount === 1 ? '' : 's'}
                   </p>
                 </div>
               </div>
@@ -155,7 +164,9 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Outstanding</p>
+                      <p className="text-xs text-muted-foreground">
+                        Outstanding
+                      </p>
                       <p
                         className={cn(
                           'font-medium',
@@ -178,38 +189,11 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                 </>
               ) : null}
 
-              {household.assessments.length ? (
-                <ul className="mt-3 space-y-2">
-                  {household.assessments.map((assessment) => (
-                    <li key={assessment.id} className="rounded-lg border p-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">
-                            {assessment.title || assessment.assessmentNumber}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {assessment.assessmentNumber} ·{' '}
-                            {assessment.period ?? formatDate(assessment.dueDate)}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className="text-sm font-medium">
-                            {formatCurrency(assessment.amount)}
-                          </span>
-                          <StatusBadge status={assessment.status} />
-                        </div>
-                      </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Paid {formatCurrency(assessment.paidAmount)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  No assessments recorded for this unit yet.
-                </p>
-              )}
+              <HouseholdLedger
+                assessments={household.assessments}
+                finance={household.finance}
+                unitLabel={unitLabel(household)}
+              />
             </div>
 
             <div>
@@ -228,17 +212,23 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                         <p className="font-medium">
                           {resident.firstName} {resident.lastName}
                         </p>
-                        <p className="text-xs text-muted-foreground">{resident.residentNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {resident.residentNumber}
+                        </p>
                       </div>
                       <div className="ml-auto flex items-center gap-2">
-                        {resident.user ? <Badge variant="secondary">Has account</Badge> : null}
+                        {resident.user ? (
+                          <Badge variant="secondary">Has account</Badge>
+                        ) : null}
                         <StatusBadge status={resident.status} />
                       </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">No residents recorded for this unit.</p>
+                <p className="text-sm text-muted-foreground">
+                  No residents recorded for this unit.
+                </p>
               )}
             </div>
           </div>
@@ -256,7 +246,11 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
             </Button>
           ) : null}
           {household?.status === 'INACTIVE' ? (
-            <Button variant="outline" onClick={toggleStatus} disabled={updateHousehold.isPending}>
+            <Button
+              variant="outline"
+              onClick={toggleStatus}
+              disabled={updateHousehold.isPending}
+            >
               Activate unit
             </Button>
           ) : null}
@@ -265,7 +259,9 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
               variant="outline"
               className="text-destructive hover:text-destructive"
               onClick={() => {
-                if (window.confirm(`Delete household ${unitLabel(household)}?`)) {
+                if (
+                  window.confirm(`Delete household ${unitLabel(household)}?`)
+                ) {
                   deleteHousehold.mutate(household.id)
                 }
               }}
@@ -288,19 +284,23 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
             <DialogHeader>
               <DialogTitle>Deactivate this unit?</DialogTitle>
               <DialogDescription>
-                The unit will be freed and the current family's account will be deactivated — they
-                will no longer be able to sign in.
+                The unit will be freed and the current family's account will be
+                deactivated — they will no longer be able to sign in.
               </DialogDescription>
             </DialogHeader>
             <Alert variant="warning">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                A new family can register into this unit later, inheriting its assessment and
-                payment history.
+                A new family can register into this unit later, inheriting its
+                assessment and payment history.
               </AlertDescription>
             </Alert>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
@@ -308,7 +308,10 @@ export function HouseholdDetailsDialog({ householdId, open, onOpenChange }: Hous
                 variant="destructive"
                 onClick={() => {
                   if (household) {
-                    updateHousehold.mutate({ id: household.id, input: { status: 'INACTIVE' } })
+                    updateHousehold.mutate({
+                      id: household.id,
+                      input: { status: 'INACTIVE' },
+                    })
                   }
                   setConfirmOpen(false)
                 }}

@@ -14,22 +14,39 @@ export interface HouseholdListResult {
 
 export const householdsService = {
   async list(params: ListQuery = {}) {
-    const { data } = await api.get<ApiEnvelope<HouseholdListItem[]>>('/households', { params })
+    const { data } = await api.get<ApiEnvelope<HouseholdListItem[]>>(
+      '/households',
+      { params },
+    )
     return { items: data.data, pagination: data.pagination }
   },
 
   async get(id: string) {
-    const { data } = await api.get<ApiEnvelope<HouseholdDetail>>(`/households/${id}`)
+    const { data } = await api.get<ApiEnvelope<HouseholdDetail>>(
+      `/households/${id}`,
+    )
+    return data.data
+  },
+
+  async me() {
+    const { data } =
+      await api.get<ApiEnvelope<HouseholdDetail>>('/households/me')
     return data.data
   },
 
   async create(input: CreateHouseholdInput) {
-    const { data } = await api.post<ApiEnvelope<HouseholdListItem>>('/households', input)
+    const { data } = await api.post<ApiEnvelope<HouseholdListItem>>(
+      '/households',
+      input,
+    )
     return data.data
   },
 
   async update(id: string, input: UpdateHouseholdInput) {
-    const { data } = await api.put<ApiEnvelope<HouseholdListItem>>(`/households/${id}`, input)
+    const { data } = await api.put<ApiEnvelope<HouseholdListItem>>(
+      `/households/${id}`,
+      input,
+    )
     return data.data
   },
 

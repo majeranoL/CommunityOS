@@ -1,5 +1,5 @@
 export type HouseholdStatus = 'ACTIVE' | 'INACTIVE'
-export type HouseholdStanding = 'GOOD' | 'WATCH' | 'BAD'
+export type HouseholdStanding = 'GOOD' | 'BAD'
 
 export interface HouseholdFinanceSummary {
   totalBilled: number
@@ -40,6 +40,8 @@ export interface HouseholdAssessment {
     paymentNumber: string
     amount: string | number
     paymentDate: string
+    method: string | null
+    referenceNumber: string | null
     status: string
   }>
 }
