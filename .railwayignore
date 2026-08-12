@@ -1,0 +1,14 @@
+**/node_modules
+node_modules
+**/dist
+dist
+.git
+.github
+test-results
+playwright-report
+coverage
+.nyc_output
+*.log
+.env
+.env.*
+.vercel
