@@ -30,6 +30,7 @@ interface VehicleFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   vehicle?: VehicleListItem | null
+  selfService?: boolean
 }
 
 const VEHICLE_TYPES: VehicleType[] = ['CAR', 'MOTORCYCLE', 'TRUCK', 'VAN', 'BICYCLE', 'OTHER']
@@ -46,7 +47,12 @@ function toFormValues(vehicle?: VehicleListItem | null): VehicleFormValues {
   }
 }
 
-export function VehicleFormDialog({ open, onOpenChange, vehicle }: VehicleFormDialogProps) {
+export function VehicleFormDialog({
+  open,
+  onOpenChange,
+  vehicle,
+  selfService = false,
+}: VehicleFormDialogProps) {
   const isEditing = Boolean(vehicle)
   const createVehicle = useCreateVehicle(() => onOpenChange(false))
   const updateVehicle = useUpdateVehicle(() => onOpenChange(false))
@@ -177,19 +183,25 @@ export function VehicleFormDialog({ open, onOpenChange, vehicle }: VehicleFormDi
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="residentId"
-              render={({ field }) => (
-                <FormItem className="space-y-1">
-                  <FormLabel>Owner</FormLabel>
-                  <FormControl>
-                    <ResidentSelect value={field.value ?? ''} onChange={field.onChange} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {selfService ? (
+              <p className="text-sm text-muted-foreground">
+                This vehicle will be registered under your resident profile.
+              </p>
+            ) : (
+              <FormField
+                control={form.control}
+                name="residentId"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
+                    <FormLabel>Owner</FormLabel>
+                    <FormControl>
+                      <ResidentSelect value={field.value ?? ''} onChange={field.onChange} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="parkingStickerNumber"

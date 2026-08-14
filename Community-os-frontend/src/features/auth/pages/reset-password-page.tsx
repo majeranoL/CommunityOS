@@ -1,8 +1,7 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle2, Eye, EyeOff, ShieldAlert } from 'lucide-react'
+import { CheckCircle2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -19,7 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useResetPassword } from '@/features/auth/hooks/use-auth'
 import {
   resetPasswordSchema,
@@ -32,8 +31,6 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const token = searchParams.get('token') ?? ''
   const reset = useResetPassword()
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   usePageTitle('Reset password')
 
@@ -120,25 +117,7 @@ export default function ResetPasswordPage() {
                       <FormItem>
                         <FormLabel>New password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              className="pr-10"
-                              {...field}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              tabIndex={-1}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                              onClick={() => setShowPassword((visible) => !visible)}
-                            >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                            </Button>
-                          </div>
+                          <PasswordInput autoComplete="new-password" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -151,25 +130,7 @@ export default function ResetPasswordPage() {
                       <FormItem>
                         <FormLabel>Confirm new password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              autoComplete="new-password"
-                              className="pr-10"
-                              {...field}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              tabIndex={-1}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                              onClick={() => setShowConfirmPassword((visible) => !visible)}
-                            >
-                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              <span className="sr-only">{showConfirmPassword ? 'Hide password' : 'Show password'}</span>
-                            </Button>
-                          </div>
+                          <PasswordInput autoComplete="new-password" hideLabel="Hide password" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -7,12 +7,16 @@ import {
   IsUUID,
 } from 'class-validator';
 
-import { Gender, CivilStatus } from '@prisma/client';
+import { Gender, CivilStatus, ResidentType } from '@prisma/client';
 
 export class CreateResidentDto {
   @IsOptional()
   @IsUUID()
   householdId?: string;
+
+  @IsOptional()
+  @IsEnum(ResidentType)
+  residentType?: ResidentType;
 
   @IsString()
   firstName!: string;

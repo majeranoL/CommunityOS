@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { AssessmentStatus, HouseholdStatus, Prisma } from '@prisma/client';
+import {
+  AssessmentStatus,
+  BillingPeriodStatus,
+  HouseholdStatus,
+  Prisma,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -15,6 +20,9 @@ import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { AssessmentQueryDto } from './dto/assessment-query.dto';
 import { GenerateAssessmentsDto } from './dto/generate-assessments.dto';
+import { DuesTrackerQueryDto } from './dto/dues-tracker-query.dto';
+
+import { buildDuesTracker } from './dues-tracker';
 
 @Injectable()
 export class AssessmentsService {
@@ -71,6 +79,38 @@ export class AssessmentsService {
     }
 
     // ==========================================
+    // Validate linked charge type / billing period
+    // ==========================================
+
+    if (dto.billingPeriodId) {
+      const period = await this.prisma.billingPeriod.findFirst({
+        where: {
+          id: dto.billingPeriodId,
+          communityId,
+          deletedAt: null,
+        },
+      });
+
+      if (!period) {
+        throw new NotFoundException('Billing period not found.');
+      }
+    }
+
+    if (dto.chargeTypeId) {
+      const chargeType = await this.prisma.chargeType.findFirst({
+        where: {
+          id: dto.chargeTypeId,
+          communityId,
+          deletedAt: null,
+        },
+      });
+
+      if (!chargeType) {
+        throw new NotFoundException('Charge type not found.');
+      }
+    }
+
+    // ==========================================
     // Create Assessment
     // ==========================================
 
@@ -86,8 +126,10 @@ export class AssessmentsService {
         dueDate: new Date(dto.dueDate),
         period: dto.period,
         remarks: dto.remarks,
+        chargeTypeId: dto.chargeTypeId,
+        billingPeriodId: dto.billingPeriodId,
 
-        status: dto.status ?? AssessmentStatus.DRAFT,
+        status: AssessmentStatus.DRAFT,
       },
 
       include: {
@@ -102,6 +144,13 @@ export class AssessmentsService {
       },
     });
 
+    if (assessment.billingPeriodId) {
+      await this.financeSyncService.syncPeriod(
+        communityId,
+        assessment.billingPeriodId,
+      );
+    }
+
     return {
       success: true,
       message: 'Assessment created successfully.',
@@ -115,7 +164,62 @@ export class AssessmentsService {
   // ==========================================
 
   async generate(communityId: string, dto: GenerateAssessmentsDto) {
-    const { title, amount, dueDate, period, householdIds } = dto;
+    const { dueDate, householdIds } = dto;
+
+    // ==========================================
+    // Resolve billing period + charge type
+    // ==========================================
+
+    const chargeTypeId: string | undefined = dto.chargeTypeId;
+    let billingPeriodId: string | undefined = dto.billingPeriodId;
+
+    if (chargeTypeId && !billingPeriodId) {
+      const chargeType = await this.prisma.chargeType.findFirst({
+        where: {
+          id: chargeTypeId,
+          communityId,
+          deletedAt: null,
+          isActive: true,
+        },
+      });
+
+      if (!chargeType) {
+        throw new NotFoundException('Charge type not found.');
+      }
+
+      const periodKey = this.resolvePeriodKey(dto.period, dueDate);
+      billingPeriodId = await this.findOrCreateBillingPeriod(
+        communityId,
+        {
+          id: chargeType.id,
+          name: chargeType.name,
+          dueDay: chargeType.dueDay,
+        },
+        periodKey,
+        dto.amount,
+        dueDate,
+      );
+    }
+
+    const period = billingPeriodId
+      ? await this.prisma.billingPeriod.findUnique({
+          where: { id: billingPeriodId },
+        })
+      : null;
+
+    const title = dto.title ?? period?.label ?? 'Monthly Dues';
+    const amount =
+      dto.amount ?? (period ? period.amount.toNumber() : undefined);
+
+    if (title === undefined || amount === undefined) {
+      throw new BadRequestException(
+        'Provide a charge type, billing period, or explicit title and amount.',
+      );
+    }
+
+    // ==========================================
+    // Households to bill
+    // ==========================================
 
     const where: any = {
       communityId,
@@ -141,12 +245,13 @@ export class AssessmentsService {
 
     // Dedupe: households that already carry a non-cancelled assessment
     // for this period are skipped so re-running doesn't double-bill
-    if (period) {
+    const dedupePeriod = period?.periodKey ?? dto.period;
+    if (dedupePeriod) {
       const existing = await this.prisma.assessment.findMany({
         where: {
           communityId,
           deletedAt: null,
-          period,
+          ...(billingPeriodId ? { billingPeriodId } : { period: dedupePeriod }),
           householdId: { in: eligibleIds },
           status: { not: AssessmentStatus.CANCELLED },
         },
@@ -201,13 +306,15 @@ export class AssessmentsService {
         data: {
           communityId,
           assessmentNumber: `ASS-${String(nextNumber).padStart(6, '0')}`,
-          title: title.trim(),
+          title: String(title).trim(),
           description: dto.description?.trim(),
           householdId,
           amount,
           dueDate: due,
-          period: period?.trim(),
+          period: period?.periodKey ?? dto.period?.trim(),
           remarks: dto.remarks?.trim(),
+          chargeTypeId: chargeTypeId ?? period?.chargeTypeId,
+          billingPeriodId: billingPeriodId ?? period?.id,
           status: AssessmentStatus.ISSUED,
         },
         include: {
@@ -223,6 +330,10 @@ export class AssessmentsService {
       });
 
       created.push(assessment);
+    }
+
+    if (period?.id) {
+      await this.financeSyncService.syncPeriod(communityId, period.id);
     }
 
     return {
@@ -249,7 +360,18 @@ export class AssessmentsService {
   ) {
     await this.financeSyncService.sweepOverdue(communityId);
 
-    const { page, limit, search, status, householdId, sortBy, order } = query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      householdId,
+      chargeTypeId,
+      billingPeriodId,
+      category,
+      sortBy,
+      order,
+    } = query;
 
     const skip = (page - 1) * limit;
 
@@ -286,6 +408,23 @@ export class AssessmentsService {
       where.status = status;
     }
 
+    if (chargeTypeId) {
+      where.chargeTypeId = chargeTypeId;
+    }
+
+    if (billingPeriodId) {
+      where.billingPeriodId = billingPeriodId;
+    }
+
+    if (category) {
+      where.OR = where.OR ?? [];
+      where.OR.push({
+        chargeType: {
+          category,
+        },
+      });
+    }
+
     // Household scoping: a forced scope (member sees only their own
     // household) overrides any client-supplied household filter
     if (scopeHouseholdId) {
@@ -314,6 +453,21 @@ export class AssessmentsService {
               unit: true,
             },
           },
+          chargeType: {
+            select: {
+              id: true,
+              name: true,
+              category: true,
+            },
+          },
+          billingPeriod: {
+            select: {
+              id: true,
+              label: true,
+              periodKey: true,
+              status: true,
+            },
+          },
         },
       }),
 
@@ -339,10 +493,83 @@ export class AssessmentsService {
   }
 
   // ==========================================
+  // Dues Tracker (household x period matrix)
+  // ==========================================
+
+  async duesTracker(
+    communityId: string,
+    dto: DuesTrackerQueryDto,
+    scopeHouseholdId?: string,
+  ) {
+    await this.financeSyncService.sweepOverdue(communityId);
+
+    const now = new Date();
+    const fromMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() - (dto.months - 1),
+      1,
+    );
+    const fromKey = `${fromMonth.getFullYear()}-${String(
+      fromMonth.getMonth() + 1,
+    ).padStart(2, '0')}`;
+
+    const households = await this.prisma.household.findMany({
+      where: {
+        communityId,
+        deletedAt: null,
+        ...(scopeHouseholdId
+          ? { id: scopeHouseholdId }
+          : { status: HouseholdStatus.ACTIVE }),
+      },
+      select: {
+        id: true,
+        block: true,
+        lot: true,
+        unit: true,
+      },
+      orderBy: [{ block: 'asc' }, { lot: 'asc' }, { unit: 'asc' }],
+    });
+
+    const assessments = await this.prisma.assessment.findMany({
+      where: {
+        communityId,
+        deletedAt: null,
+        period: { gte: fromKey, not: null },
+        ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
+      },
+      select: {
+        id: true,
+        householdId: true,
+        amount: true,
+        paidAmount: true,
+        status: true,
+        period: true,
+        dueDate: true,
+      },
+    });
+
+    const tracker = buildDuesTracker(
+      households,
+      assessments.map((assessment) => ({
+        ...assessment,
+        amount: Number(assessment.amount),
+        paidAmount: Number(assessment.paidAmount),
+      })),
+      now,
+    );
+
+    return {
+      success: true,
+      message: 'Dues tracker retrieved successfully.',
+      data: tracker,
+    };
+  }
+
+  // ==========================================
   // Get Assessment By ID
   // ==========================================
 
-  async findOne(communityId: string, id: string) {
+  async findOne(communityId: string, id: string, scopeHouseholdId?: string) {
     await this.financeSyncService.sweepOverdue(communityId);
 
     const assessment = await this.prisma.assessment.findFirst({
@@ -350,6 +577,7 @@ export class AssessmentsService {
         id,
         communityId,
         deletedAt: null,
+        ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
       },
 
       include: {
@@ -359,6 +587,37 @@ export class AssessmentsService {
             block: true,
             lot: true,
             unit: true,
+          },
+        },
+        chargeType: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+          },
+        },
+        billingPeriod: {
+          select: {
+            id: true,
+            label: true,
+            periodKey: true,
+            dueDate: true,
+            status: true,
+          },
+        },
+        allocations: {
+          include: {
+            payment: {
+              select: {
+                id: true,
+                paymentNumber: true,
+                amount: true,
+                paymentDate: true,
+                method: true,
+                status: true,
+                verifiedAt: true,
+              },
+            },
           },
         },
         payments: {
@@ -393,17 +652,7 @@ export class AssessmentsService {
   // ==========================================
 
   async update(communityId: string, id: string, dto: UpdateAssessmentDto) {
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        id,
-        communityId,
-        deletedAt: null,
-      },
-    });
-
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found.');
-    }
+    const assessment = await this.findScoped(communityId, id);
 
     // ==========================================
     // Clean Inputs
@@ -460,6 +709,38 @@ export class AssessmentsService {
     }
 
     // ==========================================
+    // Validate linked billing period / charge type
+    // ==========================================
+
+    if (dto.billingPeriodId) {
+      const period = await this.prisma.billingPeriod.findFirst({
+        where: {
+          id: dto.billingPeriodId,
+          communityId,
+          deletedAt: null,
+        },
+      });
+
+      if (!period) {
+        throw new NotFoundException('Billing period not found.');
+      }
+    }
+
+    if (dto.chargeTypeId) {
+      const chargeType = await this.prisma.chargeType.findFirst({
+        where: {
+          id: dto.chargeTypeId,
+          communityId,
+          deletedAt: null,
+        },
+      });
+
+      if (!chargeType) {
+        throw new NotFoundException('Charge type not found.');
+      }
+    }
+
+    // ==========================================
     // Update Assessment
     // ==========================================
 
@@ -499,7 +780,13 @@ export class AssessmentsService {
           remarks: dto.remarks,
         }),
 
-        ...(dto.status && { status: dto.status }),
+        ...(dto.chargeTypeId !== undefined && {
+          chargeTypeId: dto.chargeTypeId,
+        }),
+
+        ...(dto.billingPeriodId !== undefined && {
+          billingPeriodId: dto.billingPeriodId,
+        }),
       },
 
       include: {
@@ -523,6 +810,12 @@ export class AssessmentsService {
       await this.financeSyncService.syncAssessment(communityId, id);
     }
 
+    const linkedPeriodId =
+      updatedAssessment.billingPeriodId ?? assessment.billingPeriodId;
+    if (linkedPeriodId) {
+      await this.financeSyncService.syncPeriod(communityId, linkedPeriodId);
+    }
+
     return {
       success: true,
       message: 'Assessment updated successfully.',
@@ -535,17 +828,7 @@ export class AssessmentsService {
   // ==========================================
 
   async remove(communityId: string, id: string) {
-    const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        id,
-        communityId,
-        deletedAt: null,
-      },
-    });
-
-    if (!assessment) {
-      throw new NotFoundException('Assessment not found.');
-    }
+    const assessment = await this.findScoped(communityId, id);
 
     await this.prisma.assessment.update({
       where: {
@@ -556,6 +839,13 @@ export class AssessmentsService {
         deletedAt: new Date(),
       },
     });
+
+    if (assessment.billingPeriodId) {
+      await this.financeSyncService.syncPeriod(
+        communityId,
+        assessment.billingPeriodId,
+      );
+    }
 
     return {
       success: true,
@@ -596,7 +886,52 @@ export class AssessmentsService {
       throw new ConflictException('Assessment cannot be cancelled.');
     }
 
-    return this.updateStatus(communityId, id, AssessmentStatus.CANCELLED);
+    const result = await this.updateStatus(
+      communityId,
+      id,
+      AssessmentStatus.CANCELLED,
+    );
+
+    if (assessment.billingPeriodId) {
+      await this.financeSyncService.syncPeriod(
+        communityId,
+        assessment.billingPeriodId,
+      );
+    }
+
+    return result;
+  }
+
+  // ==========================================
+  // Waive Assessment
+  // ==========================================
+
+  async waive(communityId: string, id: string) {
+    const assessment = await this.findScoped(communityId, id);
+
+    if (
+      assessment.status === AssessmentStatus.PAID ||
+      assessment.status === AssessmentStatus.CANCELLED ||
+      assessment.status === AssessmentStatus.WAIVED ||
+      assessment.status === AssessmentStatus.DRAFT
+    ) {
+      throw new ConflictException('Assessment cannot be waived.');
+    }
+
+    const result = await this.updateStatus(
+      communityId,
+      id,
+      AssessmentStatus.WAIVED,
+    );
+
+    if (assessment.billingPeriodId) {
+      await this.financeSyncService.syncPeriod(
+        communityId,
+        assessment.billingPeriodId,
+      );
+    }
+
+    return result;
   }
 
   // ==========================================
@@ -617,6 +952,79 @@ export class AssessmentsService {
     }
 
     return assessment;
+  }
+
+  private resolvePeriodKey(period?: string, dueDate?: string): string {
+    if (period && /^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
+      return period;
+    }
+
+    const due = dueDate ? new Date(dueDate) : new Date();
+    return `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private async findOrCreateBillingPeriod(
+    communityId: string,
+    chargeType: {
+      id: string;
+      name: string;
+      dueDay: number | null;
+    },
+    periodKey: string,
+    amount?: number,
+    dueDate?: string,
+  ): Promise<string> {
+    const existing = await this.prisma.billingPeriod.findFirst({
+      where: {
+        communityId,
+        chargeTypeId: chargeType.id,
+        periodKey,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return existing.id;
+    }
+
+    let due: Date;
+    if (dueDate) {
+      due = new Date(dueDate);
+    } else {
+      const base = new Date(`${periodKey}-01T00:00:00`);
+      const day = chargeType.dueDay ?? base.getDate();
+      const lastDay = new Date(
+        base.getFullYear(),
+        base.getMonth() + 1,
+        0,
+      ).getDate();
+      due = new Date(
+        base.getFullYear(),
+        base.getMonth(),
+        Math.min(day, lastDay),
+      );
+    }
+
+    const [year, month] = periodKey
+      .split('-')
+      .map((part) => parseInt(part, 10));
+
+    const created = await this.prisma.billingPeriod.create({
+      data: {
+        communityId,
+        chargeTypeId: chargeType.id,
+        periodKey,
+        label: `${chargeType.name} - ${periodKey}`,
+        startDate: new Date(year, month - 1, 1),
+        amount: amount ?? 0,
+        dueDate: due,
+        status: BillingPeriodStatus.OPEN,
+      },
+      select: { id: true },
+    });
+
+    return created.id;
   }
 
   private async updateStatus(

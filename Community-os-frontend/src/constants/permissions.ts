@@ -14,6 +14,7 @@ export const PERMISSIONS = {
   residentView: 'resident.view',
   residentUpdate: 'resident.update',
   residentDelete: 'resident.delete',
+  residentVerify: 'resident.verify',
 
   householdCreate: 'household.create',
   householdView: 'household.view',
@@ -24,6 +25,7 @@ export const PERMISSIONS = {
   vehicleView: 'vehicle.view',
   vehicleUpdate: 'vehicle.update',
   vehicleDelete: 'vehicle.delete',
+  vehicleVerify: 'vehicle.verify',
 
   visitorCreate: 'visitor.create',
   visitorView: 'visitor.view',
@@ -116,9 +118,18 @@ export const PERMISSIONS = {
   paymentCreate: 'payment.create',
   paymentUpdate: 'payment.update',
   paymentDelete: 'payment.delete',
-  paymentConfirm: 'payment.confirm',
-  paymentReject: 'payment.reject',
-  paymentRefund: 'payment.refund',
+  paymentCancel: 'payment.cancel',
+
+  financeViewOwn: 'finance.view_own',
+  financeViewAll: 'finance.view_all',
+  financeVerify: 'finance.verify',
+  financeReject: 'finance.reject',
+  financeRefund: 'finance.refund',
+  financeCancel: 'finance.cancel',
+  financeImport: 'finance.import',
+  financeExport: 'finance.export',
+  financeManage: 'finance.manage',
+  financeWaive: 'finance.waive',
 
   subscriptionView: 'subscription.view',
   subscriptionManage: 'subscription.manage',

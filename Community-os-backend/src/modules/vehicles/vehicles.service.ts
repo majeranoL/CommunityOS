@@ -2,6 +2,8 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 import { VehicleStatus } from '@prisma/client';
@@ -10,17 +12,45 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { VerifyVehicleDto } from './dto/verify-vehicle.dto';
 import { VehicleQueryDto } from './dto/vehicle-query.dto';
+import { TransferVehicleDto } from './dto/transfer-vehicle.dto';
 
 @Injectable()
 export class VehiclesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private getPermissionCodes(user: any): string[] {
+    const codes: string[] = [];
+
+    for (const userRole of user?.roles ?? []) {
+      for (const rp of userRole.role?.permissions ?? []) {
+        const code = rp.permission?.code as string;
+        if (code) codes.push(code);
+      }
+    }
+
+    return [...new Set(codes)];
+  }
+
+  private async getVerificationMode(communityId: string) {
+    const setting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'vehicleVerification',
+        },
+      },
+    });
+
+    return (setting?.value as string | undefined) ?? 'auto';
+  }
+
   // ==========================================
   // Create Vehicle
   // ==========================================
 
-  async create(communityId: string, dto: CreateVehicleDto) {
+  async create(communityId: string, user: any, dto: CreateVehicleDto) {
     // ==========================================
     // Clean Inputs
     // ==========================================
@@ -45,6 +75,34 @@ export class VehiclesService {
 
     if (existing) {
       throw new ConflictException('Vehicle already exists.');
+    }
+
+    // ==========================================
+    // Self-Service Scope
+    // ==========================================
+
+    const permissions = this.getPermissionCodes(user);
+
+    const isOfficer = permissions.includes('vehicle.verify');
+
+    let vehicleStatus = dto.status ?? VehicleStatus.ACTIVE;
+
+    if (!isOfficer) {
+      const ownResidentId = user?.resident?.id;
+
+      if (!ownResidentId) {
+        throw new ForbiddenException(
+          'You must be linked to a resident to register a vehicle.',
+        );
+      }
+
+      dto.residentId = ownResidentId;
+
+      const verificationMode = await this.getVerificationMode(communityId);
+
+      if (verificationMode === 'approval') {
+        vehicleStatus = VehicleStatus.PENDING;
+      }
     }
 
     // ==========================================
@@ -82,7 +140,7 @@ export class VehiclesService {
 
         residentId: dto.residentId,
 
-        status: dto.status ?? VehicleStatus.ACTIVE,
+        status: vehicleStatus,
       },
 
       include: {
@@ -379,6 +437,232 @@ export class VehiclesService {
     return {
       success: true,
       message: 'Vehicle updated successfully.',
+      data: updatedVehicle,
+    };
+  }
+
+  // ==========================================
+  // Verify Pending Vehicle
+  // ==========================================
+
+  async verify(
+    communityId: string,
+    verifierId: string,
+    id: string,
+    dto: VerifyVehicleDto,
+  ) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found.');
+    }
+
+    if (vehicle.status !== VehicleStatus.PENDING) {
+      throw new BadRequestException('Only pending vehicles can be verified.');
+    }
+
+    const updatedVehicle = await this.prisma.vehicle.update({
+      where: {
+        id,
+      },
+      data: {
+        status: dto.approved ? VehicleStatus.APPROVED : VehicleStatus.REJECTED,
+        verifiedById: verifierId,
+        verifiedAt: new Date(),
+        verificationRemarks: dto.remarks,
+      },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: dto.approved
+        ? 'Vehicle approved successfully.'
+        : 'Vehicle rejected successfully.',
+      data: updatedVehicle,
+    };
+  }
+
+  // ==========================================
+  // Transfer Vehicle
+  // ==========================================
+
+  async transfer(communityId: string, id: string, dto: TransferVehicleDto) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found.');
+    }
+
+    const activeStatuses: VehicleStatus[] = [
+      VehicleStatus.ACTIVE,
+      VehicleStatus.APPROVED,
+    ];
+
+    if (!activeStatuses.includes(vehicle.status)) {
+      throw new BadRequestException('Only active vehicles can be transferred.');
+    }
+
+    const resident = await this.prisma.resident.findFirst({
+      where: {
+        id: dto.newResidentId,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!resident) {
+      throw new NotFoundException('Resident not found.');
+    }
+
+    const updatedVehicle = await this.prisma.vehicle.update({
+      where: {
+        id,
+      },
+      data: {
+        residentId: resident.id,
+        status: VehicleStatus.TRANSFERRED,
+        verifiedById: null,
+        verifiedAt: null,
+      },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: `Vehicle transferred to ${resident.firstName} ${resident.lastName}.`,
+      data: updatedVehicle,
+    };
+  }
+
+  // ==========================================
+  // Deactivate Vehicle
+  // ==========================================
+
+  async deactivate(communityId: string, id: string) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found.');
+    }
+
+    const activeStatuses: VehicleStatus[] = [
+      VehicleStatus.ACTIVE,
+      VehicleStatus.APPROVED,
+    ];
+
+    if (!activeStatuses.includes(vehicle.status)) {
+      throw new BadRequestException('Only active vehicles can be deactivated.');
+    }
+
+    const updatedVehicle = await this.prisma.vehicle.update({
+      where: {
+        id,
+      },
+      data: {
+        status: VehicleStatus.DEACTIVATED,
+      },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Vehicle deactivated successfully.',
+      data: updatedVehicle,
+    };
+  }
+
+  // ==========================================
+  // Revalidate Vehicle (re-activate)
+  // ==========================================
+
+  async revalidate(communityId: string, id: string) {
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found.');
+    }
+
+    const inactiveStatuses: VehicleStatus[] = [
+      VehicleStatus.DEACTIVATED,
+      VehicleStatus.TRANSFERRED,
+    ];
+
+    if (!inactiveStatuses.includes(vehicle.status)) {
+      throw new BadRequestException(
+        'Only deactivated or transferred vehicles can be revalidated.',
+      );
+    }
+
+    const updatedVehicle = await this.prisma.vehicle.update({
+      where: {
+        id,
+      },
+      data: {
+        status: VehicleStatus.ACTIVE,
+      },
+      include: {
+        resident: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Vehicle revalidated successfully.',
       data: updatedVehicle,
     };
   }

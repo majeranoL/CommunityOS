@@ -1,4 +1,5 @@
-export type ResidentStatus = 'ACTIVE' | 'INACTIVE' | 'MOVED_OUT'
+export type ResidentStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'MOVED_OUT'
+export type ResidentType = 'OWNER' | 'RENTER'
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER'
 export type CivilStatus =
   'SINGLE' | 'MARRIED' | 'WIDOWED' | 'DIVORCED' | 'SEPARATED'
@@ -27,6 +28,10 @@ export interface ResidentListItem {
   lot: string | null
   household: HouseholdReference | null
   status: ResidentStatus
+  residentType: ResidentType
+  verifiedById: string | null
+  verifiedAt: string | null
+  verificationRemarks: string | null
   createdAt: string
 }
 
@@ -43,6 +48,7 @@ export interface ResidentDetail extends ResidentListItem {
 
 export interface CreateResidentInput {
   householdId?: string
+  residentType?: ResidentType
   firstName: string
   middleName?: string
   lastName: string
@@ -62,4 +68,9 @@ export interface CreateResidentInput {
 
 export interface UpdateResidentInput extends Partial<CreateResidentInput> {
   status?: ResidentStatus
+}
+
+export interface VerifyResidentInput {
+  approved: boolean
+  remarks?: string
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, ArrowRight, Check, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePlans } from '@/features/landing/hooks/use-plans'
@@ -43,8 +44,6 @@ export default function GetStartedPage() {
   const { data: plans, isLoading } = usePlans()
   const signup = useSignupHoa()
   const [step, setStep] = useState(0)
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const preselectPlanId = (location.state as { planId?: string } | null)?.planId ?? ''
 
   usePageTitle('Get started')
@@ -323,25 +322,7 @@ export default function GetStartedPage() {
                           <FormItem>
                             <FormLabel>Password</FormLabel>
                             <FormControl>
-                              <div className="relative">
-                                <Input
-                                  type={showPassword ? 'text' : 'password'}
-                                  autoComplete="new-password"
-                                  className="pr-10"
-                                  {...field}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  tabIndex={-1}
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                                  onClick={() => setShowPassword((visible) => !visible)}
-                                >
-                                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                  <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                                </Button>
-                              </div>
+                              <PasswordInput autoComplete="new-password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -354,25 +335,7 @@ export default function GetStartedPage() {
                           <FormItem>
                             <FormLabel>Confirm password</FormLabel>
                             <FormControl>
-                              <div className="relative">
-                                <Input
-                                  type={showConfirmPassword ? 'text' : 'password'}
-                                  autoComplete="new-password"
-                                  className="pr-10"
-                                  {...field}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  tabIndex={-1}
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                                  onClick={() => setShowConfirmPassword((visible) => !visible)}
-                                >
-                                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                  <span className="sr-only">{showConfirmPassword ? 'Hide password' : 'Show password'}</span>
-                                </Button>
-                              </div>
+                              <PasswordInput autoComplete="new-password" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

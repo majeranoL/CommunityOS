@@ -3,14 +3,27 @@ import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
 import type {
   Assessment,
   AssessmentListItem,
+  BillingPeriod,
+  CreateBillingPeriodInput,
   CreateAssessmentInput,
+  CreateChargeTypeInput,
   CreatePaymentInput,
+  ChargeType,
+  DuesTracker,
+  ExportFormat,
+  FinanceTransaction,
+  FinanceTransactionSummary,
   GenerateAssessmentsInput,
   GenerateAssessmentsResult,
+  GenerateBillingPeriodsInput,
+  ImportBatch,
+  ImportKind,
+  ImportPreviewResult,
   Payment,
   PaymentListItem,
   ResidentOption,
   UpdateAssessmentInput,
+  UpdateChargeTypeInput,
   UpdatePaymentInput,
 } from '@/features/finance/types/finance'
 
@@ -53,6 +66,14 @@ export const assessmentsService = {
     return data.data
   },
 
+  async duesTracker(params: { months?: number } = {}) {
+    const { data } = await api.get<ApiEnvelope<DuesTracker>>(
+      '/assessments/dues-tracker',
+      { params },
+    )
+    return data.data
+  },
+
   async issue(id: string) {
     const { data } = await api.patch<ApiEnvelope<Assessment>>(`/assessments/${id}/issue`)
     return data.data
@@ -60,6 +81,11 @@ export const assessmentsService = {
 
   async cancel(id: string) {
     const { data } = await api.patch<ApiEnvelope<Assessment>>(`/assessments/${id}/cancel`)
+    return data.data
+  },
+
+  async waive(id: string) {
+    const { data } = await api.patch<ApiEnvelope<Assessment>>(`/assessments/${id}/waive`)
     return data.data
   },
 }
@@ -90,18 +116,153 @@ export const paymentsService = {
     return data.data
   },
 
-  async confirm(id: string) {
-    const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/confirm`)
+  async verify(id: string) {
+    const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/verify`)
     return data.data
   },
 
-  async reject(id: string) {
-    const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/reject`)
+  async reject(id: string, reason: string) {
+    const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/reject`, {
+      reason,
+    })
     return data.data
   },
 
   async refund(id: string) {
     const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/refund`)
+    return data.data
+  },
+
+  async cancel(id: string) {
+    const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/cancel`)
+    return data.data
+  },
+}
+
+export const chargeTypesService = {
+  async list(params: ListQuery = {}) {
+    const { data } = await api.get<ApiEnvelope<ChargeType[]>>('/charge-types', { params })
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async get(id: string) {
+    const { data } = await api.get<ApiEnvelope<ChargeType>>(`/charge-types/${id}`)
+    return data.data
+  },
+
+  async create(input: CreateChargeTypeInput) {
+    const { data } = await api.post<ApiEnvelope<ChargeType>>('/charge-types', input)
+    return data.data
+  },
+
+  async update(id: string, input: UpdateChargeTypeInput) {
+    const { data } = await api.patch<ApiEnvelope<ChargeType>>(`/charge-types/${id}`, input)
+    return data.data
+  },
+
+  async remove(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/charge-types/${id}`)
+    return data.data
+  },
+}
+
+export const billingPeriodsService = {
+  async list(params: ListQuery = {}) {
+    const { data } = await api.get<ApiEnvelope<BillingPeriod[]>>('/billing-periods', { params })
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async get(id: string) {
+    const { data } = await api.get<ApiEnvelope<BillingPeriod>>(`/billing-periods/${id}`)
+    return data.data
+  },
+
+  async create(input: CreateBillingPeriodInput) {
+    const { data } = await api.post<ApiEnvelope<BillingPeriod>>('/billing-periods', input)
+    return data.data
+  },
+
+  async generate(input: GenerateBillingPeriodsInput) {
+    const { data } = await api.post<ApiEnvelope<{ createdCount: number; created: BillingPeriod[] }>>(
+      '/billing-periods/generate',
+      input,
+    )
+    return data.data
+  },
+
+  async update(id: string, input: Partial<CreateBillingPeriodInput>) {
+    const { data } = await api.patch<ApiEnvelope<BillingPeriod>>(`/billing-periods/${id}`, input)
+    return data.data
+  },
+
+  async remove(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/billing-periods/${id}`)
+    return data.data
+  },
+}
+
+export const financeTransactionsService = {
+  async list(params: ListQuery = {}) {
+    const { data } = await api.get<
+      ApiEnvelope<FinanceTransaction[]> & { summary?: FinanceTransactionSummary }
+    >('/finance/transactions', { params })
+    return {
+      items: data.data,
+      summary: data.summary,
+      pagination: data.pagination,
+    }
+  },
+}
+
+export const financeImportExportService = {
+  async download(
+    kind: ImportKind,
+    format: ExportFormat,
+    filters: { category?: string; from?: string; to?: string } = {},
+  ) {
+    const { data } = await api.get<Blob>(`/finance/import-export/export/${kind}`, {
+      params: { format, ...filters },
+      responseType: 'blob',
+    })
+
+    const filename = `finance-${kind}-${new Date().toISOString().slice(0, 10)}.${format === 'xlsx' ? 'xlsx' : 'csv'}`
+    const url = URL.createObjectURL(data)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    return { filename, size: data.size }
+  },
+
+  async preview(kind: ImportKind, file: File) {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post<ApiEnvelope<ImportPreviewResult>>(
+      `/finance/import-export/import/preview?kind=${kind}`,
+      form,
+    )
+    return data.data
+  },
+
+  async confirm(batchId: string) {
+    const { data } = await api.post<ApiEnvelope<{ created: number; total: number; batchId: string }>>(
+      `/finance/import-export/import/${batchId}/confirm`,
+    )
+    return data.data
+  },
+
+  async cancel(batchId: string) {
+    const { data } = await api.post<ApiEnvelope<null>>(
+      `/finance/import-export/import/${batchId}/cancel`,
+    )
+    return data.data
+  },
+
+  async batches() {
+    const { data } = await api.get<ApiEnvelope<ImportBatch[]>>('/finance/import-export/import/batches')
     return data.data
   },
 }

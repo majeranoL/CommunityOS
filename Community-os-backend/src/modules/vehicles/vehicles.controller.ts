@@ -16,7 +16,9 @@ import { VehiclesService } from './vehicles.service';
 
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { VerifyVehicleDto } from './dto/verify-vehicle.dto';
 import { VehicleQueryDto } from './dto/vehicle-query.dto';
+import { TransferVehicleDto } from './dto/transfer-vehicle.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -35,7 +37,7 @@ export class VehiclesController {
   @Post()
   @Permissions('vehicle.create')
   create(@Request() req: any, @Body() dto: CreateVehicleDto) {
-    return this.vehiclesService.create(req.user.community.id, dto);
+    return this.vehiclesService.create(req.user.community.id, req.user, dto);
   }
 
   // ==========================================
@@ -70,6 +72,59 @@ export class VehiclesController {
     @Body() dto: UpdateVehicleDto,
   ) {
     return this.vehiclesService.update(req.user.community.id, id, dto);
+  }
+
+  // ==========================================
+  // Verify Pending Vehicle
+  // ==========================================
+
+  @Post(':id/verify')
+  @Permissions('vehicle.verify')
+  verify(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VerifyVehicleDto,
+  ) {
+    return this.vehiclesService.verify(
+      req.user.community.id,
+      req.user.id,
+      id,
+      dto,
+    );
+  }
+
+  // ==========================================
+  // Transfer Vehicle
+  // ==========================================
+
+  @Post(':id/transfer')
+  @Permissions('vehicle.update')
+  transfer(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TransferVehicleDto,
+  ) {
+    return this.vehiclesService.transfer(req.user.community.id, id, dto);
+  }
+
+  // ==========================================
+  // Deactivate Vehicle
+  // ==========================================
+
+  @Post(':id/deactivate')
+  @Permissions('vehicle.update')
+  deactivate(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.vehiclesService.deactivate(req.user.community.id, id);
+  }
+
+  // ==========================================
+  // Revalidate Vehicle
+  // ==========================================
+
+  @Post(':id/revalidate')
+  @Permissions('vehicle.update')
+  revalidate(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.vehiclesService.revalidate(req.user.community.id, id);
   }
 
   // ==========================================

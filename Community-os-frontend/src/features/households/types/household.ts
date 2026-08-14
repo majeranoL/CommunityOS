@@ -1,5 +1,6 @@
 export type HouseholdStatus = 'ACTIVE' | 'INACTIVE'
 export type HouseholdStanding = 'GOOD' | 'BAD'
+export type ResidentType = 'OWNER' | 'RENTER'
 
 export interface HouseholdFinanceSummary {
   totalBilled: number
@@ -16,6 +17,9 @@ export interface HouseholdResident {
   middleName: string | null
   lastName: string
   status: string
+  residentType: ResidentType
+  movedOutAt: string | null
+  createdAt: string
   user: {
     id: string
     referenceNumber: string
@@ -59,9 +63,17 @@ export interface HouseholdListItem {
   updatedAt: string
 }
 
+export interface OccupancyHistory {
+  current: HouseholdResident[]
+  former: HouseholdResident[]
+  total: number
+  owner: HouseholdResident | null
+}
+
 export interface HouseholdDetail extends HouseholdListItem {
   residents: HouseholdResident[]
   assessments: HouseholdAssessment[]
+  occupancyHistory?: OccupancyHistory
 }
 
 export interface CreateHouseholdInput {

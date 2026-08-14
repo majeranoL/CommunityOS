@@ -28,6 +28,8 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   INACTIVE: 'muted',
   MOVED_OUT: 'muted',
   DISABLED: 'muted',
+  DEACTIVATED: 'muted',
+  TRANSFERRED: 'info',
   AVAILABLE: 'success',
   MAINTENANCE: 'warning',
   APPROVED: 'success',
@@ -45,6 +47,16 @@ const STATUS_VARIANTS: Record<string, BadgeProps['variant']> = {
   DELETE: 'destructive',
   GOOD: 'success',
   BAD: 'destructive',
+  OWNER: 'info',
+  RENTER: 'secondary',
+  PENDING_VERIFICATION: 'warning',
+  VERIFIED: 'success',
+  REFUNDED: 'info',
+  WAIVED: 'secondary',
+  PARTIALLY_PAID: 'warning',
+  ISSUED: 'info',
+  PROCESSING: 'info',
+  ROLLED_BACK: 'muted',
 }
 
 export function StatusBadge({

@@ -15,13 +15,13 @@ import {
 } from '@/components/ui/select'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useResidents } from '@/features/residents/hooks/use-residents'
+import { useResidents, useVerifyResident } from '@/features/residents/hooks/use-residents'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
 import { ResidentDetailsDialog } from '@/features/residents/components/resident-details-dialog'
 import type { ResidentListItem } from '@/features/residents/types/resident'
 import { formatDate, toTitleCase } from '@/lib/format'
 
-const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE', 'MOVED_OUT'] as const
+const STATUS_FILTERS = ['ALL', 'PENDING', 'ACTIVE', 'INACTIVE', 'MOVED_OUT'] as const
 const GENDER_FILTERS = ['ALL', 'MALE', 'FEMALE', 'OTHER'] as const
 
 function formatHousehold(household: ResidentListItem['household']) {
@@ -44,6 +44,9 @@ export default function ResidentsPage() {
 
   const canCreate = useHasPermission(PERMISSIONS.residentCreate)
   const canUpdate = useHasPermission(PERMISSIONS.residentUpdate)
+  const canVerify = useHasPermission(PERMISSIONS.residentVerify)
+
+  const verifyResident = useVerifyResident()
 
   const { data, isLoading, isFetching } = useResidents({
     page,
@@ -111,6 +114,12 @@ export default function ResidentsPage() {
       hideBelow: 'md',
     },
     {
+      key: 'residentType',
+      header: 'Type',
+      cell: (row) => <StatusBadge status={row.residentType} />,
+      hideBelow: 'md',
+    },
+    {
       key: 'status',
       header: 'Status',
       cell: (row) => <StatusBadge status={row.status} />,
@@ -128,20 +137,55 @@ export default function ResidentsPage() {
     {
       key: 'actions',
       header: '',
-      cell: (row) =>
-        canUpdate ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={(event) => {
-              event.stopPropagation()
-              setEditId(row.id)
-            }}
-          >
-            Edit
-          </Button>
-        ) : null,
+      cell: (row) => (
+        <div className="flex justify-end gap-1">
+          {canUpdate ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation()
+                setEditId(row.id)
+              }}
+            >
+              Edit
+            </Button>
+          ) : null}
+          {canVerify && row.status === 'PENDING' ? (
+            <>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  verifyResident.mutate({
+                    id: row.id,
+                    input: { approved: true },
+                  })
+                }}
+              >
+                Approve
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  verifyResident.mutate({
+                    id: row.id,
+                    input: { approved: false },
+                  })
+                }}
+              >
+                Reject
+              </Button>
+            </>
+          ) : null}
+        </div>
+      ),
     },
   ]
 

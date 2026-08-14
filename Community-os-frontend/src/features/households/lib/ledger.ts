@@ -1,6 +1,6 @@
 import type { HouseholdAssessment } from '@/features/households/types/household'
 
-const CONFIRMED = 'CONFIRMED'
+const VERIFIED = 'VERIFIED'
 
 const UNBILLED_STATUSES = new Set(['DRAFT', 'CANCELLED'])
 
@@ -26,9 +26,9 @@ export interface LedgerEntry {
  *
  * - Assessments become DEBIT rows (DRAFT/CANCELLED are excluded, matching
  *   the backend finance summary)
- * - CONFIRMED payments become CREDIT rows that reduce the balance
- * - PENDING/REJECTED/REFUNDED payments are listed as informational rows
- *   that do NOT affect the running balance
+ * - VERIFIED payments become CREDIT rows that reduce the balance
+ * - PENDING_VERIFICATION/REJECTED/REFUNDED/CANCELLED payments are listed as
+ *   informational rows that do NOT affect the running balance
  * - The final balance equals the backend's `outstanding` figure
  */
 export function buildHouseholdLedger(
@@ -63,7 +63,7 @@ export function buildHouseholdLedger(
         method: payment.method ?? null,
         referenceNumber: payment.referenceNumber ?? null,
         debit: 0,
-        credit: payment.status === CONFIRMED ? Number(payment.amount) : 0,
+        credit: payment.status === VERIFIED ? Number(payment.amount) : 0,
       })
     }
   }

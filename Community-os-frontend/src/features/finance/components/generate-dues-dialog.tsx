@@ -27,6 +27,7 @@ import {
   generateAssessmentsSchema,
   type GenerateAssessmentsFormValues,
 } from '@/features/finance/validation/finance'
+import { ChargeTypeSelect } from '@/features/finance/components/selects'
 
 interface GenerateDuesDialogProps {
   open: boolean
@@ -53,36 +54,42 @@ export function GenerateDuesDialog({
   const form = useForm<GenerateAssessmentsFormValues>({
     resolver: zodResolver(generateAssessmentsSchema),
     defaultValues: {
-      title: 'Monthly dues',
+      title: '',
       description: '',
       period: currentMonthPeriod(),
-      amount: 0,
+      amount: undefined,
       dueDate: endOfMonthValue(),
       remarks: '',
+      chargeTypeId: '',
+      billingPeriodId: '',
     },
   })
 
   useEffect(() => {
     if (open) {
       form.reset({
-        title: 'Monthly dues',
+        title: '',
         description: '',
         period: currentMonthPeriod(),
-        amount: 0,
+        amount: undefined,
         dueDate: endOfMonthValue(),
         remarks: '',
+        chargeTypeId: '',
+        billingPeriodId: '',
       })
     }
   }, [open, form])
 
   const handleSubmit = (values: GenerateAssessmentsFormValues) => {
     const input = {
-      title: values.title,
+      title: values.title || undefined,
       description: values.description || undefined,
       period: values.period || undefined,
       amount: values.amount,
       dueDate: new Date(values.dueDate).toISOString(),
       remarks: values.remarks || undefined,
+      chargeTypeId: values.chargeTypeId || undefined,
+      billingPeriodId: values.billingPeriodId || undefined,
     }
 
     generate.mutate(input, {
@@ -106,6 +113,22 @@ export function GenerateDuesDialog({
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4"
           >
+            <FormField
+              control={form.control}
+              name="chargeTypeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Charge type</FormLabel>
+                  <FormControl>
+                    <ChargeTypeSelect value={field.value ?? ''} onChange={field.onChange} />
+                  </FormControl>
+                  <FormDescription>
+                    Select a charge type to pull the title, amount, and billing period defaults.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -116,6 +139,7 @@ export function GenerateDuesDialog({
                     <FormControl>
                       <Input placeholder="e.g. Monthly dues" {...field} />
                     </FormControl>
+                    <FormDescription>Defaults to the charge type name.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

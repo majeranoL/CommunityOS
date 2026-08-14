@@ -22,7 +22,7 @@ function uniqueEmail(prefix: string): string {
 async function loginAs(page: Page, email: string, password: string, url: string) {
   await page.goto('/login')
   await page.getByLabel('Email').fill(email)
-  await page.getByPlaceholder('••••••••').fill(password)
+  await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.waitForURL(url)
 }
@@ -42,12 +42,13 @@ test('login as a tenant member lands on the dashboard', async ({ page }) => {
   }
 })
 
-test('register page renders the signup form', async ({ page }) => {
+test('register page renders the signup wizard', async ({ page }) => {
   await page.goto('/register')
 
   await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Send code' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Submit for approval' })).toBeVisible()
+  await expect(page.getByText('Details', { exact: true })).toBeVisible()
+  await expect(page.getByText('Verify', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Continue' })).toBeVisible()
 })
 
 test('registration gate: CLOSED returns 403, OPEN submits for approval', async ({ request }) => {

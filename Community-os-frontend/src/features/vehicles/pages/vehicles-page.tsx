@@ -16,11 +16,24 @@ import {
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
+import { useVerifyVehicle } from '@/features/vehicles/hooks/use-vehicles'
+import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
+import { useRevalidateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
+import { VehicleTransferDialog } from '@/features/vehicles/components/vehicle-transfer-dialog'
 import type { VehicleListItem } from '@/features/vehicles/types/vehicle'
 import { formatDate, toTitleCase } from '@/lib/format'
 
-const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE'] as const
+const STATUS_FILTERS = [
+  'ALL',
+  'PENDING',
+  'APPROVED',
+  'ACTIVE',
+  'REJECTED',
+  'DEACTIVATED',
+  'TRANSFERRED',
+  'INACTIVE',
+] as const
 const TYPE_FILTERS = ['ALL', 'CAR', 'MOTORCYCLE', 'TRUCK', 'VAN', 'BICYCLE', 'OTHER'] as const
 
 export default function VehiclesPage() {
@@ -30,9 +43,15 @@ export default function VehiclesPage() {
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editVehicle, setEditVehicle] = useState<VehicleListItem | null>(null)
+  const [transferVehicle, setTransferVehicle] = useState<VehicleListItem | null>(null)
 
   const canCreate = useHasPermission(PERMISSIONS.vehicleCreate)
   const canUpdate = useHasPermission(PERMISSIONS.vehicleUpdate)
+  const canVerify = useHasPermission(PERMISSIONS.vehicleVerify)
+
+  const verifyVehicle = useVerifyVehicle()
+  const deactivateVehicle = useDeactivateVehicle()
+  const revalidateVehicle = useRevalidateVehicle()
 
   const { data, isLoading, isFetching } = useVehicles({
     page,
@@ -99,17 +118,80 @@ export default function VehiclesPage() {
     {
       key: 'actions',
       header: '',
-      cell: (row) =>
-        canUpdate ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditVehicle(row)}
-          >
-            Edit
-          </Button>
-        ) : null,
+      cell: (row) => (
+        <div className="flex justify-end gap-1">
+          {canUpdate ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditVehicle(row)}
+            >
+              Edit
+            </Button>
+          ) : null}
+          {canVerify && row.status === 'PENDING' ? (
+            <>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                onClick={() =>
+                  verifyVehicle.mutate({
+                    id: row.id,
+                    input: { approved: true },
+                  })
+                }
+              >
+                Approve
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  verifyVehicle.mutate({
+                    id: row.id,
+                    input: { approved: false },
+                  })
+                }
+              >
+                Reject
+              </Button>
+            </>
+          ) : null}
+          {canUpdate && ['ACTIVE', 'APPROVED'].includes(row.status) ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setTransferVehicle(row)}
+              >
+                Transfer
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => deactivateVehicle.mutate(row.id)}
+              >
+                Deactivate
+              </Button>
+            </>
+          ) : null}
+          {canUpdate && ['DEACTIVATED', 'TRANSFERRED'].includes(row.status) ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => revalidateVehicle.mutate(row.id)}
+            >
+              Revalidate
+            </Button>
+          ) : null}
+        </div>
+      ),
     },
   ]
 
@@ -194,6 +276,11 @@ export default function VehiclesPage() {
         open={Boolean(editVehicle)}
         onOpenChange={(open) => !open && setEditVehicle(null)}
         vehicle={editVehicle}
+      />
+      <VehicleTransferDialog
+        open={Boolean(transferVehicle)}
+        onOpenChange={(open) => !open && setTransferVehicle(null)}
+        vehicle={transferVehicle}
       />
     </div>
   )

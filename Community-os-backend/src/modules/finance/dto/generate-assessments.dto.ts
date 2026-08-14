@@ -14,19 +14,21 @@ import {
 import { Type } from 'class-transformer';
 
 export class GenerateAssessmentsDto {
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
-  title!: string;
+  title?: string;
 
   @IsOptional()
   @IsString()
   description?: string;
 
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  amount!: number;
+  amount?: number;
 
   @IsDateString()
   dueDate!: string;
@@ -45,4 +47,12 @@ export class GenerateAssessmentsDto {
   @ArrayUnique()
   @IsUUID('4', { each: true })
   householdIds?: string[];
+
+  @IsOptional()
+  @IsUUID()
+  chargeTypeId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  billingPeriodId?: string;
 }

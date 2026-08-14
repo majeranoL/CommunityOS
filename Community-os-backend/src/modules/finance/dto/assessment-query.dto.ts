@@ -11,7 +11,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import { AssessmentStatus } from '@prisma/client';
+import { AssessmentStatus, FinanceCategory } from '@prisma/client';
 
 export class AssessmentQueryDto {
   @IsOptional()
@@ -38,6 +38,18 @@ export class AssessmentQueryDto {
   @IsOptional()
   @IsUUID()
   householdId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  chargeTypeId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  billingPeriodId?: string;
+
+  @IsOptional()
+  @IsEnum(FinanceCategory)
+  category?: FinanceCategory;
 
   @IsOptional()
   @IsIn(['assessmentNumber', 'title', 'dueDate', 'amount', 'createdAt'])

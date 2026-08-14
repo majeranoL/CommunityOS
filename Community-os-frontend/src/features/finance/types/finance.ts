@@ -1,14 +1,64 @@
 export type AssessmentStatus =
-  'DRAFT' | 'ISSUED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED'
-export type PaymentStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED' | 'REFUNDED'
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'PARTIALLY_PAID'
+  | 'PAID'
+  | 'OVERDUE'
+  | 'WAIVED'
+  | 'CANCELLED'
+
+export type PaymentStatus =
+  | 'PENDING_VERIFICATION'
+  | 'VERIFIED'
+  | 'REJECTED'
+  | 'REFUNDED'
+  | 'CANCELLED'
+
 export type PaymentMethod =
-  'CASH' | 'BANK_TRANSFER' | 'GCASH' | 'CREDIT_CARD' | 'CHEQUE' | 'OTHER'
+  | 'CASH'
+  | 'BANK_TRANSFER'
+  | 'GCASH'
+  | 'CREDIT_CARD'
+  | 'CHEQUE'
+  | 'OTHER'
+
+export type FinanceCategory =
+  | 'DUES'
+  | 'SPECIAL_ASSESSMENT'
+  | 'BOND'
+  | 'FACILITY_FEE'
+  | 'VEHICLE_STICKER'
+  | 'PARKING_FEE'
+  | 'UTILITY'
+  | 'MEMBERSHIP_FEE'
+  | 'LATE_PENALTY'
+  | 'VIOLATION_FINE'
+  | 'OTHER'
+
+export type ChargeRecurrence = 'RECURRING' | 'ONE_TIME'
+
+export type BillingPeriodStatus = 'OPEN' | 'PAID' | 'OVERDUE' | 'WAIVED' | 'CANCELLED'
 
 export interface HouseholdRef {
   id: string
   block: string | null
   lot: string | null
   unit: string | null
+}
+
+export interface ChargeTypeRef {
+  id: string
+  code?: string
+  name: string
+  category: FinanceCategory
+}
+
+export interface BillingPeriodRef {
+  id: string
+  periodKey: string
+  label: string
+  status: BillingPeriodStatus
+  dueDate?: string | null
 }
 
 export interface AssessmentListItem {
@@ -26,6 +76,8 @@ export interface AssessmentListItem {
   createdAt: string
   updatedAt: string
   household: HouseholdRef | null
+  chargeType: ChargeTypeRef | null
+  billingPeriod: BillingPeriodRef | null
 }
 
 export interface AssessmentPaymentRef {
@@ -35,10 +87,25 @@ export interface AssessmentPaymentRef {
   paymentDate: string
   method: PaymentMethod
   status: PaymentStatus
+  verifiedAt: string | null
+}
+
+export interface PaymentAllocation {
+  id: string
+  assessmentId: string
+  allocatedAmount: string | number
+  reversedAt: string | null
+  assessment: {
+    id: string
+    assessmentNumber: string
+    title: string
+    period: string | null
+  }
 }
 
 export interface Assessment extends AssessmentListItem {
   payments: AssessmentPaymentRef[]
+  allocations: (PaymentAllocation & { payment?: AssessmentPaymentRef })[]
 }
 
 export interface CreateAssessmentInput {
@@ -50,7 +117,8 @@ export interface CreateAssessmentInput {
   dueDate: string
   period?: string
   remarks?: string
-  status?: AssessmentStatus
+  chargeTypeId?: string
+  billingPeriodId?: string
 }
 
 export interface UpdateAssessmentInput {
@@ -62,7 +130,21 @@ export interface UpdateAssessmentInput {
   dueDate?: string
   period?: string
   remarks?: string
-  status?: AssessmentStatus
+  chargeTypeId?: string
+  billingPeriodId?: string
+}
+
+export interface ResidentRef {
+  id: string
+  firstName: string
+  lastName: string
+  householdId?: string
+}
+
+export interface UserRef {
+  id: string
+  firstName: string
+  lastName: string
 }
 
 export interface PaymentListItem {
@@ -76,34 +158,60 @@ export interface PaymentListItem {
   status: PaymentStatus
   createdAt: string
   updatedAt: string
-  assessment: { id: string; assessmentNumber: string; title: string } | null
-  resident: { id: string; firstName: string; lastName: string } | null
+  chargeType: ChargeTypeRef | null
+  allocations: PaymentAllocation[]
+  resident: ResidentRef | null
 }
 
-export type Payment = PaymentListItem
+export interface Payment extends PaymentListItem {
+  rejectionReason: string | null
+  proofFileId: string | null
+  proofUrl: string | null
+  verifiedAt: string | null
+  rejectedAt: string | null
+  refundedAt: string | null
+  cancelledAt: string | null
+  verifiedBy: UserRef | null
+  rejectedBy: UserRef | null
+  refundedBy: UserRef | null
+  cancelledBy: UserRef | null
+}
+
+export interface PaymentAllocationInput {
+  assessmentId: string
+  amount: number
+}
 
 export interface CreatePaymentInput {
   paymentNumber: string
-  assessmentId: string
+  allocations?: PaymentAllocationInput[]
+  assessmentId?: string
+  billingPeriodIds?: string[]
   residentId: string
   amount: number
   paymentDate: string
   method?: PaymentMethod
   referenceNumber?: string
   remarks?: string
-  status?: PaymentStatus
+  proofFileId?: string
+  proofUrl?: string
+  chargeTypeId?: string
 }
 
 export interface UpdatePaymentInput {
   paymentNumber?: string
+  allocations?: PaymentAllocationInput[]
   assessmentId?: string
+  billingPeriodIds?: string[]
   residentId?: string
   amount?: number
   paymentDate?: string
   method?: PaymentMethod
   referenceNumber?: string
   remarks?: string
-  status?: PaymentStatus
+  proofFileId?: string
+  proofUrl?: string
+  chargeTypeId?: string
 }
 
 export interface ResidentOption {
@@ -115,17 +223,195 @@ export interface ResidentOption {
   suffix: string | null
 }
 
+// ==============================================
+// Charge types
+// ==============================================
+
+export interface ChargeType {
+  id: string
+  code: string
+  name: string
+  category: FinanceCategory
+  recurrence: ChargeRecurrence
+  amount: string | number
+  dueDay: number | null
+  description: string | null
+  allowAdvancePayment: boolean
+  advanceAppliesToOneTime: boolean
+  isActive: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+  _count?: {
+    billingPeriods: number
+    assessments: number
+  }
+}
+
+export interface CreateChargeTypeInput {
+  code: string
+  name: string
+  category?: FinanceCategory
+  recurrence?: ChargeRecurrence
+  amount?: number
+  dueDay?: number
+  description?: string
+  allowAdvancePayment?: boolean
+  advanceAppliesToOneTime?: boolean
+  isActive?: boolean
+  sortOrder?: number
+}
+
+export type UpdateChargeTypeInput = Partial<CreateChargeTypeInput>
+
+// ==============================================
+// Billing periods
+// ==============================================
+
+export interface BillingPeriod {
+  id: string
+  periodKey: string
+  label: string
+  startDate: string
+  endDate: string | null
+  dueDate: string
+  amount: string | number
+  status: BillingPeriodStatus
+  createdAt: string
+  updatedAt: string
+  chargeType: ChargeTypeRef
+  _count?: {
+    assessments: number
+  }
+}
+
+export interface CreateBillingPeriodInput {
+  chargeTypeId: string
+  periodKey: string
+  label?: string
+  startDate?: string
+  endDate?: string
+  dueDate?: string
+  amount?: number
+}
+
+export interface GenerateBillingPeriodsInput {
+  chargeTypeId: string
+  periodKey: string
+  months?: number
+  dueDate?: string
+  amount?: number
+}
+
+// ==============================================
+// Finance transactions (ledger)
+// ==============================================
+
+export type FinanceTransactionType = 'payment' | 'charge'
+
+export interface FinanceTransaction {
+  id: string
+  type: FinanceTransactionType
+  category: FinanceCategory
+  date: string
+  description: string
+  amount: number
+  status: string
+  reference: string | null
+  household: HouseholdRef | null
+}
+
+export interface FinanceTransactionSummary {
+  income: number
+  expenses: number
+  balance: number
+}
+
+// ==============================================
+// Import / export
+// ==============================================
+
+export type ImportKind = 'payments' | 'assessments'
+export type ExportFormat = 'csv' | 'xlsx'
+
+export interface ImportBatch {
+  id: string
+  module: string
+  fileName: string
+  status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'ROLLED_BACK'
+  canRollback: boolean
+  resultCounts: {
+    total: number
+    valid: number
+    invalid: number
+    imported?: number
+  } | null
+  errors: { _row: number; errors: string[] }[] | null
+  processedAt: string | null
+  rolledBackAt: string | null
+  createdAt: string
+}
+
+export interface ImportPreviewResult {
+  batchId: string
+  totalRows: number
+  validRows: number
+  invalidRows: number
+  preview: Record<string, unknown>[]
+  invalid: { _row: number; errors: string[] }[]
+}
+
 export interface GenerateAssessmentsInput {
-  title: string
+  title?: string
   description?: string
   period?: string
-  amount: number
+  amount?: number
   dueDate: string
   remarks?: string
+  householdIds?: string[]
+  chargeTypeId?: string
+  billingPeriodId?: string
 }
 
 export interface GenerateAssessmentsResult {
   createdCount: number
   skippedCount: number
   created: Assessment[]
+}
+
+export type DuesCellStatus =
+  | AssessmentStatus
+  | 'NONE'
+
+export type DuesStanding = 'GOOD' | 'BAD'
+
+export interface DuesTrackerCell {
+  assessmentId: string
+  status: DuesCellStatus
+}
+
+export interface DuesTrackerRow {
+  householdId: string
+  unitLabel: string
+  monthsPaid: number
+  monthsBehind: number
+  outstanding: number
+  standing: DuesStanding
+  periods: Record<string, DuesTrackerCell>
+}
+
+export interface DuesPeriodSummary {
+  period: string
+  billed: number
+  collected: number
+  paidCount: number
+  householdCount: number
+  collectionRate: number
+  collectedRate: number
+}
+
+export interface DuesTracker {
+  periods: string[]
+  rows: DuesTrackerRow[]
+  summaries: Record<string, DuesPeriodSummary>
 }

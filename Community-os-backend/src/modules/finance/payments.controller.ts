@@ -18,6 +18,7 @@ import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentQueryDto } from './dto/payment-query.dto';
+import { RejectPaymentDto } from './dto/payment-review.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -33,12 +34,12 @@ export class PaymentsController {
 
   private resolveScope(user: any): string | undefined {
     const isManager = hasAnyPermission(user, [
-      'payment.create',
-      'payment.update',
-      'payment.delete',
-      'payment.confirm',
-      'payment.reject',
-      'payment.refund',
+      'finance.view_all',
+      'finance.manage',
+      'finance.verify',
+      'finance.reject',
+      'finance.refund',
+      'payment.cancel',
     ]);
 
     if (isManager) return undefined;
@@ -77,7 +78,11 @@ export class PaymentsController {
   @Get(':id')
   @Permissions('payment.view')
   findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.paymentsService.findOne(req.user.community.id, id);
+    return this.paymentsService.findOne(
+      req.user.community.id,
+      id,
+      this.resolveScope(req.user),
+    );
   }
 
   // ==========================================
@@ -105,23 +110,32 @@ export class PaymentsController {
   }
 
   // ==========================================
-  // Confirm Payment
+  // Verify Payment
   // ==========================================
 
-  @Patch(':id/confirm')
-  @Permissions('payment.confirm')
-  confirm(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.paymentsService.confirm(req.user.community.id, id);
+  @Patch(':id/verify')
+  @Permissions('finance.verify')
+  verify(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.paymentsService.verify(req.user.community.id, id, req.user.id);
   }
 
   // ==========================================
-  // Reject Payment
+  // Reject Payment (reason required)
   // ==========================================
 
   @Patch(':id/reject')
-  @Permissions('payment.reject')
-  reject(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.paymentsService.reject(req.user.community.id, id);
+  @Permissions('finance.reject')
+  reject(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RejectPaymentDto,
+  ) {
+    return this.paymentsService.reject(
+      req.user.community.id,
+      id,
+      dto,
+      req.user.id,
+    );
   }
 
   // ==========================================
@@ -129,8 +143,18 @@ export class PaymentsController {
   // ==========================================
 
   @Patch(':id/refund')
-  @Permissions('payment.refund')
+  @Permissions('finance.refund')
   refund(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.paymentsService.refund(req.user.community.id, id);
+    return this.paymentsService.refund(req.user.community.id, id, req.user.id);
+  }
+
+  // ==========================================
+  // Cancel Payment
+  // ==========================================
+
+  @Patch(':id/cancel')
+  @Permissions('payment.cancel')
+  cancel(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.paymentsService.cancel(req.user.community.id, id, req.user.id);
   }
 }

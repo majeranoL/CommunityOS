@@ -41,6 +41,10 @@ const PROVISION_MEMBER_PERMISSIONS = [
   'poll.view',
   'poll.vote',
   'settings.view',
+  'resident.create',
+  'vehicle.create',
+  'pet.create',
+  'pet.view',
 ];
 
 function slugify(value: string) {

@@ -35,25 +35,43 @@ export function useLogin() {
   })
 }
 
-export function useRegister() {
+export function useRegister(options?: {
+  onSuccess?: () => void
+  onError?: (error: Error) => void
+}) {
   const navigate = useNavigate()
 
   return useMutation({
     mutationFn: (input: RegisterInput) => authService.register(input),
     onSuccess: () => {
+      if (options?.onSuccess) {
+        options.onSuccess()
+        return
+      }
       toast.success('Registration submitted for approval. Check your email.')
       navigate('/login')
     },
     onError: (error) => {
+      if (options?.onError) {
+        options.onError(error)
+        return
+      }
       toast.error(apiErrorMessage(error, 'Registration failed. Please try again.'))
     },
   })
 }
 
-export function useSendOtp() {
+export function useSendOtp(options?: {
+  onSuccess?: (data: Awaited<ReturnType<typeof authService.sendOtp>>) => void
+  onError?: (error: Error) => void
+}) {
   return useMutation({
     mutationFn: (input: { email: string; communityId: string }) => authService.sendOtp(input),
     onSuccess: (data) => {
+      if (options?.onSuccess) {
+        options.onSuccess(data)
+        return
+      }
       if (data.data?.devCode) {
         toast.success(`Email delivery is off — your code: ${data.data.devCode}`)
       } else {
@@ -61,6 +79,10 @@ export function useSendOtp() {
       }
     },
     onError: (error) => {
+      if (options?.onError) {
+        options.onError(error)
+        return
+      }
       toast.error(apiErrorMessage(error, 'Could not send the verification code.'))
     },
   })

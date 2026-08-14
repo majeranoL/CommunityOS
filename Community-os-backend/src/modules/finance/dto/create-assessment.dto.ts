@@ -1,6 +1,5 @@
 import {
   IsDateString,
-  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -11,8 +10,6 @@ import {
 } from 'class-validator';
 
 import { Type } from 'class-transformer';
-
-import { AssessmentStatus } from '@prisma/client';
 
 export class CreateAssessmentDto {
   @IsString()
@@ -50,6 +47,10 @@ export class CreateAssessmentDto {
   remarks?: string;
 
   @IsOptional()
-  @IsEnum(AssessmentStatus)
-  status?: AssessmentStatus;
+  @IsUUID()
+  chargeTypeId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  billingPeriodId?: string;
 }

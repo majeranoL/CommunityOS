@@ -99,6 +99,24 @@ const FIELDS: FieldDef[] = [
     options: ['OPEN', 'CLOSED'],
   },
   {
+    key: 'residentVerification',
+    group: 'security',
+    label: 'Resident verification',
+    description:
+      'AUTO activates new residents immediately; APPROVAL queues them for an officer to verify.',
+    type: 'select',
+    options: ['auto', 'approval'],
+  },
+  {
+    key: 'vehicleVerification',
+    group: 'security',
+    label: 'Vehicle verification',
+    description:
+      'AUTO activates registered vehicles immediately; APPROVAL queues them for an officer to verify.',
+    type: 'select',
+    options: ['auto', 'approval'],
+  },
+  {
     key: 'currency',
     group: 'billing',
     label: 'Currency',

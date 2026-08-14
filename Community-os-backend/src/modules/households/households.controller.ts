@@ -18,6 +18,7 @@ import { HouseholdsService } from './households.service';
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -89,6 +90,24 @@ export class HouseholdsController {
     @Body() dto: UpdateHouseholdDto,
   ) {
     return this.householdsService.update(req.user.community.id, id, dto);
+  }
+
+  // ==========================================
+  // Transfer Ownership
+  // ==========================================
+
+  @Post(':id/transfer-ownership')
+  @Permissions('household.update')
+  transferOwnership(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TransferOwnershipDto,
+  ) {
+    return this.householdsService.transferOwnership(
+      req.user.community.id,
+      id,
+      dto,
+    );
   }
 
   // ==========================================

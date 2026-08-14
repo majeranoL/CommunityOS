@@ -206,9 +206,13 @@ export class ReportsService {
             lastName: true,
           },
         },
-        assessment: {
-          select: {
-            assessmentNumber: true,
+        allocations: {
+          include: {
+            assessment: {
+              select: {
+                assessmentNumber: true,
+              },
+            },
           },
         },
       },
@@ -233,7 +237,8 @@ export class ReportsService {
           payment.resident.middleName,
           payment.resident.lastName,
         ),
-        assessmentNumber: payment.assessment.assessmentNumber,
+        assessmentNumber:
+          payment.allocations[0]?.assessment.assessmentNumber ?? '',
         amount: this.toNumber(payment.amount),
         method: payment.method,
         paymentDate: this.fmtDate(payment.paymentDate),

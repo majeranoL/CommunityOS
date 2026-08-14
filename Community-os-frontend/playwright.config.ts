@@ -21,6 +21,7 @@ export default defineConfig({
       url: 'http://localhost:3000/api/docs',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
+      env: { ...process.env, THROTTLE_DISABLED: 'true' },
     },
     {
       command: 'npm run dev',

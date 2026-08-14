@@ -49,6 +49,24 @@ const SETTING_DEFAULTS: SettingDefault[] = [
     group: 'security',
     isPublic: false,
   },
+  {
+    key: 'residentVerification',
+    value: 'auto',
+    group: 'security',
+    isPublic: false,
+  },
+  {
+    key: 'vehicleVerification',
+    value: 'auto',
+    group: 'security',
+    isPublic: false,
+  },
+  {
+    key: 'renterAccountsAllowed',
+    value: true,
+    group: 'security',
+    isPublic: false,
+  },
   { key: 'currency', value: 'PHP', group: 'billing', isPublic: false },
   { key: 'paymentTermsDays', value: 30, group: 'billing', isPublic: false },
 ];

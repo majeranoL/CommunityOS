@@ -1,8 +1,6 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -20,13 +18,13 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useLogin } from '@/features/auth/hooks/use-auth'
 import { loginSchema, type LoginValues } from '@/features/auth/validation/register'
 import { usePageTitle } from '@/lib/use-page-title'
 
 export default function LoginPage() {
   const login = useLogin()
-  const [showPassword, setShowPassword] = useState(false)
 
   usePageTitle('Sign in')
 
@@ -93,26 +91,11 @@ export default function LoginPage() {
                         </Link>
                       </FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Input
-                            type={showPassword ? 'text' : 'password'}
-                            placeholder="••••••••"
-                            autoComplete="current-password"
-                            className="pr-10"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            tabIndex={-1}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                            onClick={() => setShowPassword((visible) => !visible)}
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
-                          </Button>
-                        </div>
+                        <PasswordInput
+                          placeholder="••••••••"
+                          autoComplete="current-password"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

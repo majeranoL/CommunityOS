@@ -4,15 +4,24 @@ import { apiErrorMessage } from '@/lib/api'
 import type { ListQuery } from '@/types/api'
 import {
   assessmentsService,
+  billingPeriodsService,
+  chargeTypesService,
   financeHouseholdsService,
+  financeImportExportService,
   financeResidentsService,
+  financeTransactionsService,
   paymentsService,
 } from '@/features/finance/services/finance'
 import type {
   CreateAssessmentInput,
+  CreateBillingPeriodInput,
+  CreateChargeTypeInput,
   CreatePaymentInput,
   GenerateAssessmentsInput,
+  GenerateBillingPeriodsInput,
+  ImportKind,
   UpdateAssessmentInput,
+  UpdateChargeTypeInput,
   UpdatePaymentInput,
 } from '@/features/finance/types/finance'
 
@@ -23,7 +32,15 @@ export const financeKeys = {
   payments: ['finance', 'payments'] as const,
   paymentList: (params: ListQuery) => ['finance', 'payments', 'list', params] as const,
   paymentDetail: (id: string) => ['finance', 'payments', 'detail', id] as const,
+  chargeTypes: ['finance', 'charge-types'] as const,
+  chargeTypeList: (params: ListQuery) => ['finance', 'charge-types', 'list', params] as const,
+  billingPeriods: ['finance', 'billing-periods'] as const,
+  billingPeriodList: (params: ListQuery) => ['finance', 'billing-periods', 'list', params] as const,
+  transactions: ['finance', 'transactions'] as const,
+  transactionList: (params: ListQuery) => ['finance', 'transactions', 'list', params] as const,
+  importBatches: ['finance', 'import-batches'] as const,
   households: ['finance', 'households'] as const,
+  duesTracker: ['finance', 'dues-tracker'] as const,
 }
 
 // ==============================================
@@ -46,8 +63,19 @@ export function useAssessment(id: string | null) {
   })
 }
 
+export function useDuesTracker(months: number) {
+  return useQuery({
+    queryKey: [...financeKeys.duesTracker, months] as const,
+    queryFn: () => assessmentsService.duesTracker({ months }),
+    placeholderData: (previous) => previous,
+  })
+}
+
 function invalidateAssessments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
+  queryClient.invalidateQueries({ queryKey: financeKeys.duesTracker })
+  queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
+  queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
 }
 
 export function useCreateAssessment(onSuccess?: () => void) {
@@ -98,6 +126,18 @@ export function useCancelAssessment() {
       invalidateAssessments(queryClient)
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to cancel assessment.')),
+  })
+}
+
+export function useWaiveAssessment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => assessmentsService.waive(id),
+    onSuccess: () => {
+      toast.success('Assessment waived.')
+      invalidateAssessments(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to waive assessment.')),
   })
 }
 
@@ -155,6 +195,9 @@ export function usePayment(id: string | null) {
 function invalidatePayments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: financeKeys.payments })
   queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
+  queryClient.invalidateQueries({ queryKey: financeKeys.duesTracker })
+  queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
+  queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
 }
 
 export function useCreatePayment(onSuccess?: () => void) {
@@ -162,7 +205,7 @@ export function useCreatePayment(onSuccess?: () => void) {
   return useMutation({
     mutationFn: (input: CreatePaymentInput) => paymentsService.create(input),
     onSuccess: () => {
-      toast.success('Payment recorded.')
+      toast.success('Payment recorded and awaiting verification.')
       invalidatePayments(queryClient)
       onSuccess?.()
     },
@@ -184,22 +227,23 @@ export function useUpdatePayment(onSuccess?: () => void) {
   })
 }
 
-export function useConfirmPayment() {
+export function useVerifyPayment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => paymentsService.confirm(id),
+    mutationFn: (id: string) => paymentsService.verify(id),
     onSuccess: () => {
-      toast.success('Payment confirmed.')
+      toast.success('Payment verified and allocated.')
       invalidatePayments(queryClient)
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to confirm payment.')),
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to verify payment.')),
   })
 }
 
 export function useRejectPayment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => paymentsService.reject(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      paymentsService.reject(id, reason),
     onSuccess: () => {
       toast.success('Payment rejected.')
       invalidatePayments(queryClient)
@@ -220,6 +264,18 @@ export function useRefundPayment() {
   })
 }
 
+export function useCancelPayment() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => paymentsService.cancel(id),
+    onSuccess: () => {
+      toast.success('Payment cancelled.')
+      invalidatePayments(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to cancel payment.')),
+  })
+}
+
 export function useDeletePayment(onSuccess?: () => void) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -230,6 +286,209 @@ export function useDeletePayment(onSuccess?: () => void) {
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete payment.')),
+  })
+}
+
+// ==============================================
+// Charge types
+// ==============================================
+
+export function useChargeTypes(params: ListQuery) {
+  return useQuery({
+    queryKey: financeKeys.chargeTypeList(params),
+    queryFn: () => chargeTypesService.list(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+function invalidateChargeTypes(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: financeKeys.chargeTypes })
+  queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
+}
+
+export function useCreateChargeType(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateChargeTypeInput) => chargeTypesService.create(input),
+    onSuccess: () => {
+      toast.success('Charge type created.')
+      invalidateChargeTypes(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to create charge type.')),
+  })
+}
+
+export function useUpdateChargeType(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateChargeTypeInput }) =>
+      chargeTypesService.update(id, input),
+    onSuccess: () => {
+      toast.success('Charge type updated.')
+      invalidateChargeTypes(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update charge type.')),
+  })
+}
+
+export function useDeleteChargeType() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => chargeTypesService.remove(id),
+    onSuccess: () => {
+      toast.success('Charge type deleted.')
+      invalidateChargeTypes(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete charge type.')),
+  })
+}
+
+// ==============================================
+// Billing periods
+// ==============================================
+
+export function useBillingPeriods(params: ListQuery) {
+  return useQuery({
+    queryKey: financeKeys.billingPeriodList(params),
+    queryFn: () => billingPeriodsService.list(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+function invalidateBillingPeriods(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
+  queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
+}
+
+export function useCreateBillingPeriod(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateBillingPeriodInput) => billingPeriodsService.create(input),
+    onSuccess: () => {
+      toast.success('Billing period created.')
+      invalidateBillingPeriods(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to create billing period.')),
+  })
+}
+
+export function useGenerateBillingPeriods(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: GenerateBillingPeriodsInput) => billingPeriodsService.generate(input),
+    onSuccess: (result) => {
+      toast.success(`Generated ${result.createdCount} billing period${result.createdCount === 1 ? '' : 's'}.`)
+      invalidateBillingPeriods(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to generate billing periods.')),
+  })
+}
+
+export function useUpdateBillingPeriod(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<CreateBillingPeriodInput> }) =>
+      billingPeriodsService.update(id, input),
+    onSuccess: () => {
+      toast.success('Billing period updated.')
+      invalidateBillingPeriods(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update billing period.')),
+  })
+}
+
+export function useDeleteBillingPeriod() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => billingPeriodsService.remove(id),
+    onSuccess: () => {
+      toast.success('Billing period deleted.')
+      invalidateBillingPeriods(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete billing period.')),
+  })
+}
+
+// ==============================================
+// Transactions (ledger)
+// ==============================================
+
+export function useFinanceTransactions(params: ListQuery) {
+  return useQuery({
+    queryKey: financeKeys.transactionList(params),
+    queryFn: () => financeTransactionsService.list(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+// ==============================================
+// Import / export
+// ==============================================
+
+export function useImportBatches() {
+  return useQuery({
+    queryKey: financeKeys.importBatches,
+    queryFn: () => financeImportExportService.batches(),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useExportFinance() {
+  return useMutation({
+    mutationFn: ({
+      kind,
+      format,
+      filters,
+    }: {
+      kind: ImportKind
+      format: 'csv' | 'xlsx'
+      filters?: { category?: string; from?: string; to?: string }
+    }) => financeImportExportService.download(kind, format, filters),
+    onSuccess: ({ filename }) => toast.success(`Downloaded ${filename}.`),
+    onError: (error) => toast.error(apiErrorMessage(error, 'Export failed.')),
+  })
+}
+
+export function useImportPreview(onSuccess?: () => void) {
+  return useMutation({
+    mutationFn: ({ kind, file }: { kind: ImportKind; file: File }) =>
+      financeImportExportService.preview(kind, file),
+    onSuccess: () => {
+      toast.success('File parsed.')
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to parse file.')),
+  })
+}
+
+export function useConfirmImport() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (batchId: string) => financeImportExportService.confirm(batchId),
+    onSuccess: (result) => {
+      toast.success(`Imported ${result.created} of ${result.total} rows.`)
+      queryClient.invalidateQueries({ queryKey: financeKeys.importBatches })
+      queryClient.invalidateQueries({ queryKey: financeKeys.payments })
+      queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to import.')),
+  })
+}
+
+export function useCancelImport() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (batchId: string) => financeImportExportService.cancel(batchId),
+    onSuccess: () => {
+      toast.success('Import batch cancelled.')
+      queryClient.invalidateQueries({ queryKey: financeKeys.importBatches })
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to cancel import batch.')),
   })
 }
 

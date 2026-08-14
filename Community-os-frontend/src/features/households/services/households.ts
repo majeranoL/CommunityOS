@@ -54,4 +54,12 @@ export const householdsService = {
     const { data } = await api.delete<ApiEnvelope<null>>(`/households/${id}`)
     return data.data
   },
+
+  async transferOwnership(id: string, newOwnerResidentId: string) {
+    const { data } = await api.post<ApiEnvelope<unknown>>(
+      `/households/${id}/transfer-ownership`,
+      { newOwnerResidentId },
+    )
+    return data.data
+  },
 }

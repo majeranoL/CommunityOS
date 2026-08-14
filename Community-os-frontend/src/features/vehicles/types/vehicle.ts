@@ -1,6 +1,13 @@
 export type VehicleType =
   'CAR' | 'MOTORCYCLE' | 'TRUCK' | 'VAN' | 'BICYCLE' | 'OTHER'
-export type VehicleStatus = 'ACTIVE' | 'INACTIVE'
+export type VehicleStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'ACTIVE'
+  | 'REJECTED'
+  | 'DEACTIVATED'
+  | 'TRANSFERRED'
+  | 'INACTIVE'
 
 export interface VehicleResidentRef {
   id: string
@@ -19,6 +26,9 @@ export interface VehicleListItem {
   status: VehicleStatus
   resident: VehicleResidentRef | null
   residentId: string | null
+  verifiedById: string | null
+  verifiedAt: string | null
+  verificationRemarks: string | null
   createdAt: string
 }
 
@@ -34,3 +44,8 @@ export interface CreateVehicleInput {
 }
 
 export type UpdateVehicleInput = Partial<CreateVehicleInput>
+
+export interface VerifyVehicleInput {
+  approved: boolean
+  remarks?: string
+}

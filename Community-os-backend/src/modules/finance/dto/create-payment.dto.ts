@@ -1,4 +1,6 @@
 import {
+  ArrayUnique,
+  IsArray,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -8,11 +10,22 @@ import {
   IsUUID,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
 
 import { Type } from 'class-transformer';
 
-import { PaymentMethod, PaymentStatus } from '@prisma/client';
+import { PaymentMethod } from '@prisma/client';
+
+export class PaymentAllocationInputDto {
+  @IsUUID()
+  assessmentId!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  amount!: number;
+}
 
 export class CreatePaymentDto {
   @IsString()
@@ -20,15 +33,28 @@ export class CreatePaymentDto {
   @MaxLength(30)
   paymentNumber!: string;
 
+  @IsOptional()
   @IsUUID()
-  assessmentId!: string;
+  assessmentId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PaymentAllocationInputDto)
+  allocations?: PaymentAllocationInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  billingPeriodIds?: string[];
 
   @IsUUID()
   residentId!: string;
 
   @Type(() => Number)
   @IsNumber()
-  @Min(1)
+  @Min(0.01)
   amount!: number;
 
   @IsDateString()
@@ -48,6 +74,15 @@ export class CreatePaymentDto {
   remarks?: string;
 
   @IsOptional()
-  @IsEnum(PaymentStatus)
-  status?: PaymentStatus;
+  @IsUUID()
+  proofFileId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  proofUrl?: string;
+
+  @IsOptional()
+  @IsUUID()
+  chargeTypeId?: string;
 }

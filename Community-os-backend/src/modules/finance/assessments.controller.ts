@@ -19,6 +19,7 @@ import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { AssessmentQueryDto } from './dto/assessment-query.dto';
 import { GenerateAssessmentsDto } from './dto/generate-assessments.dto';
+import { DuesTrackerQueryDto } from './dto/dues-tracker-query.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -39,6 +40,7 @@ export class AssessmentsController {
       'assessment.delete',
       'assessment.issue',
       'assessment.cancel',
+      'finance.waive',
     ]);
 
     if (isManager) return undefined;
@@ -81,13 +83,31 @@ export class AssessmentsController {
   }
 
   // ==========================================
+  // Dues Tracker (household x period matrix)
+  // ==========================================
+
+  @Get('dues-tracker')
+  @Permissions('assessment.view')
+  duesTracker(@Request() req: any, @Query() query: DuesTrackerQueryDto) {
+    return this.assessmentsService.duesTracker(
+      req.user.community.id,
+      query,
+      this.resolveScope(req.user),
+    );
+  }
+
+  // ==========================================
   // Get Assessment By ID
   // ==========================================
 
   @Get(':id')
   @Permissions('assessment.view')
   findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.assessmentsService.findOne(req.user.community.id, id);
+    return this.assessmentsService.findOne(
+      req.user.community.id,
+      id,
+      this.resolveScope(req.user),
+    );
   }
 
   // ==========================================
@@ -132,5 +152,15 @@ export class AssessmentsController {
   @Permissions('assessment.cancel')
   cancel(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.assessmentsService.cancel(req.user.community.id, id);
+  }
+
+  // ==========================================
+  // Waive Assessment
+  // ==========================================
+
+  @Patch(':id/waive')
+  @Permissions('finance.waive')
+  waive(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.assessmentsService.waive(req.user.community.id, id);
   }
 }

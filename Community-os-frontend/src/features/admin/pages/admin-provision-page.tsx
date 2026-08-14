@@ -1,8 +1,7 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -21,6 +20,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
@@ -62,8 +62,6 @@ export default function AdminProvisionPage() {
   const navigate = useNavigate()
   const { data: plans, isLoading } = usePlans()
   const provision = useProvisionCommunity()
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   usePageTitle('Provision community')
 
@@ -281,23 +279,7 @@ export default function AdminProvisionPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showPassword ? 'text' : 'password'}
-                              className="pr-10"
-                              {...field}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              tabIndex={-1}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                              onClick={() => setShowPassword((visible) => !visible)}
-                            >
-                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          </div>
+                          <PasswordInput {...field} />
                         </FormControl>
                         <FormDescription>At least 8 characters with a letter and a number.</FormDescription>
                         <FormMessage />
@@ -311,23 +293,7 @@ export default function AdminProvisionPage() {
                       <FormItem>
                         <FormLabel>Confirm password</FormLabel>
                         <FormControl>
-                          <div className="relative">
-                            <Input
-                              type={showConfirmPassword ? 'text' : 'password'}
-                              className="pr-10"
-                              {...field}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              tabIndex={-1}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                              onClick={() => setShowConfirmPassword((visible) => !visible)}
-                            >
-                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                          </div>
+                          <PasswordInput {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -10,6 +10,7 @@ import { DateTimePicker } from '@/components/shared/date-time-picker'
 import { useCreateAssessment, useUpdateAssessment } from '@/features/finance/hooks/use-finance'
 import { assessmentSchema, type AssessmentFormValues } from '@/features/finance/validation/finance'
 import { HouseholdSelect } from '@/features/finance/components/household-select'
+import { ChargeTypeSelect, BillingPeriodSelect } from '@/features/finance/components/selects'
 import type { AssessmentListItem } from '@/features/finance/types/finance'
 
 interface AssessmentFormDialogProps {
@@ -34,6 +35,8 @@ export function AssessmentFormDialog({ open, onOpenChange, assessment }: Assessm
       dueDate: '',
       period: '',
       remarks: '',
+      chargeTypeId: '',
+      billingPeriodId: '',
     },
   })
 
@@ -48,6 +51,8 @@ export function AssessmentFormDialog({ open, onOpenChange, assessment }: Assessm
         dueDate: assessment?.dueDate ? new Date(assessment.dueDate).toISOString().slice(0, 16) : '',
         period: assessment?.period ?? '',
         remarks: assessment?.remarks ?? '',
+        chargeTypeId: assessment?.chargeType?.id ?? '',
+        billingPeriodId: assessment?.billingPeriod?.id ?? '',
       })
     }
   }, [open, assessment, form])
@@ -62,6 +67,8 @@ export function AssessmentFormDialog({ open, onOpenChange, assessment }: Assessm
       dueDate: new Date(values.dueDate).toISOString(),
       period: values.period || undefined,
       remarks: values.remarks || undefined,
+      chargeTypeId: values.chargeTypeId || undefined,
+      billingPeriodId: values.billingPeriodId || undefined,
     }
 
     if (isEdit && assessment) {
@@ -190,6 +197,38 @@ export function AssessmentFormDialog({ open, onOpenChange, assessment }: Assessm
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="chargeTypeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Charge type</FormLabel>
+                  <FormControl>
+                    <ChargeTypeSelect value={field.value ?? ''} onChange={field.onChange} />
+                  </FormControl>
+                  <FormDescription>Optional. Links this assessment to a charge type.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="billingPeriodId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Billing period</FormLabel>
+                  <FormControl>
+                    <BillingPeriodSelect
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      chargeTypeId={form.watch('chargeTypeId') || undefined}
+                    />
+                  </FormControl>
+                  <FormDescription>Optional. Links this assessment to a billing period.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="remarks"

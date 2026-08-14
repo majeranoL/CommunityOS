@@ -11,7 +11,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import { PaymentMethod, PaymentStatus } from '@prisma/client';
+import { FinanceCategory, PaymentMethod, PaymentStatus } from '@prisma/client';
 
 export class PaymentQueryDto {
   @IsOptional()
@@ -38,6 +38,10 @@ export class PaymentQueryDto {
   @IsOptional()
   @IsEnum(PaymentMethod)
   method?: PaymentMethod;
+
+  @IsOptional()
+  @IsEnum(FinanceCategory)
+  category?: FinanceCategory;
 
   @IsOptional()
   @IsUUID()

@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -16,6 +17,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   AccountStatus,
   ResidentStatus,
+  ResidentType,
   SessionStatus,
   UserStatus,
 } from '@prisma/client';
@@ -449,6 +451,25 @@ export class UsersService {
     }
 
     // ==========================================
+    // Community policy: renter accounts allowed?
+    // ==========================================
+
+    const renterPolicy = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'renterAccountsAllowed',
+        },
+      },
+    });
+
+    if (renterPolicy?.value === false) {
+      throw new ForbiddenException(
+        'This community does not allow renter accounts.',
+      );
+    }
+
+    // ==========================================
     // Generate Reference Numbers
     // ==========================================
 
@@ -587,6 +608,7 @@ export class UsersService {
           email,
           gender: dto.gender ?? null,
           status: ResidentStatus.ACTIVE,
+          residentType: ResidentType.RENTER,
         },
       });
 

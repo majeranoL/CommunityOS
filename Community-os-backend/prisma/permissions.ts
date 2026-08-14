@@ -135,6 +135,11 @@ export const permissions = [
     description: 'Create residents',
   },
   {
+    code: 'resident.verify',
+    module: 'Residents',
+    description: 'Verify pending residents',
+  },
+  {
     code: 'resident.update',
     module: 'Residents',
     description: 'Update residents',
@@ -325,6 +330,11 @@ export const permissions = [
     description: 'Create vehicles',
   },
   {
+    code: 'vehicle.verify',
+    module: 'Vehicles',
+    description: 'Verify pending vehicles',
+  },
+  {
     code: 'vehicle.update',
     module: 'Vehicles',
     description: 'Update vehicles',
@@ -338,6 +348,36 @@ export const permissions = [
     code: 'vehicle.view',
     module: 'Vehicles',
     description: 'View vehicles',
+  },
+
+  // =====================================================
+  // PETS
+  // =====================================================
+
+  {
+    code: 'pet.create',
+    module: 'Pets',
+    description: 'Create pet registrations',
+  },
+  {
+    code: 'pet.verify',
+    module: 'Pets',
+    description: 'Verify pending pets',
+  },
+  {
+    code: 'pet.update',
+    module: 'Pets',
+    description: 'Update pet registrations',
+  },
+  {
+    code: 'pet.delete',
+    module: 'Pets',
+    description: 'Delete pet registrations',
+  },
+  {
+    code: 'pet.view',
+    module: 'Pets',
+    description: 'View pets',
   },
 
   // =====================================================
@@ -470,19 +510,64 @@ export const permissions = [
     description: 'View payments',
   },
   {
-    code: 'payment.confirm',
+    code: 'payment.cancel',
     module: 'Payments',
-    description: 'Confirm payments',
+    description: 'Cancel payments',
+  },
+
+  // =====================================================
+  // FINANCE
+  // =====================================================
+
+  {
+    code: 'finance.view_own',
+    module: 'Finance',
+    description: 'View own household finance records',
   },
   {
-    code: 'payment.reject',
-    module: 'Payments',
-    description: 'Reject payments',
+    code: 'finance.view_all',
+    module: 'Finance',
+    description: 'View all finance records',
   },
   {
-    code: 'payment.refund',
-    module: 'Payments',
+    code: 'finance.verify',
+    module: 'Finance',
+    description: 'Verify payments',
+  },
+  {
+    code: 'finance.reject',
+    module: 'Finance',
+    description: 'Reject payments with reason',
+  },
+  {
+    code: 'finance.refund',
+    module: 'Finance',
     description: 'Refund payments',
+  },
+  {
+    code: 'finance.cancel',
+    module: 'Finance',
+    description: 'Cancel payments',
+  },
+  {
+    code: 'finance.import',
+    module: 'Finance',
+    description: 'Import finance records',
+  },
+  {
+    code: 'finance.export',
+    module: 'Finance',
+    description: 'Export finance records',
+  },
+  {
+    code: 'finance.manage',
+    module: 'Finance',
+    description: 'Manage charge types and billing periods',
+  },
+  {
+    code: 'finance.waive',
+    module: 'Finance',
+    description: 'Waive assessments',
   },
 
   // =====================================================

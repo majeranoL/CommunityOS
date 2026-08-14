@@ -5,6 +5,7 @@ import type {
   ResidentDetail,
   ResidentListItem,
   UpdateResidentInput,
+  VerifyResidentInput,
 } from '@/features/residents/types/resident'
 
 export interface ResidentListResult {
@@ -47,6 +48,14 @@ export const residentsService = {
   async moveOut(id: string) {
     const { data } = await api.post<ApiEnvelope<ResidentDetail>>(
       `/residents/${id}/move-out`,
+    )
+    return data.data
+  },
+
+  async verify(id: string, input: VerifyResidentInput) {
+    const { data } = await api.post<ApiEnvelope<ResidentDetail>>(
+      `/residents/${id}/verify`,
+      input,
     )
     return data.data
   },

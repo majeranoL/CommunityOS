@@ -14,12 +14,17 @@ import {
   VehicleStatus,
   StaffRole,
   StaffStatus,
+  PetSpecies,
+  PetStatus,
   MaintenanceCategory,
   MaintenancePriority,
   MaintenanceStatus,
   AssessmentStatus,
   PaymentStatus,
   PaymentMethod,
+  FinanceCategory,
+  ChargeRecurrence,
+  BillingPeriodStatus,
   DocumentCategory,
   DocumentStatus,
   EventStatus,
@@ -27,6 +32,7 @@ import {
   SubscriptionStatus,
   InvoiceStatus,
   PollStatus,
+  FeatureType,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { mkdir, rm, writeFile } from 'fs/promises';
@@ -46,6 +52,7 @@ async function main() {
   await prisma.staff.deleteMany();
   await prisma.visitor.deleteMany();
   await prisma.vehicle.deleteMany();
+  await prisma.pet.deleteMany();
   await prisma.reservation.deleteMany();
   await prisma.facility.deleteMany();
   await prisma.resident.deleteMany();
@@ -66,6 +73,8 @@ async function main() {
   await prisma.invoice.deleteMany();
   await prisma.subscription.deleteMany();
   await prisma.subscriptionPlan.deleteMany();
+  await prisma.communityFeature.deleteMany();
+  await prisma.feature.deleteMany();
   await prisma.community.deleteMany();
 
   // =====================================================
@@ -85,6 +94,165 @@ async function main() {
   });
 
   console.log('✅ Community created');
+
+  // =====================================================
+  // CHARGE TYPES (default finance catalog)
+  // =====================================================
+
+  const chargeTypes = await Promise.all([
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'monthly-dues',
+        name: 'Monthly Association Dues',
+        category: FinanceCategory.DUES,
+        recurrence: ChargeRecurrence.RECURRING,
+        amount: 1200,
+        dueDay: 28,
+        description: 'Monthly homeowners association dues.',
+        allowAdvancePayment: true,
+        sortOrder: 1,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'special-assessment',
+        name: 'Special Assessment',
+        category: FinanceCategory.SPECIAL_ASSESSMENT,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'One-time assessment for community projects.',
+        allowAdvancePayment: false,
+        sortOrder: 2,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'construction-bond',
+        name: 'Construction / Renovation Bond',
+        category: FinanceCategory.BOND,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'Refundable bond for construction or renovation work.',
+        allowAdvancePayment: false,
+        sortOrder: 3,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'facility-fee',
+        name: 'Facility Usage Fee',
+        category: FinanceCategory.FACILITY_FEE,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'Fee for booking or using community facilities.',
+        allowAdvancePayment: false,
+        sortOrder: 4,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'vehicle-sticker',
+        name: 'Vehicle Sticker / Gate Pass Fee',
+        category: FinanceCategory.VEHICLE_STICKER,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'Fee for vehicle stickers or gate passes.',
+        allowAdvancePayment: false,
+        sortOrder: 5,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'parking-fee',
+        name: 'Parking Fee',
+        category: FinanceCategory.PARKING_FEE,
+        recurrence: ChargeRecurrence.RECURRING,
+        description: 'Monthly parking slot fee.',
+        allowAdvancePayment: true,
+        sortOrder: 6,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'utility-charge',
+        name: 'Utility Charge',
+        category: FinanceCategory.UTILITY,
+        recurrence: ChargeRecurrence.RECURRING,
+        description: 'Recoverable utility charges (water, electricity, etc.).',
+        allowAdvancePayment: true,
+        sortOrder: 7,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'membership-fee',
+        name: 'Membership / Registration Fee',
+        category: FinanceCategory.MEMBERSHIP_FEE,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'One-time membership or registration fee.',
+        allowAdvancePayment: false,
+        sortOrder: 8,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'late-penalty',
+        name: 'Late Payment Penalty',
+        category: FinanceCategory.LATE_PENALTY,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'Penalty for late payment of dues.',
+        allowAdvancePayment: false,
+        sortOrder: 9,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'violation-fine',
+        name: 'Violation Fine',
+        category: FinanceCategory.VIOLATION_FINE,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'Fine imposed for HOA rule violations.',
+        allowAdvancePayment: false,
+        sortOrder: 10,
+      },
+    }),
+    prisma.chargeType.create({
+      data: {
+        communityId: community.id,
+        code: 'other',
+        name: 'Other Charge',
+        category: FinanceCategory.OTHER,
+        recurrence: ChargeRecurrence.ONE_TIME,
+        description: 'Custom HOA-defined charge.',
+        allowAdvancePayment: false,
+        sortOrder: 11,
+      },
+    }),
+  ]);
+
+  const duesChargeType = chargeTypes[0];
+
+  const billingPeriod = await prisma.billingPeriod.create({
+    data: {
+      communityId: community.id,
+      chargeTypeId: duesChargeType.id,
+      label: 'Monthly Dues - August 2026',
+      periodKey: '2026-08',
+      startDate: new Date('2026-08-01T00:00:00.000Z'),
+      endDate: new Date('2026-08-31T23:59:59.000Z'),
+      dueDate: new Date('2026-08-28T00:00:00.000Z'),
+      amount: 1200,
+      status: BillingPeriodStatus.OPEN,
+    },
+  });
+
+  console.log('✅ Charge types & billing period created');
 
   // =====================================================
   // SUBSCRIPTION PLANS
@@ -217,6 +385,8 @@ async function main() {
     'document.view',
     'assessment.view',
     'payment.view',
+    'payment.create',
+    'finance.view_own',
     'announcement.view',
     'complaint.create',
     'complaint.view',
@@ -228,6 +398,10 @@ async function main() {
     'poll.view',
     'poll.vote',
     'settings.view',
+    'resident.create',
+    'vehicle.create',
+    'pet.create',
+    'pet.view',
   ];
 
   for (const code of memberPermissionCodes) {
@@ -324,7 +498,14 @@ async function main() {
   // SAMPLE DATA
   // =====================================================
 
-  await seedSampleData(community.id, user.id, memberRole.id);
+  await seedSampleData(
+    community.id,
+    user.id,
+    memberRole.id,
+    duesChargeType.id,
+    billingPeriod.id,
+    chargeTypes[1].id,
+  );
 
   console.log('✅ Sample data created');
 
@@ -348,6 +529,9 @@ async function seedSampleData(
   communityId: string,
   userId: string,
   memberRoleId: string,
+  duesChargeTypeId: string,
+  billingPeriodId: string,
+  specialChargeTypeId: string,
 ) {
   // =====================================================
   // HOUSEHOLDS
@@ -559,6 +743,63 @@ async function seedSampleData(
   console.log('✅ Vehicles created');
 
   // =====================================================
+  // PETS
+  // =====================================================
+
+  const petData = [
+    {
+      petNumber: 'PET-000001',
+      name: 'Bantay',
+      species: PetSpecies.DOG,
+      breed: 'Aspin',
+      sex: 'Male',
+      color: 'Brown',
+      registrationNumber: 'PET-LIC-001',
+      status: PetStatus.ACTIVE,
+      residentIndex: 0,
+      householdIndex: 0,
+    },
+    {
+      petNumber: 'PET-000002',
+      name: 'Miming',
+      species: PetSpecies.CAT,
+      breed: 'Persian',
+      sex: 'Female',
+      color: 'White',
+      registrationNumber: 'PET-LIC-002',
+      status: PetStatus.APPROVED,
+      residentIndex: 1,
+      householdIndex: 0,
+    },
+    {
+      petNumber: 'PET-000003',
+      name: 'Tweety',
+      species: PetSpecies.BIRD,
+      breed: 'Parakeet',
+      sex: 'Male',
+      color: 'Green',
+      status: PetStatus.PENDING,
+      residentIndex: 3,
+      householdIndex: 2,
+    },
+  ];
+
+  for (const item of petData) {
+    const { residentIndex, householdIndex, ...data } = item;
+
+    await prisma.pet.create({
+      data: {
+        communityId,
+        householdId: households[householdIndex].id,
+        residentId: residents[residentIndex].id,
+        ...data,
+      },
+    });
+  }
+
+  console.log('✅ Pets created');
+
+  // =====================================================
   // STAFF
   // =====================================================
 
@@ -717,6 +958,8 @@ async function seedSampleData(
       dueDate: new Date('2026-08-31T00:00:00.000Z'),
       period: '2026-08',
       status: AssessmentStatus.ISSUED,
+      chargeTypeId: duesChargeTypeId,
+      billingPeriodId,
       householdIndex: 0,
     },
     {
@@ -727,6 +970,8 @@ async function seedSampleData(
       dueDate: new Date('2026-08-31T00:00:00.000Z'),
       period: '2026-08',
       status: AssessmentStatus.ISSUED,
+      chargeTypeId: duesChargeTypeId,
+      billingPeriodId,
       householdIndex: 1,
     },
     {
@@ -737,8 +982,9 @@ async function seedSampleData(
       dueDate: new Date('2026-09-15T00:00:00.000Z'),
       period: '2026-09',
       status: AssessmentStatus.ISSUED,
-      householdIndex: 2,
       paidAmount: 2500,
+      chargeTypeId: specialChargeTypeId,
+      householdIndex: 2,
     },
   ];
 
@@ -773,7 +1019,7 @@ async function seedSampleData(
       paymentDate: new Date('2026-08-05T10:00:00.000Z'),
       method: PaymentMethod.GCASH,
       referenceNumber: 'GC-884123',
-      status: PaymentStatus.CONFIRMED,
+      status: PaymentStatus.VERIFIED,
       assessmentIndex: 0,
       residentIndex: 0,
     },
@@ -783,7 +1029,7 @@ async function seedSampleData(
       paymentDate: new Date('2026-08-05T14:30:00.000Z'),
       method: PaymentMethod.BANK_TRANSFER,
       referenceNumber: 'BT-220191',
-      status: PaymentStatus.CONFIRMED,
+      status: PaymentStatus.VERIFIED,
       assessmentIndex: 2,
       residentIndex: 3,
     },
@@ -792,7 +1038,7 @@ async function seedSampleData(
       amount: 1200,
       paymentDate: new Date('2026-08-06T09:00:00.000Z'),
       method: PaymentMethod.CASH,
-      status: PaymentStatus.PENDING,
+      status: PaymentStatus.PENDING_VERIFICATION,
       assessmentIndex: 1,
       residentIndex: 2,
     },
@@ -801,7 +1047,7 @@ async function seedSampleData(
   for (const item of paymentData) {
     const { assessmentIndex, residentIndex, ...data } = item;
 
-    await prisma.payment.create({
+    const payment = await prisma.payment.create({
       data: {
         communityId,
         assessmentId: assessments[assessmentIndex].id,
@@ -809,6 +1055,17 @@ async function seedSampleData(
         ...data,
       },
     });
+
+    if (data.status === PaymentStatus.VERIFIED) {
+      await prisma.paymentAllocation.create({
+        data: {
+          communityId,
+          paymentId: payment.id,
+          assessmentId: assessments[assessmentIndex].id,
+          allocatedAmount: data.amount,
+        },
+      });
+    }
   }
 
   console.log('✅ Payments created');
@@ -1047,6 +1304,100 @@ async function seedSampleData(
   });
 
   console.log('✅ Poll created with sample votes');
+
+  // =====================================================
+  // FEATURES
+  // =====================================================
+
+  const featureData = [
+    {
+      code: 'pet-registration',
+      name: 'Pet Registration & Management',
+      description:
+        'Register pets, link them to a household and caretaker, manage verification, certificates, and licenses.',
+      type: FeatureType.OPTIONAL,
+    },
+    {
+      code: 'good-bad-standing',
+      name: 'Good/Bad Standing',
+      description:
+        'Compute household standing from dues and restrict reserved services for delinquent households.',
+      type: FeatureType.OPTIONAL,
+    },
+    {
+      code: 'construction-management',
+      name: 'Construction/Renovation Management',
+      description:
+        'Manage construction and renovation applications, bonds, and inspections.',
+      type: FeatureType.OPTIONAL,
+    },
+    {
+      code: 'visitor-gate-management',
+      name: 'Visitor & Gate Management',
+      description:
+        'Create visitor invitations, generate passes, and verify visitors at the gate.',
+      type: FeatureType.OPTIONAL,
+    },
+    {
+      code: 'complaints',
+      name: 'Complaints & Incidents',
+      description:
+        'Residents submit complaints, incidents, and service requests with officer assignment and resolution.',
+      type: FeatureType.STANDARD,
+    },
+    {
+      code: 'documents',
+      name: 'Documents & Digital Records',
+      description:
+        'Centralized storage for HOA, household, financial, and pet documents with versioning and audit.',
+      type: FeatureType.STANDARD,
+    },
+    {
+      code: 'events-calendar',
+      name: 'Community Calendar & Events',
+      description:
+        'Publish HOA events, meetings, deadlines, and facility schedules on a shared calendar.',
+      type: FeatureType.STANDARD,
+    },
+    {
+      code: 'reports-analytics',
+      name: 'Reports & Analytics',
+      description:
+        'Operational and financial reporting with filters and Excel/CSV export.',
+      type: FeatureType.STANDARD,
+    },
+  ];
+
+  const features = new Map<string, string>();
+
+  for (const item of featureData) {
+    const feature = await prisma.feature.create({
+      data: item,
+      select: { id: true, code: true },
+    });
+
+    features.set(feature.code, feature.id);
+  }
+
+  // Assign Pet Registration to the demo community so the demo works end to end
+
+  await prisma.communityFeature.create({
+    data: {
+      communityId,
+      featureId: features.get('pet-registration')!,
+      enabled: true,
+      enabledBy: userId,
+      enabledAt: new Date(),
+      config: {
+        verificationMode: 'auto',
+        documentsRequired: false,
+        registrationFee: 200,
+        rulesUrl: '',
+      },
+    },
+  });
+
+  console.log('✅ Features created');
 
   // =====================================================
   // SETTINGS

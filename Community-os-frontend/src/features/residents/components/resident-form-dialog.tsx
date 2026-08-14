@@ -24,16 +24,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { HouseholdSelect } from '@/features/residents/components/household-select'
 import { useCreateResident, useResident, useUpdateResident } from '@/features/residents/hooks/use-residents'
 import { residentFormSchema, type ResidentFormValues } from '@/features/residents/validation/resident'
-import type { CivilStatus, CreateResidentInput, Gender, ResidentDetail } from '@/features/residents/types/resident'
+import type { CivilStatus, CreateResidentInput, Gender, ResidentDetail, ResidentType } from '@/features/residents/types/resident'
 
 interface ResidentFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   residentId?: string | null
+  selfService?: boolean
 }
 
 const GENDER_OPTIONS = ['MALE', 'FEMALE', 'OTHER'] as const
 const CIVIL_STATUS_OPTIONS = ['SINGLE', 'MARRIED', 'WIDOWED', 'DIVORCED', 'SEPARATED'] as const
+const RESIDENT_TYPE_OPTIONS = ['OWNER', 'RENTER'] as const
 
 function toFormValues(resident?: ResidentDetail): ResidentFormValues {
   return {
@@ -47,6 +49,7 @@ function toFormValues(resident?: ResidentDetail): ResidentFormValues {
     phoneNumber: resident?.phoneNumber ?? '',
     email: resident?.email ?? '',
     householdId: resident?.householdId ?? '',
+    residentType: resident?.residentType ?? '',
     block: resident?.block ?? '',
     lot: resident?.lot ?? '',
     street: resident?.street ?? '',
@@ -55,7 +58,12 @@ function toFormValues(resident?: ResidentDetail): ResidentFormValues {
   }
 }
 
-export function ResidentFormDialog({ open, onOpenChange, residentId }: ResidentFormDialogProps) {
+export function ResidentFormDialog({
+  open,
+  onOpenChange,
+  residentId,
+  selfService = false,
+}: ResidentFormDialogProps) {
   const isEditing = Boolean(residentId)
   const { data: resident, isLoading } = useResident(residentId ?? null)
   const createResident = useCreateResident(() => onOpenChange(false))
@@ -84,6 +92,10 @@ export function ResidentFormDialog({ open, onOpenChange, residentId }: ResidentF
       phoneNumber: values.phoneNumber || undefined,
       email: values.email || undefined,
       householdId: values.householdId || undefined,
+      residentType:
+        !selfService && values.residentType
+          ? (values.residentType as ResidentType)
+          : undefined,
       block: values.block || undefined,
       lot: values.lot || undefined,
       street: values.street || undefined,
@@ -113,22 +125,57 @@ export function ResidentFormDialog({ open, onOpenChange, residentId }: ResidentF
         {isLoading ? null : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="householdId"
-                render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel>Household</FormLabel>
-                    <FormControl>
-                      <HouseholdSelect value={field.value ?? ''} onChange={field.onChange} />
-                    </FormControl>
-                    <FormDescription>
-                      Assign the unit this resident belongs to.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {selfService ? (
+                <p className="text-sm text-muted-foreground">
+                  This resident will be added to your household.
+                </p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="householdId"
+                    render={({ field }) => (
+                      <FormItem className="space-y-1">
+                        <FormLabel>Household</FormLabel>
+                        <FormControl>
+                          <HouseholdSelect value={field.value ?? ''} onChange={field.onChange} />
+                        </FormControl>
+                        <FormDescription>
+                          Assign the unit this resident belongs to.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {!isEditing && (
+                    <FormField
+                      control={form.control}
+                      name="residentType"
+                      render={({ field }) => (
+                        <FormItem className="space-y-1">
+                          <FormLabel>Resident type</FormLabel>
+                          <FormControl>
+                            <Select value={field.value || 'OWNER'} onValueChange={field.onChange}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Owner" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {RESIDENT_TYPE_OPTIONS.map((option) => (
+                                  <SelectItem key={option} value={option}>
+                                    {option.charAt(0) + option.slice(1).toLowerCase()}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormControl>
+                          <FormDescription>Owner or renter occupancy.</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField

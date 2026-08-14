@@ -87,7 +87,7 @@ export class AnalyticsService {
           where: {
             communityId,
             deletedAt: null,
-            status: PaymentStatus.CONFIRMED,
+            status: PaymentStatus.VERIFIED,
             paymentDate: { gte: start, lt: end },
           },
           _sum: {
@@ -100,7 +100,7 @@ export class AnalyticsService {
           where: {
             communityId,
             deletedAt: null,
-            status: PaymentStatus.PENDING,
+            status: PaymentStatus.PENDING_VERIFICATION,
             paymentDate: { gte: start, lt: end },
           },
           _sum: {
@@ -184,7 +184,7 @@ export class AnalyticsService {
           where: {
             communityId,
             deletedAt: null,
-            status: PaymentStatus.CONFIRMED,
+            status: PaymentStatus.VERIFIED,
           },
           select: {
             paymentDate: true,

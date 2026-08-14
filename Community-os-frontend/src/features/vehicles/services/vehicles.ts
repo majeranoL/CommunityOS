@@ -4,6 +4,7 @@ import type {
   CreateVehicleInput,
   UpdateVehicleInput,
   VehicleListItem,
+  VerifyVehicleInput,
 } from '@/features/vehicles/types/vehicle'
 
 export interface VehicleListResult {
@@ -34,6 +35,36 @@ export const vehiclesService = {
 
   async remove(id: string) {
     const { data } = await api.delete<ApiEnvelope<null>>(`/vehicles/${id}`)
+    return data.data
+  },
+
+  async verify(id: string, input: VerifyVehicleInput) {
+    const { data } = await api.post<ApiEnvelope<VehicleListItem>>(
+      `/vehicles/${id}/verify`,
+      input,
+    )
+    return data.data
+  },
+
+  async transfer(id: string, newResidentId: string) {
+    const { data } = await api.post<ApiEnvelope<VehicleListItem>>(
+      `/vehicles/${id}/transfer`,
+      { newResidentId },
+    )
+    return data.data
+  },
+
+  async deactivate(id: string) {
+    const { data } = await api.post<ApiEnvelope<VehicleListItem>>(
+      `/vehicles/${id}/deactivate`,
+    )
+    return data.data
+  },
+
+  async revalidate(id: string) {
+    const { data } = await api.post<ApiEnvelope<VehicleListItem>>(
+      `/vehicles/${id}/revalidate`,
+    )
     return data.data
   },
 }

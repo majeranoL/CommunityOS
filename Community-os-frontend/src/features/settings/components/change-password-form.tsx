@@ -1,7 +1,5 @@
-import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -19,6 +17,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { PasswordInput } from '@/components/ui/password-input'
 import { useChangePassword } from '@/features/auth/hooks/use-auth'
 import {
   changePasswordSchema,
@@ -27,8 +26,6 @@ import {
 
 export function ChangePasswordForm() {
   const changePassword = useChangePassword()
-  const [showCurrent, setShowCurrent] = useState(false)
-  const [showNew, setShowNew] = useState(false)
 
   const form = useForm<ChangePasswordValues>({
     resolver: zodResolver(changePasswordSchema),
@@ -66,27 +63,12 @@ export function ChangePasswordForm() {
                 <FormItem>
                   <FormLabel>Current password</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showCurrent ? 'text' : 'password'}
-                        autoComplete="current-password"
-                        className="pr-10"
-                        {...field}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        tabIndex={-1}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        onClick={() => setShowCurrent((visible) => !visible)}
-                      >
-                        {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        <span className="sr-only">
-                          {showCurrent ? 'Hide current password' : 'Show current password'}
-                        </span>
-                      </Button>
-                    </div>
+                    <PasswordInput
+                      autoComplete="current-password"
+                      showLabel="Show current password"
+                      hideLabel="Hide current password"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -100,27 +82,12 @@ export function ChangePasswordForm() {
                 <FormItem>
                   <FormLabel>New password</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showNew ? 'text' : 'password'}
-                        autoComplete="new-password"
-                        className="pr-10"
-                        {...field}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        tabIndex={-1}
-                        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        onClick={() => setShowNew((visible) => !visible)}
-                      >
-                        {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        <span className="sr-only">
-                          {showNew ? 'Hide new password' : 'Show new password'}
-                        </span>
-                      </Button>
-                    </div>
+                    <PasswordInput
+                      autoComplete="new-password"
+                      showLabel="Show new password"
+                      hideLabel="Hide new password"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

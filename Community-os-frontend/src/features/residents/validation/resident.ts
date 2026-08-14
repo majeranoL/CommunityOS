@@ -11,6 +11,7 @@ export const residentFormSchema = z.object({
   phoneNumber: z.string().trim().max(20).optional().or(z.literal('')),
   email: z.string().trim().email('Enter a valid email').optional().or(z.literal('')),
   householdId: z.string().optional().or(z.literal('')),
+  residentType: z.string().optional().or(z.literal('')),
   block: z.string().trim().max(20).optional().or(z.literal('')),
   lot: z.string().trim().max(20).optional().or(z.literal('')),
   street: z.string().trim().max(100).optional().or(z.literal('')),

@@ -5,6 +5,7 @@ import { residentsService } from '@/features/residents/services/residents'
 import type {
   CreateResidentInput,
   UpdateResidentInput,
+  VerifyResidentInput,
 } from '@/features/residents/types/resident'
 import type { ListQuery } from '@/types/api'
 
@@ -86,5 +87,20 @@ export function useMoveOutResident(onSuccess?: () => void) {
       toast.error(
         apiErrorMessage(error, 'Failed to mark resident as moved out.'),
       ),
+  })
+}
+
+export function useVerifyResident(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: VerifyResidentInput }) =>
+      residentsService.verify(id, input),
+    onSuccess: () => {
+      toast.success('Resident verification updated.')
+      queryClient.invalidateQueries({ queryKey: residentKeys.all })
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to verify resident.')),
   })
 }

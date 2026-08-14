@@ -27,6 +27,9 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 
+const AUTH_RATE_LIMIT =
+  process.env.THROTTLE_DISABLED === 'true' ? 1_000_000 : 5;
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -43,19 +46,19 @@ export class AuthController {
   }
 
   @Post('otp/send')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: AUTH_RATE_LIMIT, ttl: 60_000 } })
   sendOtp(@Body() dto: SendOtpDto) {
     return this.authService.sendRegistrationOtp(dto);
   }
 
   @Post('register')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: AUTH_RATE_LIMIT, ttl: 60_000 } })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: AUTH_RATE_LIMIT, ttl: 60_000 } })
   login(
     @Request() req: any,
     @Res({ passthrough: true }) res: Response,
@@ -102,13 +105,13 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: AUTH_RATE_LIMIT, ttl: 60_000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }
 
   @Post('reset-password')
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: AUTH_RATE_LIMIT, ttl: 60_000 } })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.token, dto.password);
   }

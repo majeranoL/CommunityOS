@@ -147,7 +147,7 @@ export class DashboardService {
         where: {
           communityId,
           deletedAt: null,
-          status: PaymentStatus.CONFIRMED,
+          status: PaymentStatus.VERIFIED,
           paymentDate: {
             gte: startOfMonth,
             lt: startOfNextMonth,
@@ -163,7 +163,7 @@ export class DashboardService {
         where: {
           communityId,
           deletedAt: null,
-          status: PaymentStatus.PENDING,
+          status: PaymentStatus.PENDING_VERIFICATION,
         },
       }),
     ]);

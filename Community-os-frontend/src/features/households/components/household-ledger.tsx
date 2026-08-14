@@ -56,7 +56,7 @@ export function HouseholdLedger({
             ) : null}
           </div>
           {entries.some(
-            (entry) => entry.type === 'payment' && entry.status !== 'CONFIRMED',
+            (entry) => entry.type === 'payment' && entry.status !== 'VERIFIED',
           ) && (
             <p className="mt-1 text-xs text-muted-foreground">
               Pending or rejected payments are shown but not applied to the

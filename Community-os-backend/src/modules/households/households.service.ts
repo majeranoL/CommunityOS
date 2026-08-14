@@ -8,6 +8,8 @@ import {
   AssessmentStatus,
   HouseholdStatus,
   PaymentStatus,
+  ResidentStatus,
+  ResidentType,
   UserStatus,
 } from '@prisma/client';
 
@@ -16,6 +18,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 
 type HouseholdStanding = 'GOOD' | 'BAD';
 
@@ -164,17 +167,27 @@ export class HouseholdsService {
         where: {
           communityId,
           deletedAt: null,
-          status: PaymentStatus.CONFIRMED,
-          assessment: {
-            householdId: { in: householdIds },
-            deletedAt: null,
+          status: PaymentStatus.VERIFIED,
+          allocations: {
+            some: {
+              reversedAt: null,
+              assessment: {
+                householdId: { in: householdIds },
+                deletedAt: null,
+              },
+            },
           },
         },
         select: {
-          amount: true,
-          assessment: {
+          allocations: {
+            where: { reversedAt: null },
             select: {
-              householdId: true,
+              allocatedAmount: true,
+              assessment: {
+                select: {
+                  householdId: true,
+                },
+              },
             },
           },
         },
@@ -184,11 +197,14 @@ export class HouseholdsService {
     const paidByHousehold = new Map<string, number>();
 
     for (const payment of payments) {
-      const householdId = payment.assessment.householdId;
-      paidByHousehold.set(
-        householdId,
-        (paidByHousehold.get(householdId) ?? 0) + payment.amount.toNumber(),
-      );
+      for (const allocation of payment.allocations) {
+        const householdId = allocation.assessment.householdId;
+        paidByHousehold.set(
+          householdId,
+          (paidByHousehold.get(householdId) ?? 0) +
+            allocation.allocatedAmount.toNumber(),
+        );
+      }
     }
 
     return summarizeFinance(
@@ -408,6 +424,9 @@ export class HouseholdsService {
             middleName: true,
             lastName: true,
             status: true,
+            residentType: true,
+            movedOutAt: true,
+            createdAt: true,
             user: {
               select: {
                 id: true,
@@ -467,6 +486,22 @@ export class HouseholdsService {
       throw new NotFoundException('Household not found.');
     }
 
+    // ==========================================
+    // Derived Occupancy History
+    // ==========================================
+
+    const residents = household.residents;
+
+    const occupancyHistory = {
+      current: residents.filter((resident) => resident.status === 'ACTIVE'),
+      former: residents.filter((resident) => resident.status !== 'ACTIVE'),
+      total: residents.length,
+      owner: residents.find(
+        (resident) =>
+          resident.status === 'ACTIVE' && resident.residentType === 'OWNER',
+      ),
+    };
+
     const finance = (await this.financeSummary(communityId, [id])).get(id);
 
     return {
@@ -474,8 +509,93 @@ export class HouseholdsService {
       message: 'Household retrieved successfully.',
       data: {
         ...household,
+        occupancyHistory,
         finance,
       },
+    };
+  }
+
+  // ==========================================
+  // Transfer Ownership
+  // ==========================================
+
+  async transferOwnership(
+    communityId: string,
+    id: string,
+    dto: TransferOwnershipDto,
+  ) {
+    const household = await this.prisma.household.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!household) {
+      throw new NotFoundException('Household not found.');
+    }
+
+    const newOwner = await this.prisma.resident.findFirst({
+      where: {
+        id: dto.newOwnerResidentId,
+        communityId,
+        householdId: id,
+        deletedAt: null,
+      },
+    });
+
+    if (!newOwner) {
+      throw new NotFoundException(
+        'The selected resident is not part of this household.',
+      );
+    }
+
+    if (newOwner.status !== ResidentStatus.ACTIVE) {
+      throw new ConflictException(
+        'Ownership can only be transferred to an active resident.',
+      );
+    }
+
+    // ==========================================
+    // Transaction: current owner(s) → RENTER, new owner → OWNER
+    // ==========================================
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.resident.updateMany({
+        where: {
+          communityId,
+          householdId: id,
+          status: ResidentStatus.ACTIVE,
+          residentType: ResidentType.OWNER,
+        },
+        data: {
+          residentType: ResidentType.RENTER,
+        },
+      });
+
+      return tx.resident.update({
+        where: {
+          id: newOwner.id,
+        },
+        data: {
+          residentType: ResidentType.OWNER,
+        },
+        select: {
+          id: true,
+          residentNumber: true,
+          firstName: true,
+          middleName: true,
+          lastName: true,
+          residentType: true,
+        },
+      });
+    });
+
+    return {
+      success: true,
+      message: `Ownership transferred to ${updated.firstName} ${updated.lastName}.`,
+      data: updated,
     };
   }
 

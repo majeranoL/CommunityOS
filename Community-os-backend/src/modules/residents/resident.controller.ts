@@ -17,6 +17,7 @@ import { UpdateResidentDto } from './dto/update-resident.dto';
 import { ResidentService } from './resident.service';
 
 import { CreateResidentDto } from './dto/create-resident.dto';
+import { VerifyResidentDto } from './dto/verify-resident.dto';
 import { ResidentQueryDto } from './dto/resident-query.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -36,7 +37,7 @@ export class ResidentController {
   @Post()
   @Permissions('resident.create')
   create(@Request() req: any, @Body() dto: CreateResidentDto) {
-    return this.residentService.create(req.user.community.id, dto);
+    return this.residentService.create(req.user.community.id, req.user, dto);
   }
 
   // ==========================================
@@ -76,6 +77,25 @@ export class ResidentController {
   @Permissions('resident.update')
   moveOut(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.residentService.moveOut(req.user.community.id, id);
+  }
+
+  // ==========================================
+  // Verify Pending Resident
+  // ==========================================
+
+  @Post(':id/verify')
+  @Permissions('resident.verify')
+  verify(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VerifyResidentDto,
+  ) {
+    return this.residentService.verify(
+      req.user.community.id,
+      req.user.id,
+      id,
+      dto,
+    );
   }
   @Delete(':id')
   @Permissions('resident.delete')

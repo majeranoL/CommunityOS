@@ -3,15 +3,18 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 import { UpdateResidentDto } from './dto/update-resident.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResidentDto } from './dto/create-resident.dto';
+import { VerifyResidentDto } from './dto/verify-resident.dto';
 import { ResidentQueryDto } from './dto/resident-query.dto';
 import {
   AccountStatus,
   ResidentStatus,
+  ResidentType,
   SessionStatus,
   UserStatus,
 } from '@prisma/client';
@@ -75,7 +78,33 @@ export class ResidentService {
       .replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
-  async create(communityId: string, dto: CreateResidentDto) {
+  private getPermissionCodes(user: any): string[] {
+    const codes: string[] = [];
+
+    for (const userRole of user?.roles ?? []) {
+      for (const rp of userRole.role?.permissions ?? []) {
+        const code = rp.permission?.code as string;
+        if (code) codes.push(code);
+      }
+    }
+
+    return [...new Set(codes)];
+  }
+
+  private async getVerificationMode(communityId: string) {
+    const setting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'residentVerification',
+        },
+      },
+    });
+
+    return (setting?.value as string | undefined) ?? 'auto';
+  }
+
+  async create(communityId: string, user: any, dto: CreateResidentDto) {
     // ==========================
     // Clean Inputs
     // ==========================
@@ -151,6 +180,42 @@ export class ResidentService {
         throw new ConflictException('Phone number already exists.');
       }
     }
+
+    // ==========================
+    // Self-Service Scope
+    // ==========================
+
+    const permissions = this.getPermissionCodes(user);
+
+    const isOfficer = permissions.includes('resident.verify');
+
+    let residentStatus: ResidentStatus = ResidentStatus.ACTIVE;
+
+    if (!isOfficer) {
+      const ownHousehold = user?.resident?.household;
+
+      if (!ownHousehold?.id) {
+        throw new ForbiddenException(
+          'You must be linked to a household to add residents.',
+        );
+      }
+
+      dto.householdId = ownHousehold.id;
+
+      const verificationMode = await this.getVerificationMode(communityId);
+
+      if (verificationMode === 'approval') {
+        residentStatus = ResidentStatus.PENDING;
+      }
+    }
+
+    // ==========================
+    // Resident Type (self-service is always OWNER)
+    // ==========================
+
+    const residentType: ResidentType = isOfficer
+      ? (dto.residentType ?? ResidentType.OWNER)
+      : ResidentType.OWNER;
 
     // ==========================
     // Validate Household
@@ -242,6 +307,9 @@ export class ResidentService {
 
           profilePhotoUrl: dto.profilePhotoUrl,
           remarks: dto.remarks,
+
+          status: residentStatus,
+          residentType,
         },
 
         select: {
@@ -270,6 +338,7 @@ export class ResidentService {
           remarks: true,
 
           status: true,
+          residentType: true,
 
           createdAt: true,
           updatedAt: true,
@@ -380,6 +449,7 @@ export class ResidentService {
           },
 
           status: true,
+          residentType: true,
 
           createdAt: true,
         },
@@ -450,6 +520,7 @@ export class ResidentService {
         remarks: true,
 
         status: true,
+        residentType: true,
         movedOutAt: true,
 
         createdAt: true,
@@ -651,6 +722,7 @@ export class ResidentService {
         remarks: true,
 
         status: true,
+        residentType: true,
 
         createdAt: true,
         updatedAt: true,
@@ -714,6 +786,7 @@ export class ResidentService {
         civilStatus: true,
 
         status: true,
+        residentType: true,
         movedOutAt: true,
 
         createdAt: true,
@@ -724,6 +797,70 @@ export class ResidentService {
     return {
       success: true,
       message: 'Resident marked as moved out.',
+      data: updatedResident,
+    };
+  }
+  async verify(
+    communityId: string,
+    verifierId: string,
+    id: string,
+    dto: VerifyResidentDto,
+  ) {
+    const resident = await this.prisma.resident.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!resident) {
+      throw new NotFoundException('Resident not found.');
+    }
+
+    if (resident.status !== ResidentStatus.PENDING) {
+      throw new BadRequestException('Only pending residents can be verified.');
+    }
+
+    const updatedResident = await this.prisma.resident.update({
+      where: {
+        id,
+      },
+      data: {
+        status: dto.approved ? ResidentStatus.ACTIVE : ResidentStatus.INACTIVE,
+        verifiedById: verifierId,
+        verifiedAt: new Date(),
+        verificationRemarks: dto.remarks,
+      },
+      select: {
+        id: true,
+        residentNumber: true,
+        householdId: true,
+
+        firstName: true,
+        middleName: true,
+        lastName: true,
+        suffix: true,
+
+        gender: true,
+        civilStatus: true,
+
+        status: true,
+        residentType: true,
+        verifiedById: true,
+        verifiedAt: true,
+        verificationRemarks: true,
+
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: dto.approved
+        ? 'Resident approved successfully.'
+        : 'Resident rejected successfully.',
       data: updatedResident,
     };
   }

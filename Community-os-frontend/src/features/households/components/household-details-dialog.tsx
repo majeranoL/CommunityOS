@@ -20,6 +20,7 @@ import {
   useUpdateHousehold,
 } from '@/features/households/hooks/use-households'
 import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
+import { TransferOwnershipDialog } from '@/features/households/components/transfer-ownership-dialog'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -51,7 +52,9 @@ export function HouseholdDetailsDialog({
   const deleteHousehold = useDeleteHousehold(() => onOpenChange(false))
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [renterOpen, setRenterOpen] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
   const canCreateUser = useHasPermission(PERMISSIONS.userCreate)
+  const canUpdateHousehold = useHasPermission(PERMISSIONS.householdUpdate)
 
   const toggleStatus = () => {
     if (!household) return
@@ -62,7 +65,11 @@ export function HouseholdDetailsDialog({
     }
   }
 
-  const ownerResident = household?.residents.find((resident) => resident.user)
+  const ownerResident =
+    household?.residents.find(
+      (resident) =>
+        resident.status === 'ACTIVE' && resident.residentType === 'OWNER',
+    ) ?? household?.residents.find((resident) => resident.user)
   const owner = ownerResident?.user ?? null
 
   return (
@@ -102,7 +109,7 @@ export function HouseholdDetailsDialog({
             <Separator />
 
             <div>
-              <h4 className="mb-2 text-sm font-medium">Account holder</h4>
+              <h4 className="mb-2 text-sm font-medium">Owner</h4>
               {owner ? (
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
@@ -118,12 +125,19 @@ export function HouseholdDetailsDialog({
                       {owner.account.email} · {owner.referenceNumber}
                     </p>
                   </div>
-                  <StatusBadge status={owner.status} className="ml-auto" />
+                  <div className="ml-auto flex items-center gap-2">
+                    {ownerResident ? (
+                      <StatusBadge status={ownerResident.residentType} />
+                    ) : null}
+                    <StatusBadge status={owner.status} />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
-                    No account holder yet — anyone can register into this unit.
+                    {ownerResident
+                      ? 'No linked account for the owner yet.'
+                      : 'No owner recorded for this unit — anyone can register into it.'}
                   </p>
                   {household.status === 'ACTIVE' && canCreateUser ? (
                     <Button
@@ -220,6 +234,7 @@ export function HouseholdDetailsDialog({
                         {resident.user ? (
                           <Badge variant="secondary">Has account</Badge>
                         ) : null}
+                        <StatusBadge status={resident.residentType} />
                         <StatusBadge status={resident.status} />
                       </div>
                     </li>
@@ -243,6 +258,15 @@ export function HouseholdDetailsDialog({
               disabled={updateHousehold.isPending}
             >
               Deactivate unit
+            </Button>
+          ) : null}
+          {canUpdateHousehold && household ? (
+            <Button
+              variant="outline"
+              onClick={() => setTransferOpen(true)}
+              disabled={transferOpen}
+            >
+              Transfer ownership
             </Button>
           ) : null}
           {household?.status === 'INACTIVE' ? (
@@ -277,6 +301,12 @@ export function HouseholdDetailsDialog({
           unitLabel={household ? unitLabel(household) : ''}
           open={renterOpen}
           onOpenChange={setRenterOpen}
+        />
+
+        <TransferOwnershipDialog
+          householdId={household?.id ?? null}
+          open={transferOpen}
+          onOpenChange={setTransferOpen}
         />
 
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

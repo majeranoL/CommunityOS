@@ -17,6 +17,7 @@ import { ReservationsModule } from './modules/reservations/reservations.module';
 import { HouseholdsModule } from './modules/households/households.module';
 import { VisitorsModule } from './modules/visitors/visitors.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
+import { PetsModule } from './modules/pets/pets.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -31,6 +32,7 @@ import { PollsModule } from './modules/polls/polls.module';
 import { AuditLogsModule } from './modules/auditlogs/audit-logs.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PlatformSettingsModule } from './modules/platform-settings/platform-settings.module';
+import { FeaturesModule } from './modules/features/features.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
@@ -41,7 +43,7 @@ import { HealthModule } from './modules/health/health.module';
       {
         name: 'default',
         ttl: 60_000,
-        limit: 100,
+        limit: process.env.THROTTLE_DISABLED === 'true' ? 1_000_000 : 100,
       },
     ]),
     PrismaModule,
@@ -59,6 +61,7 @@ import { HealthModule } from './modules/health/health.module';
     HouseholdsModule,
     VisitorsModule,
     VehiclesModule,
+    PetsModule,
     StaffModule,
     MaintenanceModule,
     FinanceModule,
@@ -73,6 +76,7 @@ import { HealthModule } from './modules/health/health.module';
     AuditLogsModule,
     SettingsModule,
     PlatformSettingsModule,
+    FeaturesModule,
     PublicModule,
     AdminModule,
     HealthModule,

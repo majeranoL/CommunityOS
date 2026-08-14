@@ -1,8 +1,14 @@
-import { Loader2, Wallet } from 'lucide-react'
+import { useState } from 'react'
+import { Car, Loader2, UserPlus, Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
+import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
+import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
+import { useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency } from '@/lib/format'
 
 function unitLabel(household: {
@@ -20,6 +26,10 @@ function unitLabel(household: {
 
 export function MyBalanceCard() {
   const { data: household, isLoading, isError } = useMyHousehold()
+  const canAddResident = useHasPermission(PERMISSIONS.residentCreate)
+  const canAddVehicle = useHasPermission(PERMISSIONS.vehicleCreate)
+  const [residentOpen, setResidentOpen] = useState(false)
+  const [vehicleOpen, setVehicleOpen] = useState(false)
 
   return (
     <Card>
@@ -29,11 +39,25 @@ export function MyBalanceCard() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
             My household balance
           </CardTitle>
-          {household ? (
-            <span className="text-sm text-muted-foreground">
-              {unitLabel(household)}
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {canAddResident ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setResidentOpen(true)}>
+                <UserPlus className="h-4 w-4" />
+                Add resident
+              </Button>
+            ) : null}
+            {canAddVehicle ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setVehicleOpen(true)}>
+                <Car className="h-4 w-4" />
+                Register vehicle
+              </Button>
+            ) : null}
+            {household ? (
+              <span className="text-sm text-muted-foreground">
+                {unitLabel(household)}
+              </span>
+            ) : null}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -86,6 +110,17 @@ export function MyBalanceCard() {
           </>
         )}
       </CardContent>
+
+      <ResidentFormDialog
+        open={residentOpen}
+        onOpenChange={setResidentOpen}
+        selfService
+      />
+      <VehicleFormDialog
+        open={vehicleOpen}
+        onOpenChange={setVehicleOpen}
+        selfService
+      />
     </Card>
   )
 }
