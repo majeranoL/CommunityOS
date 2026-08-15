@@ -309,6 +309,7 @@ Verification log:
 - Deployed: commit `27089b5` pushed → Railway deploy `e6326750` SUCCESS; deploy log `Permission reconciliation complete: 18 permission(s) added, 30 grant(s) added across 1 community(ies).`
 - Live API smoke (`https://backend-production-c9f3e.up.railway.app`): President role = 136 perms with all 10 `finance.*` + `payment.cancel` + `pet.*` + `resident.verify` + `vehicle.verify` present; previously-403 finance endpoints now 200; `/api/assessments` (8) + `/api/payments` (3) still 200
 - Note: deployed DB has 0 charge types / billing periods / batches (SEED_DB=false) — endpoints authorize but return empty lists until configured in the deployed app
+- Follow-ups (commit `db50239` → Railway deploy `74e6d7e5` SUCCESS): `GET /api/payments/:id/receipt` live-verified → 200, PAY-000003, community "CommunityOS Demo HOA", resident returned; reconciler re-ran idempotently (0/0 added). Duplicate-allocation guard not live-exercised — deployed DB has no PAID/WAIVED/CANCELLED assessments (5 OVERDUE + 3 ISSUED); verified by code + local suite
 
 ---
 
