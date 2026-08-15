@@ -280,7 +280,7 @@ every time you done one idea always indicate it in this md and add a checker for
 
 ## Idea Completion Checkers & Verification Log
 
-### IDEA 1 — Improved HOA Payments / Finance System — DONE (core + production visibility, 2026-08-15)
+### IDEA 1 — Improved HOA Payments / Finance System — DONE (2026-08-15)
 
 Checklist:
 
@@ -295,12 +295,9 @@ Checklist:
 - [x] Import/export surface — `/api/finance/import-export/import/batches` (gated `finance.import`) + `finance.export`
 - [x] Duplicate-allocation guard — `verifyOwnership` (explicit `allocations` + legacy `assessmentId`) and `ensurePeriodAssessment` (billing-period advance payments) now refuse to re-pay an assessment that is already PAID/WAIVED/CANCELLED (ConflictException, 2026-08-15)
 - [x] Official receipt view — `GET /payments/:id/receipt` (payment + resident + household + community + allocations; gated `payment.view`, household-scoped IDOR guard) + printable `PaymentReceiptDialog` (view-only + Print via `window.print()`), 2026-08-15
-
-Remaining from the broader idea (not yet built — deferred, need explicit approval):
-
-- [ ] Advance payment allocated to specific future billing periods (select N future months, one payment covers them) — recurring-charge config for this per charge type
-- [ ] Payment proof screenshot upload on manual verification; charge-type categories beyond monthly dues (special assessments, bonds, facility fees, fines, utilities)
-- [ ] Per-period billing UI driven by the `BillingPeriod` model (endpoint exists but no records/UI yet)
+- [x] Advance payment to N future billing periods — payment form lists OPEN billing periods of advance-enabled charge types as checkboxes → one payment submits `billingPeriodIds`; `resolveTargets`/`ensurePeriodAssessment` create each household's per-period assessment (guarded against re-paying PAID/WAIVED/CANCELLED). Per-charge-type config: `allowAdvancePayment` + `advanceAppliesToOneTime` (ChargeType form). Verified 2026-08-15.
+- [x] Payment proof upload on manual verification — `documentsService.upload` in the payment form (`proofFileId`/`proofUrl`), verifiers open it via "View proof" in `payment-detail-dialog`. Charge-type categories beyond monthly dues: `FinanceCategory` enum has 11 values (DUES, SPECIAL_ASSESSMENT, BOND, FACILITY_FEE, VEHICLE_STICKER, PARKING_FEE, UTILITY, MEMBERSHIP_FEE, LATE_PENALTY, VIOLATION_FINE, OTHER) selectable in the ChargeType form. Verified 2026-08-15.
+- [x] Per-period billing UI — `BillingPeriodsTab` lists periods (charge type, due date, amount, assessment count, status); `BillingPeriodDialog` creates one or bulk-generates N months; backend CRUD + `generate`; assessment generation auto-creates a period via `findOrCreateBillingPeriod`. Verified 2026-08-15.
 
 Verification log:
 
@@ -310,6 +307,7 @@ Verification log:
 - Live API smoke (`https://backend-production-c9f3e.up.railway.app`): President role = 136 perms with all 10 `finance.*` + `payment.cancel` + `pet.*` + `resident.verify` + `vehicle.verify` present; previously-403 finance endpoints now 200; `/api/assessments` (8) + `/api/payments` (3) still 200
 - Note: deployed DB has 0 charge types / billing periods / batches (SEED_DB=false) — endpoints authorize but return empty lists until configured in the deployed app
 - Follow-ups (commit `db50239` → Railway deploy `74e6d7e5` SUCCESS): `GET /api/payments/:id/receipt` live-verified → 200, PAY-000003, community "CommunityOS Demo HOA", resident returned; reconciler re-ran idempotently (0/0 added). Duplicate-allocation guard not live-exercised — deployed DB has no PAID/WAIVED/CANCELLED assessments (5 OVERDUE + 3 ISSUED); verified by code + local suite
+- IDEA 1 close-out audit (2026-08-15): the three previously-deferred items above were already implemented in code; docs promoted to fully DONE (no code changes). Note: deployed DB still has 0 charge types / billing periods (SEED_DB=false) — the finance tabs authorize but stay empty until an admin configures charge types in the deployed app (data config, not code)
 
 ---
 
