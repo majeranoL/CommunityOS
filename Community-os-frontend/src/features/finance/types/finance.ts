@@ -177,6 +177,25 @@ export interface Payment extends PaymentListItem {
   cancelledBy: UserRef | null
 }
 
+export interface PaymentReceiptCommunity {
+  displayName: string
+  address: string | null
+  contactNumber: string | null
+  email: string | null
+  logoUrl: string | null
+}
+
+export interface PaymentReceipt {
+  payment: Payment & {
+    resident: (ResidentRef & {
+      middleName: string | null
+      suffix: string | null
+      household: (HouseholdRef & { address: string | null }) | null
+    }) | null
+  }
+  community: PaymentReceiptCommunity | null
+}
+
 export interface PaymentAllocationInput {
   assessmentId: string
   amount: number

@@ -443,6 +443,90 @@ export class PaymentsService {
   }
 
   // ==========================================
+  // Payment Receipt
+  // ==========================================
+
+  async receipt(communityId: string, id: string, scopeHouseholdId?: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+
+      include: {
+        chargeType: {
+          select: {
+            id: true,
+            name: true,
+            category: true,
+          },
+        },
+        allocations: {
+          include: {
+            assessment: {
+              select: {
+                id: true,
+                assessmentNumber: true,
+                title: true,
+                period: true,
+              },
+            },
+          },
+        },
+        resident: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            suffix: true,
+            householdId: true,
+            household: {
+              select: {
+                id: true,
+                block: true,
+                lot: true,
+                unit: true,
+                address: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found.');
+    }
+
+    // IDOR guard: a member may only view receipts for their own household
+    if (scopeHouseholdId && payment.resident.householdId !== scopeHouseholdId) {
+      throw new NotFoundException('Payment not found.');
+    }
+
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId },
+      select: {
+        displayName: true,
+        address: true,
+        contactNumber: true,
+        email: true,
+        logoUrl: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Receipt generated successfully.',
+      data: {
+        payment,
+        community,
+      },
+    };
+  }
+
+  // ==========================================
   // Update Payment (metadata only while pending)
   // ==========================================
 
@@ -897,6 +981,17 @@ export class PaymentsService {
     });
 
     if (existing) {
+      if (
+        existing.status === AssessmentStatus.PAID ||
+        existing.status === AssessmentStatus.WAIVED ||
+        existing.status === AssessmentStatus.CANCELLED
+      ) {
+        throw new ConflictException(
+          `Billing period ${period.label} is already ${existing.status
+            .toLowerCase()
+            .replace('_', ' ')} for this household.`,
+        );
+      }
       return existing;
     }
 
@@ -947,6 +1042,17 @@ export class PaymentsService {
       if (assessment.status === AssessmentStatus.CANCELLED) {
         throw new ConflictException(
           'Payment cannot be made on a cancelled assessment.',
+        );
+      }
+
+      if (
+        assessment.status === AssessmentStatus.PAID ||
+        assessment.status === AssessmentStatus.WAIVED
+      ) {
+        throw new ConflictException(
+          `Payment cannot be made on an already ${
+            assessment.status === AssessmentStatus.PAID ? 'paid' : 'waived'
+          } assessment.`,
         );
       }
 

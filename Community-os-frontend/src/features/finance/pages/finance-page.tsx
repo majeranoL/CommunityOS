@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreHorizontal, Plus, Search, Send, Check, XCircle, RotateCcw, Pencil, Wallet } from 'lucide-react'
+import { MoreHorizontal, Plus, Search, Send, Check, XCircle, RotateCcw, Pencil, Wallet, Receipt } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -43,6 +43,7 @@ import { GenerateDuesDialog } from '@/features/finance/components/generate-dues-
 import { MyBalanceCard } from '@/features/finance/components/my-balance-card'
 import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
 import { PaymentDetailDialog } from '@/features/finance/components/payment-detail-dialog'
+import { PaymentReceiptDialog } from '@/features/finance/components/payment-receipt-dialog'
 import { RejectPaymentDialog } from '@/features/finance/components/reject-payment-dialog'
 import { ChargeTypeFormDialog } from '@/features/finance/components/charge-type-form-dialog'
 import { BillingPeriodDialog } from '@/features/finance/components/billing-period-dialog'
@@ -507,6 +508,7 @@ function PaymentsTab() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
+  const [receiptId, setReceiptId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<PaymentListItem | null>(null)
   const [cancelling, setCancelling] = useState<PaymentListItem | null>(null)
   const [rejecting, setRejecting] = useState<PaymentListItem | null>(null)
@@ -597,6 +599,10 @@ function PaymentsTab() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setDetailId(row.id)}>View</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setReceiptId(row.id)}>
+              <Receipt className="h-4 w-4" />
+              Receipt
+            </DropdownMenuItem>
             {row.status === 'PENDING_VERIFICATION' ? (
               <>
                 {canVerify ? (
@@ -716,6 +722,13 @@ function PaymentsTab() {
         open={Boolean(detailId)}
         onOpenChange={(open) => {
           if (!open) setDetailId(null)
+        }}
+      />
+      <PaymentReceiptDialog
+        paymentId={receiptId}
+        open={Boolean(receiptId)}
+        onOpenChange={(open) => {
+          if (!open) setReceiptId(null)
         }}
       />
       <RejectPaymentDialog

@@ -192,6 +192,14 @@ export function usePayment(id: string | null) {
   })
 }
 
+export function usePaymentReceipt(id: string | null) {
+  return useQuery({
+    queryKey: [...financeKeys.paymentDetail(id ?? ''), 'receipt'] as const,
+    queryFn: () => paymentsService.receipt(id as string),
+    enabled: Boolean(id),
+  })
+}
+
 function invalidatePayments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: financeKeys.payments })
   queryClient.invalidateQueries({ queryKey: financeKeys.assessments })

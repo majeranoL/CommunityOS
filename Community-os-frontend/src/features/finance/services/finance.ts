@@ -21,6 +21,7 @@ import type {
   ImportPreviewResult,
   Payment,
   PaymentListItem,
+  PaymentReceipt,
   ResidentOption,
   UpdateAssessmentInput,
   UpdateChargeTypeInput,
@@ -98,6 +99,11 @@ export const paymentsService = {
 
   async get(id: string) {
     const { data } = await api.get<ApiEnvelope<Payment>>(`/payments/${id}`)
+    return data.data
+  },
+
+  async receipt(id: string) {
+    const { data } = await api.get<ApiEnvelope<PaymentReceipt>>(`/payments/${id}/receipt`)
     return data.data
   },
 

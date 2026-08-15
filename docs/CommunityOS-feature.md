@@ -280,6 +280,38 @@ every time you done one idea always indicate it in this md and add a checker for
 
 ## Idea Completion Checkers & Verification Log
 
+### IDEA 1 — Improved HOA Payments / Finance System — DONE (core + production visibility, 2026-08-15)
+
+Checklist:
+
+- [x] Flexible charge configuration — charge types (recurring vs one-time) backed by `ChargeType` model + `GET /charge-types` endpoint; frontend Charge types tab (visible to `finance.manage`)
+- [x] Assessments per billing period — monthly-dues generation via `POST /assessments/generate` (B1: bulk-create one assessment per ACTIVE household for a period, skips households that already have one); per-period paid/unpaid/overdue status derived by `determineAssessmentStatus`
+- [x] Payment submission with method + reference — `method`/`referenceNumber` on payments (G6); ledger per household (`buildHouseholdLedger`) + CSV export
+- [x] PENDING VERIFICATION → verify/reject flow — `finance.verify` / `finance.reject` / `finance.refund` / `finance.cancel` permissions gate officer actions; rejected submissions require a reason
+- [x] Payment Allocation record separating payments from assessments (existing `PaymentAllocation` model; G2.1 enforces payer resident belongs to the assessing household)
+- [x] Finance role model — 10 `finance.*` codes + `payment.cancel` in the catalog; `finance.view_own` (residents see only own household) vs manager view-all (G3, member scoping)
+- [x] Standing (IDEA 5 dependency) — `summarizeFinance` standing GOOD/BAD + household standing filter/sort (G5)
+- [x] Production visibility — fixed the deployed-hide bug: Railway Postgres held stale role grants (President missing all 18 newer codes incl. all `finance.*`), so the finance tabs were hidden on Vercel. Boot-time reconciler (`PermissionsProvisioningService`, commit `27089b5`) self-heals grants on every deploy. Deployed + verified live (President 136 perms, all `finance.*` present; `/api/charge-types`, `/api/billing-periods`, `/api/finance/import-export/import/batches` → 200).
+- [x] Import/export surface — `/api/finance/import-export/import/batches` (gated `finance.import`) + `finance.export`
+- [x] Duplicate-allocation guard — `verifyOwnership` (explicit `allocations` + legacy `assessmentId`) and `ensurePeriodAssessment` (billing-period advance payments) now refuse to re-pay an assessment that is already PAID/WAIVED/CANCELLED (ConflictException, 2026-08-15)
+- [x] Official receipt view — `GET /payments/:id/receipt` (payment + resident + household + community + allocations; gated `payment.view`, household-scoped IDOR guard) + printable `PaymentReceiptDialog` (view-only + Print via `window.print()`), 2026-08-15
+
+Remaining from the broader idea (not yet built — deferred, need explicit approval):
+
+- [ ] Advance payment allocated to specific future billing periods (select N future months, one payment covers them) — recurring-charge config for this per charge type
+- [ ] Payment proof screenshot upload on manual verification; charge-type categories beyond monthly dues (special assessments, bonds, facility fees, fines, utilities)
+- [ ] Per-period billing UI driven by the `BillingPeriod` model (endpoint exists but no records/UI yet)
+
+Verification log:
+
+- Backend: `tsc --noEmit` exit 0; eslint 0 errors (pre-existing `any` warnings only); jest 11 suites / 54 tests pass
+- Frontend: `npx tsc --noEmit` exit 0
+- Deployed: commit `27089b5` pushed → Railway deploy `e6326750` SUCCESS; deploy log `Permission reconciliation complete: 18 permission(s) added, 30 grant(s) added across 1 community(ies).`
+- Live API smoke (`https://backend-production-c9f3e.up.railway.app`): President role = 136 perms with all 10 `finance.*` + `payment.cancel` + `pet.*` + `resident.verify` + `vehicle.verify` present; previously-403 finance endpoints now 200; `/api/assessments` (8) + `/api/payments` (3) still 200
+- Note: deployed DB has 0 charge types / billing periods / batches (SEED_DB=false) — endpoints authorize but return empty lists until configured in the deployed app
+
+---
+
 ### IDEA 9 — Household, Resident, User & Vehicle Relationship — DONE (2026-08-13)
 
 Checklist:

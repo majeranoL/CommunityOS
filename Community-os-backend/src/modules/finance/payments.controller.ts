@@ -86,6 +86,20 @@ export class PaymentsController {
   }
 
   // ==========================================
+  // Get Payment Receipt
+  // ==========================================
+
+  @Get(':id/receipt')
+  @Permissions('payment.view')
+  receipt(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.paymentsService.receipt(
+      req.user.community.id,
+      id,
+      this.resolveScope(req.user),
+    );
+  }
+
+  // ==========================================
   // Update Payment
   // ==========================================
 
