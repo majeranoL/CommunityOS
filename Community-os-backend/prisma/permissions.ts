@@ -818,3 +818,32 @@ export const permissions = [
     description: 'View users',
   },
 ];
+
+// Permission codes granted to the non-officer system roles (Member / Renter).
+// Single source of truth shared by community provisioning
+// (communities.service.ts), the seed, and the boot-time permission
+// reconciler (PermissionsProvisioningService) so every path stays in sync.
+export const MEMBER_PERMISSIONS: string[] = [
+  'dashboard.view',
+  'event.view',
+  'document.view',
+  'assessment.view',
+  'payment.view',
+  'payment.create',
+  'finance.view_own',
+  'announcement.view',
+  'complaint.create',
+  'complaint.view',
+  'facility.view',
+  'reservation.create',
+  'reservation.view',
+  'notification.view',
+  'notification.update',
+  'poll.view',
+  'poll.vote',
+  'settings.view',
+  'resident.create',
+  'vehicle.create',
+  'pet.create',
+  'pet.view',
+];

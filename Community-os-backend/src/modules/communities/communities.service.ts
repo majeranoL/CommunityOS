@@ -15,7 +15,7 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 
-import { permissions } from '../../../prisma/permissions';
+import { MEMBER_PERMISSIONS, permissions } from '../../../prisma/permissions';
 
 import { CreateCommunityDto } from './dto/create-community.dto';
 import { UpdateCommunityDto } from './dto/update-community.dto';
@@ -23,29 +23,6 @@ import { CommunityQueryDto } from './dto/community-query.dto';
 import { ProvisionCommunityDto } from './dto/provision-community.dto';
 
 const PROVISION_TRIAL_DAYS = 14;
-
-const PROVISION_MEMBER_PERMISSIONS = [
-  'dashboard.view',
-  'event.view',
-  'document.view',
-  'assessment.view',
-  'payment.view',
-  'announcement.view',
-  'complaint.create',
-  'complaint.view',
-  'facility.view',
-  'reservation.create',
-  'reservation.view',
-  'notification.view',
-  'notification.update',
-  'poll.view',
-  'poll.vote',
-  'settings.view',
-  'resident.create',
-  'vehicle.create',
-  'pet.create',
-  'pet.view',
-];
 
 function slugify(value: string) {
   return value
@@ -617,7 +594,7 @@ export class CommunitiesService {
       });
 
       const memberPermissions = permissionRows.filter((permission) =>
-        PROVISION_MEMBER_PERMISSIONS.includes(permission.code),
+        MEMBER_PERMISSIONS.includes(permission.code),
       );
 
       await tx.rolePermission.createMany({

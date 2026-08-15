@@ -38,7 +38,7 @@ import * as bcrypt from 'bcrypt';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
-import { permissions } from './permissions';
+import { MEMBER_PERMISSIONS, permissions } from './permissions';
 const prisma = new PrismaClient();
 
 async function main() {
@@ -379,32 +379,7 @@ async function main() {
 
   console.log('✅ Permissions created');
 
-  const memberPermissionCodes = [
-    'dashboard.view',
-    'event.view',
-    'document.view',
-    'assessment.view',
-    'payment.view',
-    'payment.create',
-    'finance.view_own',
-    'announcement.view',
-    'complaint.create',
-    'complaint.view',
-    'facility.view',
-    'reservation.create',
-    'reservation.view',
-    'notification.view',
-    'notification.update',
-    'poll.view',
-    'poll.vote',
-    'settings.view',
-    'resident.create',
-    'vehicle.create',
-    'pet.create',
-    'pet.view',
-  ];
-
-  for (const code of memberPermissionCodes) {
+  for (const code of MEMBER_PERMISSIONS) {
     const permission = await prisma.permission.findFirst({
       where: {
         communityId: community.id,
@@ -424,7 +399,7 @@ async function main() {
 
   console.log('✅ Member permissions assigned');
 
-  for (const code of memberPermissionCodes) {
+  for (const code of MEMBER_PERMISSIONS) {
     const permission = await prisma.permission.findFirst({
       where: {
         communityId: community.id,
