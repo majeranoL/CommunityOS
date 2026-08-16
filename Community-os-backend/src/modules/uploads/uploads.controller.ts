@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Post,
   Req,
@@ -24,6 +25,8 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
+
+import { hasAnyPermission } from '../../common/utils/permissions';
 
 import {
   isAllowedExtension,
@@ -112,6 +115,30 @@ export class UploadsController {
       req.user.community.id,
       id,
     );
+
+    // Payment-proof files are private to the owning household unless the
+    // caller is a finance manager. Non-proof uploads keep the previous
+    // community-scoped behaviour.
+    const proofHouseholdId =
+      await this.uploadsService.findPaymentProofHousehold(
+        req.user.community.id,
+        id,
+      );
+
+    if (proofHouseholdId) {
+      const isManager = hasAnyPermission(req.user, [
+        'finance.view_all',
+        'finance.manage',
+        'finance.verify',
+        'finance.reject',
+        'finance.refund',
+        'payment.cancel',
+      ]);
+
+      if (!isManager && req.user.resident?.household?.id !== proofHouseholdId) {
+        throw new NotFoundException('File not found');
+      }
+    }
 
     const filePath = join(process.cwd(), 'uploads', record.filename);
 

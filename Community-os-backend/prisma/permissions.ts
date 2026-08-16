@@ -569,6 +569,41 @@ export const permissions = [
     module: 'Finance',
     description: 'Waive assessments',
   },
+  {
+    code: 'finance.expense_view',
+    module: 'Finance',
+    description: 'View HOA expenses',
+  },
+  {
+    code: 'finance.expense_create',
+    module: 'Finance',
+    description: 'Create expenses',
+  },
+  {
+    code: 'finance.expense_update',
+    module: 'Finance',
+    description: 'Update expenses',
+  },
+  {
+    code: 'finance.expense_delete',
+    module: 'Finance',
+    description: 'Delete expenses',
+  },
+  {
+    code: 'finance.expense_import',
+    module: 'Finance',
+    description: 'Import expenses',
+  },
+  {
+    code: 'finance.expense_export',
+    module: 'Finance',
+    description: 'Export expenses',
+  },
+  {
+    code: 'finance.income_statement_view',
+    module: 'Finance',
+    description: 'View the HOA income statement',
+  },
 
   // =====================================================
   // DOCUMENTS

@@ -7,6 +7,7 @@ import {
 import {
   AssessmentStatus,
   BillingPeriodStatus,
+  ExpenseCategory,
   FinanceCategory,
   ImportBatchStatus,
   PaymentMethod,
@@ -19,7 +20,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { FinanceSyncService } from './finance-sync.service';
 
-export type ImportKind = 'payments' | 'assessments';
+export type ImportKind = 'payments' | 'assessments' | 'expenses';
 export type ExportFormat = 'csv' | 'xlsx';
 
 @Injectable()
@@ -35,15 +36,54 @@ export class FinanceImportExportService {
 
   async export(
     communityId: string,
-    kind: 'payments' | 'assessments',
+    kind: 'payments' | 'assessments' | 'expenses',
     format: ExportFormat,
     filters: { category?: string; from?: string; to?: string } = {},
+    scopeHouseholdId?: string,
   ) {
+    if (kind === 'expenses') {
+      const expenses = await this.prisma.expense.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          ...(filters.category
+            ? { category: filters.category as ExpenseCategory }
+            : {}),
+          ...(filters.from || filters.to
+            ? {
+                expenseDate: {
+                  ...(filters.from ? { gte: new Date(filters.from) } : {}),
+                  ...(filters.to ? { lte: new Date(filters.to) } : {}),
+                },
+              }
+            : {}),
+        },
+        orderBy: { expenseDate: 'desc' },
+      });
+
+      const rows = expenses.map((expense) => ({
+        ExpenseNumber: expense.expenseNumber,
+        Title: expense.title,
+        Category: expense.category,
+        Amount: Number(expense.amount),
+        ExpenseDate: expense.expenseDate.toISOString().slice(0, 10),
+        PaymentMethod: expense.paymentMethod,
+        Payee: expense.payee ?? '',
+        Reference: expense.referenceNumber ?? '',
+        Notes: expense.notes ?? '',
+      }));
+
+      return this.buildFile(rows, format, 'expenses');
+    }
+
     if (kind === 'payments') {
       const payments = await this.prisma.payment.findMany({
         where: {
           communityId,
           deletedAt: null,
+          ...(scopeHouseholdId
+            ? { resident: { householdId: scopeHouseholdId } }
+            : {}),
           ...(filters.category
             ? {
                 OR: [
@@ -131,6 +171,7 @@ export class FinanceImportExportService {
       where: {
         communityId,
         deletedAt: null,
+        ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
         ...(filters.category
           ? { chargeType: { category: filters.category as FinanceCategory } }
           : {}),
@@ -233,7 +274,11 @@ export class FinanceImportExportService {
       data: {
         communityId,
         module:
-          kind === 'payments' ? 'finance-payments' : 'finance-assessments',
+          kind === 'payments'
+            ? 'finance-payments'
+            : kind === 'assessments'
+              ? 'finance-assessments'
+              : 'finance-expenses',
         fileName: file.originalname,
         importedById: userId,
         status: ImportBatchStatus.PROCESSING,
@@ -285,10 +330,21 @@ export class FinanceImportExportService {
     let created = 0;
 
     const kind: ImportKind =
-      batch.module === 'finance-assessments' ? 'assessments' : 'payments';
+      batch.module === 'finance-assessments'
+        ? 'assessments'
+        : batch.module === 'finance-expenses'
+          ? 'expenses'
+          : 'payments';
 
     if (kind === 'payments') {
       created = await this.applyPayments(communityId, batch.id, valid);
+    } else if (kind === 'expenses') {
+      created = await this.applyExpenses(
+        communityId,
+        batch.id,
+        valid,
+        batch.importedById,
+      );
     } else {
       created = await this.applyAssessments(communityId, batch.id, valid);
     }
@@ -483,6 +539,15 @@ export class FinanceImportExportService {
         if (!data.paymentdate) errors.push('paymentDate is required');
         if (data.paymentdate && Number.isNaN(Date.parse(data.paymentdate))) {
           errors.push('paymentDate must be a valid date');
+        }
+      } else if (kind === 'expenses') {
+        if (!data.title) errors.push('title is required');
+        if (!data.amount || Number.isNaN(Number(data.amount))) {
+          errors.push('amount must be a number');
+        }
+        if (!data.expensedate) errors.push('expenseDate is required');
+        if (data.expensedate && Number.isNaN(Date.parse(data.expensedate))) {
+          errors.push('expenseDate must be a valid date');
         }
       } else {
         if (!data.block && !data.lot) {
@@ -723,6 +788,63 @@ export class FinanceImportExportService {
       if (billingPeriodId) {
         await this.financeSyncService.syncPeriod(communityId, billingPeriodId);
       }
+
+      created += 1;
+    }
+
+    return created;
+  }
+
+  private async applyExpenses(
+    communityId: string,
+    batchId: string,
+    rows: any[],
+    createdById: string,
+  ): Promise<number> {
+    let created = 0;
+
+    const expenseCategories = Object.values(ExpenseCategory);
+    const paymentMethods = Object.values(PaymentMethod);
+
+    for (const row of rows) {
+      const latest = await this.prisma.expense.findFirst({
+        where: { communityId },
+        orderBy: { expenseNumber: 'desc' },
+        select: { expenseNumber: true },
+      });
+
+      let nextNumber = 0;
+      if (latest) {
+        const parsed = parseInt(latest.expenseNumber.replace(/^EXP-/, ''), 10);
+        if (!Number.isNaN(parsed)) nextNumber = parsed;
+      }
+
+      const category = expenseCategories.includes(row.category?.toUpperCase())
+        ? (row.category.toUpperCase() as ExpenseCategory)
+        : ExpenseCategory.OTHER;
+
+      const method = paymentMethods.includes(row.paymentmethod?.toUpperCase())
+        ? (row.paymentmethod.toUpperCase() as PaymentMethod)
+        : PaymentMethod.CASH;
+
+      await this.prisma.expense.create({
+        data: {
+          communityId,
+          expenseNumber: `EXP-${String(nextNumber + 1).padStart(6, '0')}`,
+          title: String(row.title).trim(),
+          description: row.description ?? undefined,
+          category,
+          amount: Number(row.amount),
+          expenseDate: new Date(row.expensedate),
+          paymentMethod: method,
+          payee: row.payee ?? undefined,
+          referenceNumber: row.reference ?? undefined,
+          notes: row.notes ?? undefined,
+          createdById,
+          isImported: true,
+          importBatchId: batchId,
+        },
+      });
 
       created += 1;
     }

@@ -14,7 +14,11 @@ export class FinanceOptionsService {
   // Household Options
   // ==========================================
 
-  async householdOptions(communityId: string, query: FinanceOptionsQueryDto) {
+  async householdOptions(
+    communityId: string,
+    query: FinanceOptionsQueryDto,
+    scopeHouseholdId?: string,
+  ) {
     const { page, limit, search } = query;
 
     const skip = (page - 1) * limit;
@@ -23,6 +27,7 @@ export class FinanceOptionsService {
       communityId,
       deletedAt: null,
       status: HouseholdStatus.ACTIVE,
+      ...(scopeHouseholdId ? { id: scopeHouseholdId } : {}),
     };
 
     if (search) {
@@ -106,7 +111,11 @@ export class FinanceOptionsService {
   // Resident Options
   // ==========================================
 
-  async residentOptions(communityId: string, query: FinanceOptionsQueryDto) {
+  async residentOptions(
+    communityId: string,
+    query: FinanceOptionsQueryDto,
+    scopeHouseholdId?: string,
+  ) {
     const { page, limit, search } = query;
 
     const skip = (page - 1) * limit;
@@ -115,6 +124,7 @@ export class FinanceOptionsService {
       communityId,
       deletedAt: null,
       status: ResidentStatus.ACTIVE,
+      ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
     };
 
     if (search) {

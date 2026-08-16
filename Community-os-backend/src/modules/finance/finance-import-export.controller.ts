@@ -27,12 +27,29 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
+import { hasAnyPermission } from '../../common/utils/permissions';
+
 @Controller('finance/import-export')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class FinanceImportExportController {
   constructor(
     private readonly financeImportExportService: FinanceImportExportService,
   ) {}
+
+  private resolveScope(user: any): string | undefined {
+    const isManager = hasAnyPermission(user, [
+      'finance.view_all',
+      'finance.manage',
+      'finance.verify',
+      'finance.reject',
+      'finance.refund',
+      'payment.cancel',
+    ]);
+
+    if (isManager) return undefined;
+
+    return user.resident?.household?.id;
+  }
 
   // ==========================================
   // Export payments / assessments
@@ -42,7 +59,7 @@ export class FinanceImportExportController {
   @Permissions('finance.export')
   async export(
     @Request() req: any,
-    @Param('kind') kind: 'payments' | 'assessments',
+    @Param('kind') kind: 'payments' | 'assessments' | 'expenses',
     @Query() query: FinanceExportQueryDto,
     @Res() res: Response,
   ) {
@@ -55,6 +72,7 @@ export class FinanceImportExportController {
         from: query.from,
         to: query.to,
       },
+      this.resolveScope(req.user),
     );
 
     res.setHeader('Content-Type', file.contentType);
@@ -79,7 +97,7 @@ export class FinanceImportExportController {
   )
   preview(
     @Request() req: any,
-    @Query('kind') kind: 'payments' | 'assessments',
+    @Query('kind') kind: 'payments' | 'assessments' | 'expenses',
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {

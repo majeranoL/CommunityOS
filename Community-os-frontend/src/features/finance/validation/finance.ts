@@ -150,6 +150,33 @@ export const PAYMENT_STATUSES = [
 
 export const BILLING_PERIOD_STATUSES = ['OPEN', 'PAID', 'OVERDUE', 'WAIVED', 'CANCELLED'] as const
 
+export const EXPENSE_CATEGORIES = [
+  'UTILITIES',
+  'MAINTENANCE',
+  'SALARIES',
+  'SUPPLIES',
+  'EVENTS',
+  'SECURITY',
+  'TAXES',
+  'INSURANCE',
+  'TRANSPORTATION',
+  'OTHER',
+] as const
+
+export const expenseSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().max(1000).optional().or(z.literal('')),
+  category: z.enum(EXPENSE_CATEGORIES, { error: 'Select a category' }),
+  amount: z.number({ error: 'Enter an amount' }).min(0.01, 'Amount must be greater than 0'),
+  expenseDate: z.string().min(1, 'Expense date is required'),
+  paymentMethod: z.enum(PAYMENT_METHODS, { error: 'Select a method' }),
+  payee: z.string().max(200).optional().or(z.literal('')),
+  referenceNumber: z.string().max(100).optional().or(z.literal('')),
+  notes: z.string().optional().or(z.literal('')),
+})
+
+export type ExpenseFormValues = z.infer<typeof expenseSchema>
+
 export function toNumber(value: string | number | null | undefined): number | undefined {
   if (value === null || value === undefined || value === '') return undefined
   const n = Number(value)

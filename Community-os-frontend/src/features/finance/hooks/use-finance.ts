@@ -6,22 +6,26 @@ import {
   assessmentsService,
   billingPeriodsService,
   chargeTypesService,
+  expensesService,
   financeHouseholdsService,
   financeImportExportService,
   financeResidentsService,
   financeTransactionsService,
+  incomeStatementService,
   paymentsService,
 } from '@/features/finance/services/finance'
 import type {
   CreateAssessmentInput,
   CreateBillingPeriodInput,
   CreateChargeTypeInput,
+  CreateExpenseInput,
   CreatePaymentInput,
   GenerateAssessmentsInput,
   GenerateBillingPeriodsInput,
   ImportKind,
   UpdateAssessmentInput,
   UpdateChargeTypeInput,
+  UpdateExpenseInput,
   UpdatePaymentInput,
 } from '@/features/finance/types/finance'
 
@@ -41,6 +45,9 @@ export const financeKeys = {
   importBatches: ['finance', 'import-batches'] as const,
   households: ['finance', 'households'] as const,
   duesTracker: ['finance', 'dues-tracker'] as const,
+  expenses: ['finance', 'expenses'] as const,
+  expenseList: (params: ListQuery) => ['finance', 'expenses', 'list', params] as const,
+  incomeStatement: ['finance', 'income-statement'] as const,
 }
 
 // ==============================================
@@ -76,6 +83,7 @@ function invalidateAssessments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: financeKeys.duesTracker })
   queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
   queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
+  queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
 }
 
 export function useCreateAssessment(onSuccess?: () => void) {
@@ -206,6 +214,7 @@ function invalidatePayments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: financeKeys.duesTracker })
   queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
   queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
+  queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
 }
 
 export function useCreatePayment(onSuccess?: () => void) {
@@ -435,6 +444,75 @@ export function useFinanceTransactions(params: ListQuery) {
 }
 
 // ==============================================
+// Expenses
+// ==============================================
+
+export function useExpenses(params: ListQuery) {
+  return useQuery({
+    queryKey: financeKeys.expenseList(params),
+    queryFn: () => expensesService.list(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+function invalidateExpenses(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
+  queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+  queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
+}
+
+export function useCreateExpense(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateExpenseInput) => expensesService.create(input),
+    onSuccess: () => {
+      toast.success('Expense recorded.')
+      invalidateExpenses(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to record expense.')),
+  })
+}
+
+export function useUpdateExpense(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateExpenseInput }) =>
+      expensesService.update(id, input),
+    onSuccess: () => {
+      toast.success('Expense updated.')
+      invalidateExpenses(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update expense.')),
+  })
+}
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => expensesService.remove(id),
+    onSuccess: () => {
+      toast.success('Expense deleted.')
+      invalidateExpenses(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete expense.')),
+  })
+}
+
+// ==============================================
+// Income statement (fund transparency)
+// ==============================================
+
+export function useIncomeStatement(params: { from?: string; to?: string } = {}) {
+  return useQuery({
+    queryKey: [...financeKeys.incomeStatement, params] as const,
+    queryFn: () => incomeStatementService.get(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+// ==============================================
 // Import / export
 // ==============================================
 
@@ -483,6 +561,8 @@ export function useConfirmImport() {
       queryClient.invalidateQueries({ queryKey: financeKeys.importBatches })
       queryClient.invalidateQueries({ queryKey: financeKeys.payments })
       queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
+      queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
+      queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to import.')),
   })

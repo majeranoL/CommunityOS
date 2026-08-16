@@ -253,6 +253,19 @@ enum FinanceCategory {
   OTHER
 }
 
+enum ExpenseCategory {
+  UTILITIES
+  MAINTENANCE
+  SALARIES
+  SUPPLIES
+  EVENTS
+  SECURITY
+  TAXES
+  INSURANCE
+  TRANSPORTATION
+  OTHER
+}
+
 enum ChargeRecurrence {
   RECURRING
   ONE_TIME
@@ -373,6 +386,7 @@ model Community {
   assessments       Assessment[]
   payments          Payment[]
   paymentAllocations PaymentAllocation[]
+  expenses          Expense[]
   chargeTypes       ChargeType[]
   billingPeriods    BillingPeriod[]
   importBatches     ImportBatch[]
@@ -553,6 +567,7 @@ model User {
   refundedPayments        Payment[]         @relation("PaymentRefundedBy")
   cancelledPayments       Payment[]         @relation("PaymentCancelledBy")
   importedBatches         ImportBatch[]     @relation("ImportBatchImportedBy")
+  createdExpenses         Expense[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1314,6 +1329,48 @@ model Payment {
 }
 
 /////////////////////////////////////////////////////
+// EXPENSE
+/////////////////////////////////////////////////////
+
+model Expense {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  expenseNumber   String         @db.VarChar(30)
+  title           String         @db.VarChar(200)
+  description     String?
+  category        ExpenseCategory @default(OTHER)
+  amount          Decimal        @db.Decimal(10, 2)
+  expenseDate     DateTime
+  paymentMethod   PaymentMethod  @default(CASH)
+  payee           String?        @db.VarChar(200)
+  referenceNumber String?        @db.VarChar(100)
+  notes           String?
+
+  receiptFileId String? @db.Uuid
+  receiptUrl    String?
+
+  createdById String @db.Uuid
+  createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  isImported    Boolean     @default(false)
+  importBatchId String?     @db.Uuid
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, expenseNumber])
+  @@index([communityId])
+  @@index([category])
+  @@index([expenseDate])
+  @@index([createdById])
+}
+
+/////////////////////////////////////////////////////
 // CHARGE TYPE
 /////////////////////////////////////////////////////
 
@@ -1439,6 +1496,7 @@ model ImportBatch {
 
   payments    Payment[]
   assessments Assessment[]
+  expenses     Expense[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

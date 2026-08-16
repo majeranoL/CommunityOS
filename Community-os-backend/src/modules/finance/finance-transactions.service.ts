@@ -209,4 +209,138 @@ export class FinanceTransactionsService {
       },
     };
   }
+
+  // ==========================================
+  // HOA income statement (fund transparency):
+  // income = verified payments, expenses =
+  // recorded expenses, fund balance = net.
+  // ==========================================
+
+  async incomeStatement(communityId: string, from?: string, to?: string) {
+    const dateFilter =
+      from || to
+        ? {
+            ...(from ? { gte: new Date(from) } : {}),
+            ...(to ? { lte: new Date(to) } : {}),
+          }
+        : undefined;
+
+    const [payments, expenses, billed] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: PaymentStatus.VERIFIED,
+          ...(dateFilter ? { paymentDate: dateFilter } : {}),
+        },
+        select: { amount: true, paymentDate: true },
+      }),
+      this.prisma.expense.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          ...(dateFilter ? { expenseDate: dateFilter } : {}),
+        },
+        select: {
+          id: true,
+          expenseNumber: true,
+          title: true,
+          description: true,
+          category: true,
+          amount: true,
+          expenseDate: true,
+          paymentMethod: true,
+          payee: true,
+          referenceNumber: true,
+          notes: true,
+        },
+        orderBy: { expenseDate: 'desc' },
+      }),
+      this.prisma.assessment.aggregate({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: {
+            in: [
+              AssessmentStatus.ISSUED,
+              AssessmentStatus.PARTIALLY_PAID,
+              AssessmentStatus.OVERDUE,
+              AssessmentStatus.PAID,
+            ],
+          },
+          ...(dateFilter ? { dueDate: dateFilter } : {}),
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const income = payments.reduce(
+      (sum, payment) => sum + payment.amount.toNumber(),
+      0,
+    );
+    const expenseTotal = expenses.reduce(
+      (sum, expense) => sum + expense.amount.toNumber(),
+      0,
+    );
+    const fundBalance = income - expenseTotal;
+
+    const categoryMap = new Map<string, { amount: number; count: number }>();
+    for (const expense of expenses) {
+      const current = categoryMap.get(expense.category) ?? {
+        amount: 0,
+        count: 0,
+      };
+      current.amount += expense.amount.toNumber();
+      current.count += 1;
+      categoryMap.set(expense.category, current);
+    }
+
+    const categories = [...categoryMap.entries()]
+      .map(([category, value]) => ({
+        category,
+        amount: value.amount,
+        count: value.count,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const monthlyMap = new Map<string, { income: number; expenses: number }>();
+    const monthKey = (date: Date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+    for (const payment of payments) {
+      const key = monthKey(payment.paymentDate);
+      const current = monthlyMap.get(key) ?? { income: 0, expenses: 0 };
+      current.income += payment.amount.toNumber();
+      monthlyMap.set(key, current);
+    }
+
+    for (const expense of expenses) {
+      const key = monthKey(expense.expenseDate);
+      const current = monthlyMap.get(key) ?? { income: 0, expenses: 0 };
+      current.expenses += expense.amount.toNumber();
+      monthlyMap.set(key, current);
+    }
+
+    const monthly = [...monthlyMap.entries()]
+      .map(([month, value]) => ({ month, ...value }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return {
+      success: true,
+      message: 'Income statement retrieved successfully.',
+      data: {
+        from: from ?? null,
+        to: to ?? null,
+        summary: {
+          income,
+          expenses: expenseTotal,
+          fundBalance,
+          billed: billed._sum.amount?.toNumber() ?? 0,
+        },
+        categories,
+        monthly,
+        expenses,
+      },
+    };
+  }
 }

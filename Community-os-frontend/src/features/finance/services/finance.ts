@@ -7,9 +7,11 @@ import type {
   CreateBillingPeriodInput,
   CreateAssessmentInput,
   CreateChargeTypeInput,
+  CreateExpenseInput,
   CreatePaymentInput,
   ChargeType,
   DuesTracker,
+  Expense,
   ExportFormat,
   FinanceTransaction,
   FinanceTransactionSummary,
@@ -19,12 +21,14 @@ import type {
   ImportBatch,
   ImportKind,
   ImportPreviewResult,
+  IncomeStatement,
   Payment,
   PaymentListItem,
   PaymentReceipt,
   ResidentOption,
   UpdateAssessmentInput,
   UpdateChargeTypeInput,
+  UpdateExpenseInput,
   UpdatePaymentInput,
 } from '@/features/finance/types/finance'
 
@@ -217,6 +221,42 @@ export const financeTransactionsService = {
       summary: data.summary,
       pagination: data.pagination,
     }
+  },
+}
+
+export const expensesService = {
+  async list(params: ListQuery = {}) {
+    const { data } = await api.get<ApiEnvelope<Expense[]>>('/expenses', { params })
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async get(id: string) {
+    const { data } = await api.get<ApiEnvelope<Expense>>(`/expenses/${id}`)
+    return data.data
+  },
+
+  async create(input: CreateExpenseInput) {
+    const { data } = await api.post<ApiEnvelope<Expense>>('/expenses', input)
+    return data.data
+  },
+
+  async update(id: string, input: UpdateExpenseInput) {
+    const { data } = await api.patch<ApiEnvelope<Expense>>(`/expenses/${id}`, input)
+    return data.data
+  },
+
+  async remove(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/expenses/${id}`)
+    return data.data
+  },
+}
+
+export const incomeStatementService = {
+  async get(params: { from?: string; to?: string } = {}) {
+    const { data } = await api.get<ApiEnvelope<IncomeStatement>>('/finance/income-statement', {
+      params,
+    })
+    return data.data
   },
 }
 

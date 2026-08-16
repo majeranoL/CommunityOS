@@ -350,7 +350,7 @@ export interface FinanceTransactionSummary {
 // Import / export
 // ==============================================
 
-export type ImportKind = 'payments' | 'assessments'
+export type ImportKind = 'payments' | 'assessments' | 'expenses'
 export type ExportFormat = 'csv' | 'xlsx'
 
 export interface ImportBatch {
@@ -433,4 +433,94 @@ export interface DuesTracker {
   periods: string[]
   rows: DuesTrackerRow[]
   summaries: Record<string, DuesPeriodSummary>
+}
+
+// ==============================================
+// Expenses
+// ==============================================
+
+export type ExpenseCategory =
+  | 'UTILITIES'
+  | 'MAINTENANCE'
+  | 'SALARIES'
+  | 'SUPPLIES'
+  | 'EVENTS'
+  | 'SECURITY'
+  | 'TAXES'
+  | 'INSURANCE'
+  | 'TRANSPORTATION'
+  | 'OTHER'
+
+export interface CreatedByRef {
+  id: string
+  firstName: string
+  lastName: string
+}
+
+export interface Expense {
+  id: string
+  expenseNumber: string
+  title: string
+  description: string | null
+  category: ExpenseCategory
+  amount: string | number
+  expenseDate: string
+  paymentMethod: PaymentMethod
+  payee: string | null
+  referenceNumber: string | null
+  notes: string | null
+  receiptFileId: string | null
+  receiptUrl: string | null
+  isImported: boolean
+  createdAt: string
+  updatedAt: string
+  createdBy: CreatedByRef | null
+}
+
+export interface CreateExpenseInput {
+  title: string
+  description?: string
+  category?: ExpenseCategory
+  amount: number
+  expenseDate: string
+  paymentMethod?: PaymentMethod
+  payee?: string
+  referenceNumber?: string
+  notes?: string
+  receiptFileId?: string
+  receiptUrl?: string
+}
+
+export type UpdateExpenseInput = Partial<CreateExpenseInput>
+
+// ==============================================
+// Income statement (fund transparency)
+// ==============================================
+
+export interface IncomeStatementCategory {
+  category: ExpenseCategory
+  amount: number
+  count: number
+}
+
+export interface IncomeStatementMonthly {
+  month: string
+  income: number
+  expenses: number
+}
+
+export interface IncomeStatementSummary {
+  income: number
+  expenses: number
+  fundBalance: number
+  billed: number
+}
+
+export interface IncomeStatement {
+  from: string | null
+  to: string | null
+  summary: IncomeStatementSummary
+  categories: IncomeStatementCategory[]
+  monthly: IncomeStatementMonthly[]
+  expenses: Expense[]
 }

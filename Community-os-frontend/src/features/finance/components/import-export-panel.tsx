@@ -47,6 +47,7 @@ export function ImportExportPanel() {
                   <SelectContent>
                     <SelectItem value="payments">Payments</SelectItem>
                     <SelectItem value="assessments">Assessments</SelectItem>
+                    <SelectItem value="expenses">Expenses</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -70,7 +71,7 @@ export function ImportExportPanel() {
               disabled={exportFinance.isPending}
             >
               {exportFinance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Export {kind === 'payments' ? 'payments' : 'assessments'}
+              Export {kind === 'payments' ? 'payments' : kind === 'expenses' ? 'expenses' : 'assessments'}
             </Button>
           </CardContent>
         </Card>
@@ -89,6 +90,7 @@ export function ImportExportPanel() {
                 <SelectContent>
                   <SelectItem value="payments">Payments</SelectItem>
                   <SelectItem value="assessments">Assessments</SelectItem>
+                  <SelectItem value="expenses">Expenses</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -137,6 +137,14 @@ export const PERMISSIONS = {
   financeManage: 'finance.manage',
   financeWaive: 'finance.waive',
 
+  financeExpenseView: 'finance.expense_view',
+  financeExpenseCreate: 'finance.expense_create',
+  financeExpenseUpdate: 'finance.expense_update',
+  financeExpenseDelete: 'finance.expense_delete',
+  financeExpenseImport: 'finance.expense_import',
+  financeExpenseExport: 'finance.expense_export',
+  financeIncomeStatementView: 'finance.income_statement_view',
+
   subscriptionView: 'subscription.view',
   subscriptionManage: 'subscription.manage',
   invoiceView: 'invoice.view',

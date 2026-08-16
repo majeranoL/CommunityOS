@@ -156,6 +156,23 @@ export class UploadsService {
     return record;
   }
 
+  // Returns the household that owns this upload when it is used as a
+  // payment proof, so downloads can be restricted to that household (and
+  // finance managers). Returns null for any non-proof upload.
+  async findPaymentProofHousehold(
+    communityId: string,
+    id: string,
+  ): Promise<string | null> {
+    const payment = await this.prisma.payment.findFirst({
+      where: { communityId, proofFileId: id, deletedAt: null },
+      select: {
+        resident: { select: { householdId: true } },
+      },
+    });
+
+    return payment?.resident?.householdId ?? null;
+  }
+
   async removeUploadForCommunity(communityId: string, id: string) {
     const record = await this.prisma.upload.findFirst({
       where: { id, communityId },
