@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import { announcementsService } from '@/features/announcements/services/announcements'
+import { dashboardKeys } from '@/features/dashboard/hooks/use-dashboard'
 import type {
   CreateAnnouncementInput,
   UpdateAnnouncementInput,
@@ -32,6 +33,7 @@ export function useAnnouncement(id: string | null) {
 
 function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: announcementKeys.all })
+  queryClient.invalidateQueries({ queryKey: dashboardKeys.overview })
 }
 
 export function useCreateAnnouncement(onSuccess?: () => void) {

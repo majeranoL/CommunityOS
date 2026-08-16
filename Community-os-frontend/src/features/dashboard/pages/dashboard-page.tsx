@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   Clock,
@@ -10,10 +12,12 @@ import {
   PenLine,
   Vote,
   Building2,
+  Wrench,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PageHeader } from '@/components/shared/page-header'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/shared/empty-state'
 import { KpiCard } from '@/features/dashboard/components/kpi-card'
@@ -21,7 +25,9 @@ import { useDashboardOverview } from '@/features/dashboard/hooks/use-dashboard'
 import { useAuthStore, useHasAnyPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatDate, formatDateTime, relativeTime } from '@/lib/format'
+import { formatDate, formatDateTime, relativeTime, toTitleCase } from '@/lib/format'
+import { useFacilities } from '@/features/facilities/hooks/use-facilities'
+import { AnnouncementDetailDialog } from '@/features/announcements/components/announcement-detail-dialog'
 import type { DashboardOverview } from '@/features/dashboard/types/dashboard'
 
 function greet() {
@@ -236,6 +242,184 @@ function OpenComplaintsCard({ data, isLoading }: { data?: DashboardOverview; isL
   )
 }
 
+function AnnouncementsCarousel({
+  data,
+  isLoading,
+  onOpenAnnouncement,
+}: {
+  data?: DashboardOverview
+  isLoading: boolean
+  onOpenAnnouncement: (id: string) => void
+}) {
+  const navigate = useNavigate()
+  const announcements = data?.recentAnnouncements ?? []
+  const count = announcements.length
+  const [index, setIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+
+  useEffect(() => {
+    if (count <= 1 || paused) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return
+    const timer = setInterval(() => setIndex((current) => (current + 1) % count), 6000)
+    return () => clearInterval(timer)
+  }, [count, paused])
+
+  const safeIndex = count > 0 ? index % count : 0
+  const active = announcements[safeIndex] ?? announcements[0]
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle className="flex items-center gap-2">
+          <Megaphone className="h-4 w-4 text-primary" />
+          Announcements
+        </CardTitle>
+        <Badge variant="secondary">{count}</Badge>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        ) : count ? (
+          <div
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+            className="space-y-3"
+          >
+            <button
+              type="button"
+              onClick={() => onOpenAnnouncement(active.id)}
+              className="block w-full rounded-xl border bg-card p-5 text-left transition-colors hover:bg-accent"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                {active.coverImageUrl?.startsWith('http') ? (
+                  <img
+                    src={active.coverImageUrl}
+                    alt=""
+                    className="h-24 w-full rounded-lg object-cover sm:h-28 sm:w-44"
+                  />
+                ) : null}
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Megaphone className="h-3.5 w-3.5" />
+                    {active.publishedAt
+                      ? `Published ${relativeTime(active.publishedAt)}`
+                      : `Posted ${relativeTime(active.createdAt)}`}
+                  </p>
+                  <h3 className="text-base font-semibold leading-snug">{active.title}</h3>
+                  <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">{active.content}</p>
+                </div>
+              </div>
+            </button>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {announcements.map((announcement, i) => (
+                  <button
+                    key={announcement.id}
+                    type="button"
+                    onClick={() => setIndex(i)}
+                    aria-label={`Go to announcement ${i + 1}`}
+                    className={`h-2 w-2 rounded-full transition-colors ${
+                      i === safeIndex ? 'bg-primary' : 'bg-muted-foreground/30 hover:bg-muted-foreground/60'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setIndex((current) => (current - 1 + count) % count)}
+                  aria-label="Previous announcement"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setIndex((current) => (current + 1) % count)}
+                  aria-label="Next announcement"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/app/announcements')}
+              className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              View all announcements
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <EmptyState
+            title="No announcements yet"
+            description="Published announcements will appear here."
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function FacilitiesUnderMaintenanceCard() {
+  const navigate = useNavigate()
+  const { data, isLoading } = useFacilities({ status: 'MAINTENANCE', limit: 100 })
+  const items = data?.items ?? []
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <CardTitle>Under maintenance</CardTitle>
+        <Badge variant="warning">{items.length}</Badge>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : items.length ? (
+          <ul className="divide-y">
+            {items.map((facility) => (
+              <li key={facility.id} className="flex items-center gap-4 py-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/10">
+                  <Wrench className="h-5 w-5 text-warning" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{facility.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {toTitleCase(facility.type)}
+                    {facility.location ? ` · ${facility.location}` : ''}
+                  </p>
+                </div>
+                <StatusBadge status={facility.status} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            title="No facilities under maintenance"
+            description="All facilities are available for use."
+          />
+        )}
+        <button
+          type="button"
+          onClick={() => navigate('/app/facilities')}
+          className="mt-2 flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+        >
+          View all facilities
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user)
   const isManagement = useHasAnyPermission([
@@ -244,9 +428,12 @@ export default function DashboardPage() {
   ])
   const { data, isLoading } = useDashboardOverview()
   const navigate = useNavigate()
+  const [announcementId, setAnnouncementId] = useState<string | null>(null)
 
   const counts = data?.counts
   const availableFacilities = data?.facilityStatus.AVAILABLE ?? 0
+  const canViewAnnouncements = user?.permissions.includes(PERMISSIONS.announcementView) ?? false
+  const canViewFacilities = user?.permissions.includes(PERMISSIONS.facilityView) ?? false
 
   const quickActions = [
     { label: 'Announcements', icon: Megaphone, href: '/app/announcements', permission: PERMISSIONS.announcementView },
@@ -283,6 +470,14 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {canViewAnnouncements ? (
+        <AnnouncementsCarousel
+          data={data}
+          isLoading={isLoading}
+          onOpenAnnouncement={setAnnouncementId}
+        />
+      ) : null}
+
       {quickActions.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {quickActions.map((action) => {
@@ -313,10 +508,19 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         <UpcomingEventsCard data={data} isLoading={isLoading} />
         <OpenComplaintsCard data={data} isLoading={isLoading} />
+        {canViewFacilities ? <FacilitiesUnderMaintenanceCard /> : null}
       </div>
+
+      <AnnouncementDetailDialog
+        announcementId={announcementId}
+        open={Boolean(announcementId)}
+        onOpenChange={(open) => {
+          if (!open) setAnnouncementId(null)
+        }}
+      />
 
       {user?.resident ? (
         <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">

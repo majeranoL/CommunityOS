@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 
 import { FacilityStatus } from '@prisma/client';
 
@@ -7,12 +7,13 @@ import { ReservationsService } from './reservations.service';
 function makeService(overrides: {
   config?: Record<string, unknown>;
   standing?: { standing: 'GOOD' | 'BAD' } | null;
+  facilityStatus?: FacilityStatus;
 }) {
   const prisma = {
     facility: {
       findFirst: jest.fn().mockResolvedValue({
         id: 'fac-1',
-        status: FacilityStatus.AVAILABLE,
+        status: overrides.facilityStatus ?? FacilityStatus.AVAILABLE,
       }),
     },
     resident: {
@@ -170,5 +171,17 @@ describe('ReservationsService.create standing enforcement', () => {
 
     expect(result.success).toBe(true);
     expect(prisma.reservation.create).toHaveBeenCalled();
+  });
+
+  it('blocks creation when the facility is under maintenance', async () => {
+    const { service, prisma } = makeService({
+      facilityStatus: FacilityStatus.MAINTENANCE,
+    });
+
+    await expect(service.create('community-1', dto)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+
+    expect(prisma.reservation.create).not.toHaveBeenCalled();
   });
 });

@@ -16,6 +16,15 @@ export interface RecentComplaint {
   createdAt: string
 }
 
+export interface RecentAnnouncement {
+  id: string
+  title: string
+  content: string
+  coverImageUrl: string | null
+  publishedAt: string | null
+  createdAt: string
+}
+
 export interface RecentReservation {
   id: string
   purpose: string | null
@@ -52,5 +61,6 @@ export interface DashboardOverview {
   upcomingEvents: UpcomingEvent[]
   recentReservations: RecentReservation[]
   recentComplaints: RecentComplaint[]
+  recentAnnouncements: RecentAnnouncement[]
   facilityStatus: Record<string, number>
 }

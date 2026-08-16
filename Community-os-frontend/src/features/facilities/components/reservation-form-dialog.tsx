@@ -90,8 +90,13 @@ export function ReservationFormDialog({ open, onOpenChange }: ReservationFormDia
                     </FormControl>
                     <SelectContent>
                       {facilities?.items.map((facility) => (
-                        <SelectItem key={facility.id} value={facility.id} disabled={facility.status === 'CLOSED'}>
+                        <SelectItem
+                          key={facility.id}
+                          value={facility.id}
+                          disabled={facility.status === 'CLOSED' || facility.status === 'MAINTENANCE'}
+                        >
                           {facility.name} · {toTitleCase(facility.type)}
+                          {facility.status === 'MAINTENANCE' ? ' (under maintenance)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

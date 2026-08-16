@@ -175,69 +175,91 @@ export class DashboardService {
       _count: { _all: true },
     });
 
-    const [upcomingEvents, recentReservations, recentComplaints] =
-      await this.prisma.$transaction([
-        this.prisma.event.findMany({
-          where: {
-            communityId,
-            deletedAt: null,
-            status: EventStatus.PUBLISHED,
-            startAt: { gte: now },
-          },
-          orderBy: { startAt: 'asc' },
-          take: 5,
-          select: {
-            id: true,
-            title: true,
-            location: true,
-            startAt: true,
-            endAt: true,
-            status: true,
-          },
-        }),
+    const [
+      upcomingEvents,
+      recentReservations,
+      recentComplaints,
+      recentAnnouncements,
+    ] = await this.prisma.$transaction([
+      this.prisma.event.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: EventStatus.PUBLISHED,
+          startAt: { gte: now },
+        },
+        orderBy: { startAt: 'asc' },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          location: true,
+          startAt: true,
+          endAt: true,
+          status: true,
+        },
+      }),
 
-        this.prisma.reservation.findMany({
-          where: {
-            communityId,
-            deletedAt: null,
-            status: {
-              in: [ReservationStatus.PENDING, ReservationStatus.APPROVED],
-            },
+      this.prisma.reservation.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: {
+            in: [ReservationStatus.PENDING, ReservationStatus.APPROVED],
           },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: {
-            id: true,
-            purpose: true,
-            startAt: true,
-            endAt: true,
-            status: true,
-            facility: {
-              select: { name: true },
-            },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          purpose: true,
+          startAt: true,
+          endAt: true,
+          status: true,
+          facility: {
+            select: { name: true },
           },
-        }),
+        },
+      }),
 
-        this.prisma.complaint.findMany({
-          where: {
-            communityId,
-            deletedAt: null,
-            status: {
-              in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS],
-            },
+      this.prisma.complaint.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: {
+            in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS],
           },
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-          select: {
-            id: true,
-            complaintNumber: true,
-            title: true,
-            priority: true,
-            status: true,
-            createdAt: true,
-          },
-        }),
-      ]);
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          complaintNumber: true,
+          title: true,
+          priority: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+
+      this.prisma.announcement.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: AnnouncementStatus.PUBLISHED,
+        },
+        orderBy: { publishedAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          coverImageUrl: true,
+          publishedAt: true,
+          createdAt: true,
+        },
+      }),
+    ]);
 
     const totalBilled = this.toNumber(assessmentAgg._sum.amount);
     const totalCollected = this.toNumber(assessmentAgg._sum.paidAmount);
@@ -283,6 +305,8 @@ export class DashboardService {
         recentReservations,
 
         recentComplaints,
+
+        recentAnnouncements,
 
         facilityStatus: await this.facilityStatus(communityId),
       },

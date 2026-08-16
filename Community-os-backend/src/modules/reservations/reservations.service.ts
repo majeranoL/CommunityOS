@@ -117,6 +117,12 @@ export class ReservationsService {
       throw new ConflictException('Facility is closed and cannot be reserved.');
     }
 
+    if (facility.status === FacilityStatus.MAINTENANCE) {
+      throw new ConflictException(
+        'Facility is under maintenance and cannot be reserved.',
+      );
+    }
+
     return facility;
   }
 
