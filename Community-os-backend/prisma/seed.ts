@@ -1381,7 +1381,8 @@ async function seedSampleData(
       enabledBy: userId,
       enabledAt: new Date(),
       config: {
-        delinquencyThresholdMonths: 3,
+        delinquencyThresholdMonths: 4,
+        badStandingBalanceThreshold: 10000,
         restrictedServices: ['facility_reservations'],
       },
     },

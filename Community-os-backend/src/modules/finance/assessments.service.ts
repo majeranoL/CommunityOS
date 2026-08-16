@@ -27,6 +27,7 @@ import { DuesTrackerQueryDto } from './dto/dues-tracker-query.dto';
 import { buildDuesTracker } from './dues-tracker';
 
 import {
+  DEFAULT_BAD_STANDING_BALANCE_THRESHOLD,
   DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
   GOOD_BAD_STANDING_FEATURE,
 } from '../features/feature.constants';
@@ -568,6 +569,13 @@ export class AssessmentsService {
         ? config.delinquencyThresholdMonths
         : DEFAULT_DELINQUENCY_THRESHOLD_MONTHS;
 
+    const badStandingBalanceThreshold =
+      typeof config.badStandingBalanceThreshold === 'number' &&
+      Number.isFinite(config.badStandingBalanceThreshold) &&
+      config.badStandingBalanceThreshold > 0
+        ? config.badStandingBalanceThreshold
+        : DEFAULT_BAD_STANDING_BALANCE_THRESHOLD;
+
     const tracker = buildDuesTracker(
       households,
       assessments.map((assessment) => ({
@@ -577,6 +585,7 @@ export class AssessmentsService {
       })),
       now,
       delinquencyThresholdMonths,
+      badStandingBalanceThreshold,
     );
 
     return {

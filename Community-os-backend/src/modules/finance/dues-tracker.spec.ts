@@ -112,10 +112,10 @@ describe('buildDuesTracker', () => {
     expect(result.rows[0].standing).toBe('GOOD');
   });
 
-  it('flags a household BAD when 3+ distinct months behind', () => {
+  it('flags a household BAD when 4+ distinct months behind', () => {
     const result = buildDuesTracker(
       households,
-      [9, 10, 11].map((month) => {
+      [9, 10, 11, 12].map((month) => {
         const padded = String(month).padStart(2, '0');
         return assessment({
           householdId: 'h1',
@@ -126,8 +126,54 @@ describe('buildDuesTracker', () => {
       now,
     );
 
-    expect(result.rows[0].monthsBehind).toBe(3);
+    expect(result.rows[0].monthsBehind).toBe(4);
     expect(result.rows[0].standing).toBe('BAD');
+  });
+
+  it('flags a household BAD when the unpaid balance reaches the balance threshold even without overdue months', () => {
+    const result = buildDuesTracker(
+      households,
+      [
+        assessment({
+          householdId: 'h1',
+          amount: 5000,
+          dueDate: new Date('2026-04-15T00:00:00.000Z'),
+        }),
+        assessment({
+          householdId: 'h1',
+          amount: 5000,
+          dueDate: new Date('2026-05-15T00:00:00.000Z'),
+        }),
+      ],
+      now,
+    );
+
+    expect(result.rows[0].monthsBehind).toBe(0);
+    expect(result.rows[0].outstanding).toBe(10000);
+    expect(result.rows[0].standing).toBe('BAD');
+  });
+
+  it('respects a custom unpaid balance threshold', () => {
+    const billed = [
+      assessment({
+        householdId: 'h1',
+        amount: 5000,
+        dueDate: new Date('2026-04-15T00:00:00.000Z'),
+      }),
+      assessment({
+        householdId: 'h1',
+        amount: 5000,
+        dueDate: new Date('2026-05-15T00:00:00.000Z'),
+      }),
+    ];
+
+    expect(
+      buildDuesTracker(households, billed, now, 4, 5000).rows[0].standing,
+    ).toBe('BAD');
+
+    expect(
+      buildDuesTracker(households, billed, now, 4, 20000).rows[0].standing,
+    ).toBe('GOOD');
   });
 
   it('leaves a NONE cell when a household has no assessment for a period', () => {
@@ -243,7 +289,7 @@ describe('buildDuesTracker', () => {
     expect(result.periods).toEqual(['2026-02', '2026-01', '2025-12']);
   });
 
-  it('respects a custom delinquency threshold (default 3)', () => {
+  it('respects a custom delinquency threshold (default 4)', () => {
     const overdue = [
       assessment({
         householdId: 'h1',
@@ -271,7 +317,7 @@ describe('buildDuesTracker', () => {
     );
 
     expect(buildDuesTracker(households, overdue, now).rows[0].standing).toBe(
-      'BAD',
+      'GOOD',
     );
   });
 });

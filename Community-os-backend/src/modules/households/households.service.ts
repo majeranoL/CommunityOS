@@ -17,6 +17,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { FeaturesService } from '../features/features.service';
 import {
+  DEFAULT_BAD_STANDING_BALANCE_THRESHOLD,
   DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
   GOOD_BAD_STANDING_FEATURE,
 } from '../features/feature.constants';
@@ -49,17 +50,18 @@ export interface FinanceAssessmentInput {
  * (keyed by household) fetched from the database; this function derives the
  * outstanding balance, months-behind count and GOOD/BAD standing.
  *
- * A household is BAD standing once it has unpaid assessments in 3+ distinct
- * calendar months (year-month buckets of their due dates), or in the
- * configured delinquency threshold when the Good/Bad Standing feature is
- * enabled for the community.
+ * A household is BAD standing once it reaches the configured balance threshold
+ * of unpaid balance across any billed assessments (default ₱10,000), or once
+ * it has unpaid assessments in the configured delinquency threshold of distinct
+ * calendar months (default 4; year-month buckets of their due dates).
  */
 export function summarizeFinance(
   householdIds: string[],
   assessments: FinanceAssessmentInput[],
   paidByHousehold: Map<string, number>,
   now: Date = new Date(),
-  delinquencyThresholdMonths: number = 3,
+  delinquencyThresholdMonths: number = 4,
+  badStandingBalanceThreshold: number = 10000,
 ): Map<string, HouseholdFinanceSummary> {
   const summary = new Map<string, HouseholdFinanceSummary>();
 
@@ -109,7 +111,10 @@ export function summarizeFinance(
     entry.monthsBehind = overdueMonths.get(householdId)?.size ?? 0;
 
     entry.standing =
-      entry.monthsBehind >= delinquencyThresholdMonths ? 'BAD' : 'GOOD';
+      entry.outstanding >= badStandingBalanceThreshold ||
+      entry.monthsBehind >= delinquencyThresholdMonths
+        ? 'BAD'
+        : 'GOOD';
   }
 
   return summary;
@@ -232,6 +237,13 @@ export class HouseholdsService {
         ? config.delinquencyThresholdMonths
         : DEFAULT_DELINQUENCY_THRESHOLD_MONTHS;
 
+    const badStandingBalanceThreshold =
+      typeof config.badStandingBalanceThreshold === 'number' &&
+      Number.isFinite(config.badStandingBalanceThreshold) &&
+      config.badStandingBalanceThreshold > 0
+        ? config.badStandingBalanceThreshold
+        : DEFAULT_BAD_STANDING_BALANCE_THRESHOLD;
+
     return summarizeFinance(
       householdIds,
       assessments.map((assessment) => ({
@@ -243,6 +255,7 @@ export class HouseholdsService {
       paidByHousehold,
       new Date(),
       delinquencyThresholdMonths,
+      badStandingBalanceThreshold,
     );
   }
 
