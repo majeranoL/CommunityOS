@@ -14,6 +14,8 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { FeaturesService } from '../features/features.service';
+
 import { FinanceSyncService } from './finance-sync.service';
 
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
@@ -24,11 +26,17 @@ import { DuesTrackerQueryDto } from './dto/dues-tracker-query.dto';
 
 import { buildDuesTracker } from './dues-tracker';
 
+import {
+  DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
+  GOOD_BAD_STANDING_FEATURE,
+} from '../features/feature.constants';
+
 @Injectable()
 export class AssessmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financeSyncService: FinanceSyncService,
+    private readonly featuresService: FeaturesService,
   ) {}
 
   // ==========================================
@@ -548,6 +556,18 @@ export class AssessmentsService {
       },
     });
 
+    const config = await this.featuresService.getConfig(
+      communityId,
+      GOOD_BAD_STANDING_FEATURE,
+    );
+
+    const delinquencyThresholdMonths =
+      typeof config.delinquencyThresholdMonths === 'number' &&
+      Number.isFinite(config.delinquencyThresholdMonths) &&
+      config.delinquencyThresholdMonths > 0
+        ? config.delinquencyThresholdMonths
+        : DEFAULT_DELINQUENCY_THRESHOLD_MONTHS;
+
     const tracker = buildDuesTracker(
       households,
       assessments.map((assessment) => ({
@@ -556,6 +576,7 @@ export class AssessmentsService {
         paidAmount: Number(assessment.paidAmount),
       })),
       now,
+      delinquencyThresholdMonths,
     );
 
     return {

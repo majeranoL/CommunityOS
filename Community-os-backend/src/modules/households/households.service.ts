@@ -15,6 +15,12 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { FeaturesService } from '../features/features.service';
+import {
+  DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
+  GOOD_BAD_STANDING_FEATURE,
+} from '../features/feature.constants';
+
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
@@ -44,13 +50,16 @@ export interface FinanceAssessmentInput {
  * outstanding balance, months-behind count and GOOD/BAD standing.
  *
  * A household is BAD standing once it has unpaid assessments in 3+ distinct
- * calendar months (year-month buckets of their due dates).
+ * calendar months (year-month buckets of their due dates), or in the
+ * configured delinquency threshold when the Good/Bad Standing feature is
+ * enabled for the community.
  */
 export function summarizeFinance(
   householdIds: string[],
   assessments: FinanceAssessmentInput[],
   paidByHousehold: Map<string, number>,
   now: Date = new Date(),
+  delinquencyThresholdMonths: number = 3,
 ): Map<string, HouseholdFinanceSummary> {
   const summary = new Map<string, HouseholdFinanceSummary>();
 
@@ -99,7 +108,8 @@ export function summarizeFinance(
     entry.outstanding = entry.totalBilled - entry.totalPaid;
     entry.monthsBehind = overdueMonths.get(householdId)?.size ?? 0;
 
-    entry.standing = entry.monthsBehind >= 3 ? 'BAD' : 'GOOD';
+    entry.standing =
+      entry.monthsBehind >= delinquencyThresholdMonths ? 'BAD' : 'GOOD';
   }
 
   return summary;
@@ -107,7 +117,10 @@ export function summarizeFinance(
 
 @Injectable()
 export class HouseholdsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly featuresService: FeaturesService,
+  ) {}
 
   // ==========================================
   // Deactivate Linked Account (User status)
@@ -207,6 +220,18 @@ export class HouseholdsService {
       }
     }
 
+    const config = await this.featuresService.getConfig(
+      communityId,
+      GOOD_BAD_STANDING_FEATURE,
+    );
+
+    const delinquencyThresholdMonths =
+      typeof config.delinquencyThresholdMonths === 'number' &&
+      Number.isFinite(config.delinquencyThresholdMonths) &&
+      config.delinquencyThresholdMonths > 0
+        ? config.delinquencyThresholdMonths
+        : DEFAULT_DELINQUENCY_THRESHOLD_MONTHS;
+
     return summarizeFinance(
       householdIds,
       assessments.map((assessment) => ({
@@ -216,7 +241,18 @@ export class HouseholdsService {
         status: assessment.status,
       })),
       paidByHousehold,
+      new Date(),
+      delinquencyThresholdMonths,
     );
+  }
+
+  // ==========================================
+  // Good/Bad Standing (feature-aware helper)
+  // ==========================================
+
+  async getHouseholdStanding(communityId: string, householdId: string) {
+    const finance = await this.financeSummary(communityId, [householdId]);
+    return finance.get(householdId) ?? null;
   }
 
   // ==========================================

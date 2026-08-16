@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -15,6 +16,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { NotificationsService } from '../notifications/notifications.service';
 
+import { FeaturesService } from '../features/features.service';
+import {
+  GOOD_BAD_STANDING_FEATURE,
+  GOOD_BAD_STANDING_RESTRICTED_SERVICES,
+} from '../features/feature.constants';
+import { HouseholdsService } from '../households/households.service';
+
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { ReservationQueryDto } from './dto/reservation-query.dto';
@@ -24,6 +32,8 @@ export class ReservationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly featuresService: FeaturesService,
+    private readonly householdsService: HouseholdsService,
   ) {}
 
   private async notifyManagers(communityId: string, reservation: any) {
@@ -122,6 +132,45 @@ export class ReservationsService {
     if (!resident) {
       throw new NotFoundException('Resident not found.');
     }
+
+    return resident;
+  }
+
+  private async assertNotBadStanding(
+    communityId: string,
+    resident: { householdId: string | null },
+  ) {
+    if (!resident.householdId) {
+      return;
+    }
+
+    const config = await this.featuresService.getConfig(
+      communityId,
+      GOOD_BAD_STANDING_FEATURE,
+    );
+
+    const restrictedServices = Array.isArray(config.restrictedServices)
+      ? config.restrictedServices
+      : [];
+
+    const restrictsFacilityReservations = restrictedServices.includes(
+      GOOD_BAD_STANDING_RESTRICTED_SERVICES.facilityReservations,
+    );
+
+    if (!restrictsFacilityReservations) {
+      return;
+    }
+
+    const standing = await this.householdsService.getHouseholdStanding(
+      communityId,
+      resident.householdId,
+    );
+
+    if (standing?.standing === 'BAD') {
+      throw new ForbiddenException(
+        'Your household is in bad standing and cannot create facility reservations.',
+      );
+    }
   }
 
   private async checkOverlap(
@@ -187,7 +236,9 @@ export class ReservationsService {
 
     await this.validateFacility(communityId, dto.facilityId);
 
-    await this.validateResident(communityId, dto.residentId);
+    const resident = await this.validateResident(communityId, dto.residentId);
+
+    await this.assertNotBadStanding(communityId, resident);
 
     // ==========================================
     // Overlap Check

@@ -1371,6 +1371,22 @@ async function seedSampleData(
     },
   });
 
+  // Assign Good/Bad Standing to the demo community so the demo works end to end
+
+  await prisma.communityFeature.create({
+    data: {
+      communityId,
+      featureId: features.get('good-bad-standing')!,
+      enabled: true,
+      enabledBy: userId,
+      enabledAt: new Date(),
+      config: {
+        delinquencyThresholdMonths: 3,
+        restrictedServices: ['facility_reservations'],
+      },
+    },
+  });
+
   console.log('✅ Features created');
 
   // =====================================================

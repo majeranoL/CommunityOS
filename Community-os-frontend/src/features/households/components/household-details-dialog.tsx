@@ -22,11 +22,14 @@ import {
 import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
 import { TransferOwnershipDialog } from '@/features/households/components/transfer-ownership-dialog'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { cn } from '@/lib/utils'
 import { formatCurrency, initials } from '@/lib/format'
 import type { HouseholdDetail } from '@/features/households/types/household'
+
+const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
 
 interface HouseholdDetailsDialogProps {
   householdId: string | null
@@ -55,6 +58,8 @@ export function HouseholdDetailsDialog({
   const [transferOpen, setTransferOpen] = useState(false)
   const canCreateUser = useHasPermission(PERMISSIONS.userCreate)
   const canUpdateHousehold = useHasPermission(PERMISSIONS.householdUpdate)
+
+  const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
 
   const toggleStatus = () => {
     if (!household) return
@@ -157,7 +162,7 @@ export function HouseholdDetailsDialog({
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <h4 className="text-sm font-medium">Billing & payments</h4>
-                {household.finance ? (
+                {household.finance && standingEnabled ? (
                   <StatusBadge status={household.finance.standing} />
                 ) : null}
               </div>

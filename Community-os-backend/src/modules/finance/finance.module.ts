@@ -21,8 +21,10 @@ import { PrismaModule } from '../../prisma/prisma.module';
 
 import { NotificationsModule } from '../notifications/notifications.module';
 
+import { FeaturesModule } from '../features/features.module';
+
 @Module({
-  imports: [PrismaModule, NotificationsModule],
+  imports: [PrismaModule, NotificationsModule, FeaturesModule],
   controllers: [
     AssessmentsController,
     PaymentsController,

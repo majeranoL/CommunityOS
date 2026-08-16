@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
 import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency } from '@/lib/format'
+
+const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
 
 function unitLabel(household: {
   block: string | null
@@ -30,6 +33,8 @@ export function MyBalanceCard() {
   const canAddVehicle = useHasPermission(PERMISSIONS.vehicleCreate)
   const [residentOpen, setResidentOpen] = useState(false)
   const [vehicleOpen, setVehicleOpen] = useState(false)
+
+  const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
 
   return (
     <Card>
@@ -75,7 +80,9 @@ export function MyBalanceCard() {
           <>
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
               <div className="flex items-center gap-2">
-                <StatusBadge status={household.finance?.standing ?? '—'} />
+                {standingEnabled ? (
+                  <StatusBadge status={household.finance?.standing ?? '—'} />
+                ) : null}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Outstanding</p>

@@ -5,8 +5,10 @@ import { HouseholdsService } from './households.service';
 
 import { PrismaModule } from '../../prisma/prisma.module';
 
+import { FeaturesModule } from '../features/features.module';
+
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, FeaturesModule],
   controllers: [HouseholdsController],
   providers: [HouseholdsService],
   exports: [HouseholdsService],

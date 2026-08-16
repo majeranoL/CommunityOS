@@ -389,3 +389,26 @@ Verification log:
 - Live verification on `https://backend-production-c9f3e.up.railway.app`: prod DB is `SEED_DB=false` (no Feature catalog) so the demo feature was created + assigned via the superadmin API (same flow the new Features UI uses): `POST /admin/features` created `pet-registration` (OPTIONAL), `POST /admin/features/:id/assign` enabled it with config `{"verificationMode":"auto","documentsRequired":false}`. Then `/api/features` → 200 (feature + config), `/api/pets` → 200 empty list. Gating round-trip: `DELETE` assignment → `/api/pets` 403 ("This community does not have access to this feature.") + `/api/features` count 0; re-assign → 200 again. Member register/officer approve flows not exercised in prod (avoided creating test pet data in production); covered by code + local suite.
 
 Remaining from the broader idea (out of scope, not implemented): per-document-item Required/Optional/Disabled configuration (currently a single `documentsRequired` flag), pet-related fees/penalties finance integration, pet import/export, move-out pet handling (pet remains historically preserved; no explicit re-caretaker workflow).
+
+---
+
+### IDEA 5 — HOA Good/Bad Standing — DONE (2026-08-17)
+
+Checklist:
+
+- [x] Optional HOA feature (`featureCode: good-bad-standing`, `FeatureType.OPTIONAL`) assigned through Superadmin → Features, exactly like pet-registration — superadmin grants/revokes per community; communities without it simply don't have it (demo community seeded enabled)
+- [x] Standing computed from actual assessment/payment records (`summarizeFinance` / `buildDuesTracker`), never manually edited — GOOD = fewer than the delinquency threshold of distinct overdue months, BAD = threshold or more
+- [x] Configurable per-HOA delinquency threshold — `delinquencyThresholdMonths` in the feature assignment config (default 3), applied to both the household finance summaries and the dues tracker; typed editor in the Superadmin Communities dialog (threshold number input + "Restrict facility reservations" checkbox)
+- [x] Standing belongs to the Household (financial obligation is household/property-based) — `finance.standing` GOOD/BAD on households list/detail and `/households/me`
+- [x] Restricted services — BAD-standing households are blocked from creating facility reservations (`ForbiddenException` in `reservations.service.create`) when the feature config `restrictedServices` includes `facility_reservations`; essential functions (complaints, announcements, required communications) unaffected. Household-based restriction with no role bypass
+- [x] Visibility rules — residents see only their own standing (`my-balance-card` via `/households/me`); officers with `household.view` see all standings (Households page). Standing UI (Households Standing column/filter, detail badge, balance-card badge) is hidden entirely when the feature is disabled for the community
+- [x] Backend enforcement is independent of UI gating — the restriction reads the assignment config server-side on every reservation create; a disabled feature simply has no `restrictedServices` and computes standing at the default 3-month threshold
+- [x] No schema changes — standing is derived data; feature config lives on the existing `CommunityFeature.config` (same pattern as pet-registration)
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing `any` warnings only); jest 12 suites / 62 tests pass — new `reservations.service.spec.ts` (6 cases: feature-off allows, GOOD allows, non-restricted allows, BAD+restricted → ForbiddenException with `reservation.create` never called, resident-without-household skips the check, null summary allows) + custom-threshold cases in `dues-tracker.spec.ts` / `households.service.spec.ts`
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors; `npm run build` exit 0
+- Deployed + live verification: see `docs/PROGRESS.md` work log (2026-08-17)
+
+Remaining from the broader idea (out of scope, not implemented): officer overrides / payment-plan exceptions, restricting event reservations (no event RSVP exists yet) or paid amenities beyond facility reservations, a dedicated standing admin page/report, promotion of the feature to a Standard CommunityOS feature.

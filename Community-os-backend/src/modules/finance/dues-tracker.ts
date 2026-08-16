@@ -76,12 +76,14 @@ function isBilled(status: AssessmentStatus) {
  * - monthsPaid counts distinct periods where the assessment is fully PAID.
  * - monthsBehind counts distinct past-due calendar months with unpaid dues
  *   (same rule as summarizeFinance).
- * - standing is BAD once a household is 3+ distinct months behind.
+ * - standing is BAD once a household is 3+ distinct months behind, or once it
+ *   reaches the configured delinquency threshold.
  */
 export function buildDuesTracker(
   households: DuesTrackerHouseholdInput[],
   assessments: DuesTrackerAssessmentInput[],
   now: Date = new Date(),
+  delinquencyThresholdMonths: number = 3,
 ): DuesTrackerResult {
   const rows: DuesTrackerRow[] = households.map((household) => ({
     householdId: household.id,
@@ -143,7 +145,8 @@ export function buildDuesTracker(
   for (const row of rows) {
     row.monthsPaid = paidPeriods.get(row.householdId)?.size ?? 0;
     row.monthsBehind = overdueMonths.get(row.householdId)?.size ?? 0;
-    row.standing = row.monthsBehind >= 3 ? 'BAD' : 'GOOD';
+    row.standing =
+      row.monthsBehind >= delinquencyThresholdMonths ? 'BAD' : 'GOOD';
   }
 
   const sortedPeriods = [...periods].sort((a, b) => b.localeCompare(a));

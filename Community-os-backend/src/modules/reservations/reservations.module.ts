@@ -7,8 +7,16 @@ import { PrismaModule } from '../../prisma/prisma.module';
 
 import { NotificationsModule } from '../notifications/notifications.module';
 
+import { FeaturesModule } from '../features/features.module';
+import { HouseholdsModule } from '../households/households.module';
+
 @Module({
-  imports: [PrismaModule, NotificationsModule],
+  imports: [
+    PrismaModule,
+    NotificationsModule,
+    FeaturesModule,
+    HouseholdsModule,
+  ],
   controllers: [ReservationsController],
   providers: [ReservationsService],
   exports: [ReservationsService],

@@ -182,4 +182,24 @@ describe('summarizeFinance', () => {
       standing: GOOD,
     });
   });
+
+  it('respects a custom delinquency threshold (default 3)', () => {
+    const overdue = [
+      assessment('h1', 1000, new Date('2026-05-05'), AssessmentStatus.OVERDUE),
+      assessment('h1', 1000, new Date('2026-06-05'), AssessmentStatus.OVERDUE),
+      assessment('h1', 1000, new Date('2026-07-05'), AssessmentStatus.OVERDUE),
+    ];
+
+    expect(
+      summarizeFinance(['h1'], overdue, new Map(), now, 2).get('h1'),
+    ).toMatchObject({ monthsBehind: 3, standing: BAD });
+
+    expect(
+      summarizeFinance(['h1'], overdue, new Map(), now, 4).get('h1'),
+    ).toMatchObject({ monthsBehind: 3, standing: GOOD });
+
+    expect(
+      summarizeFinance(['h1'], overdue, new Map(), now).get('h1'),
+    ).toMatchObject({ monthsBehind: 3, standing: BAD });
+  });
 });

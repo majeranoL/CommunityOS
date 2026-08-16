@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -30,6 +32,8 @@ import type { Feature, FeatureAssignment } from '@/features/admin/types/feature'
 
 const PET_FEATURE = 'pet-registration'
 const VERIFICATION_MODES = ['auto', 'approval'] as const
+const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
+const DEFAULT_DELINQUENCY_THRESHOLD_MONTHS = 3
 
 interface FeatureCommunitiesDialogProps {
   open: boolean
@@ -124,6 +128,8 @@ function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment;
 
       {feature.code === PET_FEATURE ? (
         <PetRegistrationConfig assignment={assignment} featureId={feature.id} />
+      ) : feature.code === GOOD_BAD_STANDING_FEATURE ? (
+        <GoodBadStandingConfig assignment={assignment} featureId={feature.id} />
       ) : (
         <GenericConfigEditor assignment={assignment} featureId={feature.id} />
       )}
@@ -204,6 +210,82 @@ function PetRegistrationConfig({
         </div>
         <Switch checked={documentsRequired} onCheckedChange={setDocumentsRequired} />
       </div>
+      <Button type="button" variant="outline" size="sm" onClick={save} disabled={saving}>
+        Save configuration
+      </Button>
+    </div>
+  )
+}
+
+function GoodBadStandingConfig({
+  assignment,
+  featureId,
+}: {
+  assignment: FeatureAssignment
+  featureId: string
+}) {
+  const initial = (assignment.config ?? {}) as {
+    delinquencyThresholdMonths?: number
+    restrictedServices?: string[]
+  }
+  const [threshold, setThreshold] = useState(
+    initial.delinquencyThresholdMonths ?? DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
+  )
+  const [restrictFacilities, setRestrictFacilities] = useState(
+    Array.isArray(initial.restrictedServices)
+      ? initial.restrictedServices.includes('facility_reservations')
+      : true,
+  )
+  const [saving, setSaving] = useState(false)
+
+  const updateAssignment = useUpdateFeatureAssignment()
+
+  const save = () => {
+    setSaving(true)
+    const restrictedServices = restrictFacilities ? ['facility_reservations'] : []
+    updateAssignment.mutate(
+      {
+        featureId,
+        communityId: assignment.communityId,
+        input: { config: { delinquencyThresholdMonths: threshold, restrictedServices } },
+      },
+      { onSettled: () => setSaving(false) },
+    )
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border border-dashed p-3">
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Delinquency threshold
+        </p>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            min={1}
+            value={threshold}
+            onChange={(event) =>
+              setThreshold(Math.max(1, Number(event.target.value)))
+            }
+            className="w-24"
+          />
+          <p className="text-xs text-muted-foreground">
+            months overdue before a household is BAD standing
+          </p>
+        </div>
+      </div>
+      <label className="flex items-start justify-between gap-3 rounded-md border p-2.5">
+        <div>
+          <p className="text-sm font-medium">Restrict facility reservations</p>
+          <p className="text-xs text-muted-foreground">
+            Block BAD standing households from creating facility reservations.
+          </p>
+        </div>
+        <Checkbox
+          checked={restrictFacilities}
+          onCheckedChange={(value) => setRestrictFacilities(value === true)}
+        />
+      </label>
       <Button type="button" variant="outline" size="sm" onClick={save} disabled={saving}>
         Save configuration
       </Button>

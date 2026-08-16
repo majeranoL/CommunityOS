@@ -242,4 +242,36 @@ describe('buildDuesTracker', () => {
 
     expect(result.periods).toEqual(['2026-02', '2026-01', '2025-12']);
   });
+
+  it('respects a custom delinquency threshold (default 3)', () => {
+    const overdue = [
+      assessment({
+        householdId: 'h1',
+        period: '2026-01',
+        dueDate: new Date('2026-01-15T00:00:00.000Z'),
+      }),
+      assessment({
+        householdId: 'h1',
+        period: '2026-02',
+        dueDate: new Date('2026-02-15T00:00:00.000Z'),
+      }),
+      assessment({
+        householdId: 'h1',
+        period: '2026-03',
+        dueDate: new Date('2026-03-01T00:00:00.000Z'),
+      }),
+    ];
+
+    expect(buildDuesTracker(households, overdue, now, 2).rows[0].standing).toBe(
+      'BAD',
+    );
+
+    expect(buildDuesTracker(households, overdue, now, 4).rows[0].standing).toBe(
+      'GOOD',
+    );
+
+    expect(buildDuesTracker(households, overdue, now).rows[0].standing).toBe(
+      'BAD',
+    );
+  });
 });

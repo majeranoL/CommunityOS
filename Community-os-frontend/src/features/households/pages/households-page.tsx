@@ -16,6 +16,7 @@ import {
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useHouseholds } from '@/features/households/hooks/use-households'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { HouseholdFormDialog } from '@/features/households/components/household-form-dialog'
 import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
 import type { HouseholdListItem } from '@/features/households/types/household'
@@ -24,6 +25,8 @@ import { formatCurrency, formatDate } from '@/lib/format'
 const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE'] as const
 
 const STANDING_FILTERS = ['ALL', 'GOOD', 'BAD'] as const
+
+const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
 
 function unitLabel(household: HouseholdListItem) {
   return (
@@ -45,6 +48,8 @@ export default function HouseholdsPage() {
 
   const canCreate = useHasPermission(PERMISSIONS.householdCreate)
   const canUpdate = useHasPermission(PERMISSIONS.householdUpdate)
+
+  const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
 
   const { data, isLoading, isFetching } = useHouseholds({
     page,
@@ -113,11 +118,11 @@ export default function HouseholdsPage() {
     },
     {
       key: 'standing',
-      header: 'Standing',
+      header: standingEnabled ? 'Standing' : 'Outstanding',
       cell: (row) =>
         row.finance ? (
           <div className="space-y-0.5">
-            <StatusBadge status={row.finance.standing} />
+            {standingEnabled ? <StatusBadge status={row.finance.standing} /> : null}
             <p className="text-xs text-muted-foreground">
               {formatCurrency(row.finance.outstanding)} outstanding
             </p>
@@ -204,28 +209,30 @@ export default function HouseholdsPage() {
             ))}
           </SelectContent>
         </Select>
-        <Select
-          value={standing}
-          onValueChange={(value) => {
-            setStanding(value)
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="sm:w-44">
-            <SelectValue placeholder="Standing" />
-          </SelectTrigger>
-          <SelectContent>
-            {STANDING_FILTERS.map((option) => (
-              <SelectItem key={option} value={option}>
-                {option === 'ALL'
-                  ? 'All standing'
-                  : option === 'GOOD'
-                    ? 'Good standing'
-                    : 'Bad standing'}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {standingEnabled ? (
+          <Select
+            value={standing}
+            onValueChange={(value) => {
+              setStanding(value)
+              setPage(1)
+            }}
+          >
+            <SelectTrigger className="sm:w-44">
+              <SelectValue placeholder="Standing" />
+            </SelectTrigger>
+            <SelectContent>
+              {STANDING_FILTERS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option === 'ALL'
+                    ? 'All standing'
+                    : option === 'GOOD'
+                      ? 'Good standing'
+                      : 'Bad standing'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         <Select value={sortBy} onValueChange={setSortBy}>
           <SelectTrigger className="sm:w-44">
             <SelectValue placeholder="Sort" />
