@@ -23,6 +23,7 @@ const RolesPage = lazy(() => import('@/features/roles/pages/roles-page'))
 const ResidentsPage = lazy(() => import('@/features/residents/pages/residents-page'))
 const HouseholdsPage = lazy(() => import('@/features/households/pages/households-page'))
 const VehiclesPage = lazy(() => import('@/features/vehicles/pages/vehicles-page'))
+const PetsPage = lazy(() => import('@/features/pets/pages/pets-page'))
 const VisitorsPage = lazy(() => import('@/features/visitors/pages/visitors-page'))
 const StaffPage = lazy(() => import('@/features/staff/pages/staff-page'))
 const MaintenancePage = lazy(() => import('@/features/maintenance/pages/maintenance-page'))
@@ -44,6 +45,7 @@ const AdminCommunitiesPage = lazy(() => import('@/features/admin/pages/admin-com
 const AdminCommunityDetailPage = lazy(() => import('@/features/admin/pages/admin-community-detail-page'))
 const AdminProvisionPage = lazy(() => import('@/features/admin/pages/admin-provision-page'))
 const AdminPlansPage = lazy(() => import('@/features/admin/pages/admin-plans-page'))
+const AdminFeaturesPage = lazy(() => import('@/features/admin/pages/admin-features-page'))
 const AdminPlatformSettingsPage = lazy(() => import('@/features/admin/pages/admin-platform-settings-page'))
 
 function withSuspense(element: React.ReactNode) {
@@ -145,6 +147,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute permission={PERMISSIONS.vehicleView}>
             {withSuspense(<VehiclesPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'pets',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.petView}>
+            {withSuspense(<PetsPage />)}
           </PermissionRoute>
         ),
       },
@@ -306,6 +316,10 @@ export const router = createBrowserRouter([
       {
         path: 'plans',
         element: withSuspense(<AdminPlansPage />),
+      },
+      {
+        path: 'features',
+        element: withSuspense(<AdminFeaturesPage />),
       },
       {
         path: 'settings',

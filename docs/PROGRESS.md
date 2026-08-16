@@ -38,7 +38,7 @@ Working tracker for closing the gap between the concept (`docs/Community-os-conc
 - [x] Global validation pipe, Prisma exception filter, CORS, Swagger
 
 ### Backend modules (all present + mapped)
-- [x] auth, users, roles, permissions, communities, public, admin, dashboard, analytics, reports, announcements, events, polls, complaint, facilities, reservations, households, residents, vehicles, visitors, staff, maintenance, documents, messaging, notifications, settings, finance (assessments + payments), subscriptions/billing/invoices/plans, audit-logs, uploads
+- [x] auth, users, roles, permissions, communities, public, admin, dashboard, analytics, reports, announcements, events, polls, complaint, facilities, reservations, households, residents, vehicles, pets, visitors, staff, maintenance, documents, messaging, notifications, settings, finance (assessments + payments), subscriptions/billing/invoices/plans, audit-logs, uploads
 
 ### Frontend pages
 - [x] Public: Landing, Get Started (HOA signup wizard), Login, Register, Forgot/Reset password
@@ -51,7 +51,8 @@ Working tracker for closing the gap between the concept (`docs/Community-os-conc
 - [x] Settings (personal profile / appearance — NOT community settings yet)
 - [x] Billing (subscription, plan, invoices, usage limits)
 - [x] Finance — Assessments + Payments (create/issue/cancel, confirm/reject/refund, detail dialogs)
-- [x] Platform Admin shell: Overview, Communities (list/detail/provision)
+- [x] Platform Admin shell: Overview, Communities (list/detail/provision), Features (catalog + per-community assignment)
+- [x] Pets (feature-gated: only shown when `pet-registration` enabled for the community; register/manage own pets, officer verify/deactivate/revalidate/delete)
 
 ### Finance feature (recently completed end-to-end)
 - [x] Backend: assessments/payments controllers+services+DTOs, `finance/options` endpoints (households/residents) guarded by `assessment.view`
@@ -606,3 +607,11 @@ Deployment status: backend live on Railway (`https://backend-production-c9f3e.up
 - **Caveat (data, not code):** deployed DB still has 0 charge types / billing periods (`SEED_DB=false`) — the finance tabs authorize but stay empty until an admin configures charge types in the deployed app.
 
 always read this md and add todo and progress here
+
+### 2026-08-15 — IDEA 11: Pet Registration & Management (done)
+- **No backend schema/API work needed** — the Pets module (models `Pet`/`PetSpecies`/`PetStatus`, `/pets` CRUD + verify/deactivate/revalidate, `@Feature('pet-registration')` + FeatureGuard) and the Feature management core (`/admin/features`, `/features`, Feature model) were already implemented. Only backend change: removed `registrationFee: 200` from the demo community's `pet-registration` config in `prisma/seed.ts` (no pet fees anywhere).
+- **WS1 — Superadmin Features menu** (`src/features/admin`): `types/feature.ts`, `services/features.ts`, `hooks/use-features.ts`, `components/feature-assign-dialog.tsx` (community search via `useAdminCommunities`), `components/feature-communities-dialog.tsx` (enable toggle + revoke with ConfirmDialog; typed `pet-registration` config editor — `verificationMode` select + `documentsRequired` switch; generic JSON editor for other features), `pages/admin-features-page.tsx` (Card + Table + DropdownMenu row actions). Wired into `router.tsx` (`/admin/features`) + `admin-shell.tsx` (Features nav item, `Puzzle` icon).
+- **WS2 — feature-aware HOA gating** (`src/features/features`): `types/feature.ts`, `services/features.ts` (GET `/features`), `hooks/use-enabled-features.ts` (`useEnabledFeatures`/`useIsFeatureEnabled`); `nav-items.tsx` gained `NavItem.feature?: string` + `PawPrint` icon + Pets entry (`permission: PERMISSIONS.petView`, `feature: 'pet-registration'`); `sidebar.tsx` filters nav by enabled feature codes beside the existing permission filter.
+- **WS3 — Pets UI** (`src/features/pets`): `types/pet.ts`, `validation/pet.ts`, `services/pets.ts`, `hooks/use-pets.ts` (list/create/update/delete/verify/deactivate/revalidate), `components/pet-form-dialog.tsx` (species select, caretaker ResidentSelect when `selfService=false`, photo + 3 cert uploads via `documentsService.upload`), `components/pet-detail-dialog.tsx`, `pages/pets-page.tsx` (search + species/status filters, permission-gated actions). Added `petCreate/petView/petUpdate/petDelete/petVerify` to `constants/permissions.ts`; `/app/pets` route via `<PermissionRoute permission={PERMISSIONS.petView}>`.
+- **Verified:** backend `tsc --noEmit` exit 0 + eslint 0 errors (925 pre-existing warnings); frontend `tsc --noEmit` exit 0 + eslint 0 errors (49 pre-existing warnings) + `npm run build` exit 0 (pets 18.47 kB / admin-features 12.56 kB chunks). Checker added to `docs/CommunityOS-feature.md` (IDEA 11 DONE).
+- **Out of scope (per user):** per-document-item Required/Optional/Disabled config, pet fees/penalties, pet import/export, move-out re-caretaker workflow.

@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Megaphone,
   MessageSquareWarning,
+  PawPrint,
   Settings,
   ShieldCheck,
   Users,
@@ -29,6 +30,7 @@ export interface NavItem {
   href: string
   icon: LucideIcon
   permission?: string
+  feature?: string
   badge?: string
 }
 
@@ -50,6 +52,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Residents', href: '/app/residents', icon: UserRound, permission: PERMISSIONS.residentView },
       { label: 'Households', href: '/app/households', icon: Home, permission: PERMISSIONS.householdView },
       { label: 'Vehicles', href: '/app/vehicles', icon: Car, permission: PERMISSIONS.vehicleView },
+      { label: 'Pets', href: '/app/pets', icon: PawPrint, permission: PERMISSIONS.petView, feature: 'pet-registration' },
       { label: 'Visitors', href: '/app/visitors', icon: DoorOpen, permission: PERMISSIONS.visitorView },
     ],
   },

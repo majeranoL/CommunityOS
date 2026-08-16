@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
 import { NAV_SECTIONS } from '@/components/layout/nav-items'
+import { useEnabledFeatures } from '@/features/features/hooks/use-enabled-features'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -10,6 +11,8 @@ interface SidebarProps {
 
 function SidebarContent({ onNavigate }: SidebarProps) {
   const user = useAuthStore((state) => state.user)
+  const { data: enabledFeatures } = useEnabledFeatures()
+  const enabledCodes = new Set((enabledFeatures ?? []).map((feature) => feature.code))
 
   return (
     <div className="flex h-full flex-col">
@@ -26,7 +29,9 @@ function SidebarContent({ onNavigate }: SidebarProps) {
         <nav className="flex flex-col gap-6">
           {NAV_SECTIONS.map((section) => {
             const visible = section.items.filter(
-              (item) => !item.permission || user?.permissions.includes(item.permission),
+              (item) =>
+                (!item.permission || user?.permissions.includes(item.permission)) &&
+                (!item.feature || enabledCodes.has(item.feature)),
             )
             if (visible.length === 0) return null
             return (

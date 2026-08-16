@@ -1366,7 +1366,6 @@ async function seedSampleData(
       config: {
         verificationMode: 'auto',
         documentsRequired: false,
-        registrationFee: 200,
         rulesUrl: '',
       },
     },

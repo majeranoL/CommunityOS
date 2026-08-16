@@ -27,6 +27,12 @@ export const PERMISSIONS = {
   vehicleDelete: 'vehicle.delete',
   vehicleVerify: 'vehicle.verify',
 
+  petCreate: 'pet.create',
+  petView: 'pet.view',
+  petUpdate: 'pet.update',
+  petDelete: 'pet.delete',
+  petVerify: 'pet.verify',
+
   visitorCreate: 'visitor.create',
   visitorView: 'visitor.view',
   visitorUpdate: 'visitor.update',

@@ -361,3 +361,31 @@ Verification log:
 - Migrations applied: `20260813155629_add_resident_type` (DB in sync, 29 migrations, `prisma migrate status` up to date)
 - Live API smoke: all 4 new routes (`transfer-ownership`, `vehicle transfer`/`deactivate`/`revalidate`) return 401 unauthenticated; dev server restarted healthy on :3000 after Prisma client regeneration (Windows query-engine DLL lock required one stop/start)
 - Test data cleaned up; settings remain `auto`; no temp scripts left behind
+
+---
+
+### IDEA 11 — Pet Registration & Management — DONE (2026-08-15)
+
+Checklist:
+
+- [x] Optional HOA feature managed through Superadmin → Features (`featureCode: pet-registration`, `FeatureType.OPTIONAL`, community assignment with `enabled`/`config` + `GET /features` per-community endpoint; demo community seeded enabled)
+- [x] Superadmin Features management UI — `/admin/features` (list all features + assignee count, per-feature Communities dialog: enable/disable toggle + revoke, Assign dialog with community search; typed `pet-registration` config editor: `verificationMode` (`auto` | `approval`) select + `documentsRequired` switch, generic JSON editor for other features)
+- [x] Feature-aware HOA gating — `useEnabledFeatures` / `useIsFeatureEnabled` hooks read the enabled-codes list; sidebar filters nav by enabled features; nav item carries `feature: 'pet-registration'`
+- [x] Backend enforcement — Pets controller `@Feature('pet-registration')` + `FeatureGuard` (403 when feature not enabled); `pet.*` permissions (`pet.create/view/update/delete/verify`) seeded in the catalog + `MEMBER_PERMISSIONS` subset
+- [x] Pet registration — pet name, species (`PetSpecies`: DOG/CAT/BIRD/FISH/REPTILE/SMALL_ANIMAL/OTHER), breed, sex, color, date of birth, photo, registration number/date, status, notes
+- [x] Pet is associated with the Household and optionally a primary Resident/caretaker (caretaker picker; self-service registration is auto-scoped to the user's own household)
+- [x] Workflow: PENDING → Approved/Rejected → ACTIVE when `verificationMode: approval`; `auto` mode creates active records; statuses PENDING/APPROVED/ACTIVE/REJECTED/DEACTIVATED/INACTIVE with StatusBadge variants
+- [x] Officer actions — view all community pets, edit, verify (approve/reject with remarks), deactivate, revalidate, delete (permission-gated by `pet.*` codes)
+- [x] Documents — photo + vaccination/rabies/veterinary certificate uploads via `documentsService.upload` (auth-gated); viewed through `documentsService.openFile` (no direct URL exposure); optional by default
+- [x] Permissions: `petCreate`/`petView`/`petUpdate`/`petDelete`/`petVerify` added to `constants/permissions.ts`; `/app/pets` route wrapped in `<PermissionRoute permission={PERMISSIONS.petView}>`
+- [x] Seed cleanup: `registrationFee: 200` removed from the demo `pet-registration` config (no pet fees anywhere — fee/penalty finance integration out of scope)
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0; eslint 0 errors (925 pre-existing warnings — `any`-typed controller params etc.)
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (49 pre-existing warnings); `npm run build` (tsc + vite build) exit 0 — `pets-page` chunk 18.47 kB, `admin-features-page` chunk 12.56 kB
+- No schema/migration changes this idea (backend Pets + Feature models already existed); seed change only
+- Deployed: backend seed commit + frontend commit pushed → Railway/Vercel auto-redeploy (see `docs/PROGRESS.md` work log for deployment IDs)
+- Live verification: superadmin assigns `pet-registration` to a second test community → `/api/pets` returns 200 + that community's sidebar shows Pets; revoke → 403 + nav entry hides; demo community (seed-enabled) unaffected; member registers a pet (auto-scoped to own household); officer approves/deactivates/revalidates
+
+Remaining from the broader idea (out of scope, not implemented): per-document-item Required/Optional/Disabled configuration (currently a single `documentsRequired` flag), pet-related fees/penalties finance integration, pet import/export, move-out pet handling (pet remains historically preserved; no explicit re-caretaker workflow).
