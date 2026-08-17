@@ -40,6 +40,9 @@ import {
   useExpenses,
   useDeleteExpense,
   useIncomeStatement,
+  useUtilityExpenses,
+  useUtilityExpenseSummary,
+  useDeleteUtilityExpense,
 } from '@/features/finance/hooks/use-finance'
 import { AssessmentFormDialog } from '@/features/finance/components/assessment-form-dialog'
 import { AssessmentDetailDialog } from '@/features/finance/components/assessment-detail-dialog'
@@ -53,6 +56,7 @@ import { ChargeTypeFormDialog } from '@/features/finance/components/charge-type-
 import { BillingPeriodDialog } from '@/features/finance/components/billing-period-dialog'
 import { ImportExportPanel } from '@/features/finance/components/import-export-panel'
 import { ExpenseFormDialog } from '@/features/finance/components/expense-form-dialog'
+import { UtilityExpenseFormDialog } from '@/features/finance/components/utility-expense-form-dialog'
 import { householdLabel } from '@/features/finance/components/household-select'
 import type {
   AssessmentListItem,
@@ -65,8 +69,10 @@ import type {
   IncomeStatement,
   PaymentListItem,
   PaymentStatus,
+  UtilityExpense,
+  UtilityType,
 } from '@/features/finance/types/finance'
-import { EXPENSE_CATEGORIES } from '@/features/finance/validation/finance'
+import { EXPENSE_CATEGORIES, UTILITY_TYPES } from '@/features/finance/validation/finance'
 import { formatCurrency, formatDate, toTitleCase } from '@/lib/format'
 
 const ASSESSMENT_STATUSES: Array<{ value: AssessmentStatus | 'ALL'; label: string }> = [
@@ -116,6 +122,7 @@ export default function FinancePage() {
   if (showPayments) tabs.push({ value: 'payments', label: 'Payments' })
   if (showIncomeStatement) tabs.push({ value: 'income-statement', label: 'Income statement' })
   if (showExpenses) tabs.push({ value: 'expenses', label: 'Expenses' })
+  if (showExpenses) tabs.push({ value: 'utilities', label: 'Utilities' })
   if (showChargeTypes) tabs.push({ value: 'charge-types', label: 'Charge types' })
   if (showBillingPeriods) tabs.push({ value: 'billing-periods', label: 'Billing periods' })
   if (showImportExport) tabs.push({ value: 'import-export', label: 'Import / export' })
@@ -158,6 +165,11 @@ export default function FinancePage() {
         {showExpenses ? (
           <TabsContent value="expenses">
             <ExpensesTab />
+          </TabsContent>
+        ) : null}
+        {showExpenses ? (
+          <TabsContent value="utilities">
+            <UtilitiesTab />
           </TabsContent>
         ) : null}
         {showChargeTypes ? (
@@ -1260,6 +1272,199 @@ function IncomeStatementTab() {
   }
 
   return <IncomeStatementView statement={data} />
+}
+
+function UtilitiesTab() {
+  const [search, setSearch] = useState('')
+  const [utilityType, setUtilityType] = useState<UtilityType | 'ALL'>('ALL')
+  const [page, setPage] = useState(1)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editing, setEditing] = useState<UtilityExpense | null>(null)
+  const [deleting, setDeleting] = useState<UtilityExpense | null>(null)
+
+  const canCreate = useHasPermission(PERMISSIONS.financeExpenseCreate)
+  const canUpdate = useHasPermission(PERMISSIONS.financeExpenseUpdate)
+  const canDelete = useHasPermission(PERMISSIONS.financeExpenseDelete)
+
+  const { data, isLoading, isFetching } = useUtilityExpenses({
+    page,
+    limit: 10,
+    search: search || undefined,
+    utilityType: utilityType === 'ALL' ? undefined : utilityType,
+  })
+
+  const { data: summary } = useUtilityExpenseSummary()
+
+  const deleteExpense = useDeleteUtilityExpense()
+
+  const columns: Column<UtilityExpense>[] = [
+    {
+      key: 'utilityNumber',
+      header: 'Utility',
+      cell: (row) => (
+        <div>
+          <p className="font-medium">{row.utilityNumber}</p>
+          <p className="text-xs text-muted-foreground">{row.providerName}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'utilityType',
+      header: 'Type',
+      cell: (row) => <StatusBadge status={row.utilityType} />,
+      hideBelow: 'md',
+    },
+    {
+      key: 'billingPeriod',
+      header: 'Period',
+      cell: (row) => <span className="text-muted-foreground">{row.billingPeriod ?? '—'}</span>,
+      hideBelow: 'lg',
+    },
+    {
+      key: 'expenseDate',
+      header: 'Date',
+      cell: (row) => <span className="text-muted-foreground">{formatDate(row.expenseDate)}</span>,
+      hideBelow: 'lg',
+    },
+    {
+      key: 'amount',
+      header: 'Amount',
+      cell: (row) => <span className="font-medium text-destructive">{formatCurrency(row.amount)}</span>,
+      className: 'text-right',
+    },
+    {
+      key: 'actions',
+      header: <span className="sr-only">Actions</span>,
+      cell: (row) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Actions</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {canUpdate ? (
+              <DropdownMenuItem onClick={() => setEditing(row)}>
+                <Pencil className="h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            ) : null}
+            {canDelete ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleting(row)}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ]
+
+  return (
+    <div className="space-y-4">
+      {summary ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Card>
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground">Total Utilities</p>
+              <p className="text-2xl font-bold">{formatCurrency(summary.totalAmount)}</p>
+              <p className="text-xs text-muted-foreground">{summary.totalCount} records</p>
+            </CardContent>
+          </Card>
+          {summary.byType.slice(0, 2).map((item) => (
+            <Card key={item.type}>
+              <CardContent className="pt-4">
+                <p className="text-xs text-muted-foreground">{toTitleCase(item.type)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(item.total)}</p>
+                <p className="text-xs text-muted-foreground">{item.count} records</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative sm:max-w-xs sm:flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search utilities…"
+            className="pl-9"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              setPage(1)
+            }}
+          />
+        </div>
+        <Select
+          value={utilityType}
+          onValueChange={(value) => {
+            setUtilityType(value as UtilityType | 'ALL')
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="sm:w-44">
+            <SelectValue placeholder="Utility type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All types</SelectItem>
+            {UTILITY_TYPES.map((type) => (
+              <SelectItem key={type} value={type}>
+                {toTitleCase(type)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {canCreate ? (
+          <Button className="sm:ml-auto" onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Record utility expense
+          </Button>
+        ) : null}
+        {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
+      </div>
+
+      <DataTable
+        columns={columns}
+        rows={data?.items ?? []}
+        keyExtractor={(row) => row.id}
+        isLoading={isLoading}
+        emptyMessage="No utility expenses recorded yet."
+      />
+
+      <Pagination pagination={data?.pagination} onPageChange={setPage} />
+
+      <UtilityExpenseFormDialog
+        open={formOpen || Boolean(editing)}
+        onOpenChange={(open) => {
+          setFormOpen(open)
+          if (!open) setEditing(null)
+        }}
+        expense={editing}
+      />
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title="Delete utility expense?"
+        description={`"${deleting?.utilityNumber}" will be removed from the records. This affects the income statement.`}
+        confirmLabel="Delete"
+        destructive
+        loading={deleteExpense.isPending}
+        onConfirm={() => {
+          if (deleting) deleteExpense.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+        }}
+      />
+    </div>
+  )
 }
 
 function IncomeStatementView({ statement }: { statement?: IncomeStatement }) {

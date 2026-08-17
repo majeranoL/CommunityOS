@@ -597,3 +597,84 @@ export function useFinanceResidentOptions(search: string) {
     queryFn: () => financeResidentsService.options({ search: search || undefined, limit: 25 }),
   })
 }
+
+// ==============================================
+// Utility Expenses
+// ==============================================
+
+import {
+  utilityExpensesService,
+} from '@/features/finance/services/finance'
+import type {
+  CreateUtilityExpenseInput,
+  UpdateUtilityExpenseInput,
+} from '@/features/finance/types/finance'
+
+export const utilityExpenseKeys = {
+  all: ['utility-expenses'] as const,
+  list: (params: ListQuery) => ['utility-expenses', 'list', params] as const,
+  detail: (id: string) => ['utility-expenses', 'detail', id] as const,
+  summary: (params?: { from?: string; to?: string }) =>
+    ['utility-expenses', 'summary', params] as const,
+}
+
+export function useUtilityExpenses(params: ListQuery) {
+  return useQuery({
+    queryKey: utilityExpenseKeys.list(params),
+    queryFn: () => utilityExpensesService.list(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useUtilityExpenseSummary(params?: { from?: string; to?: string }) {
+  return useQuery({
+    queryKey: utilityExpenseKeys.summary(params),
+    queryFn: () => utilityExpensesService.summary(params),
+  })
+}
+
+export function useCreateUtilityExpense(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateUtilityExpenseInput) => utilityExpensesService.create(input),
+    onSuccess: () => {
+      toast.success('Utility expense recorded.')
+      queryClient.invalidateQueries({ queryKey: utilityExpenseKeys.all })
+      queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
+      queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to record utility expense.')),
+  })
+}
+
+export function useUpdateUtilityExpense(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateUtilityExpenseInput }) =>
+      utilityExpensesService.update(id, input),
+    onSuccess: () => {
+      toast.success('Utility expense updated.')
+      queryClient.invalidateQueries({ queryKey: utilityExpenseKeys.all })
+      queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
+      queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update utility expense.')),
+  })
+}
+
+export function useDeleteUtilityExpense(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => utilityExpensesService.remove(id),
+    onSuccess: () => {
+      toast.success('Utility expense deleted.')
+      queryClient.invalidateQueries({ queryKey: utilityExpenseKeys.all })
+      queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
+      queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete utility expense.')),
+  })
+}

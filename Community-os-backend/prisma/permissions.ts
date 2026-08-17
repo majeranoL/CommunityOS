@@ -154,6 +154,16 @@ export const permissions = [
     module: 'Residents',
     description: 'View residents',
   },
+  {
+    code: 'resident.import',
+    module: 'Residents',
+    description: 'Import residents',
+  },
+  {
+    code: 'resident.export',
+    module: 'Residents',
+    description: 'Export residents',
+  },
 
   // =====================================================
   // ROLES
@@ -279,6 +289,16 @@ export const permissions = [
     module: 'Households',
     description: 'View households',
   },
+  {
+    code: 'household.import',
+    module: 'Households',
+    description: 'Import households',
+  },
+  {
+    code: 'household.export',
+    module: 'Households',
+    description: 'Export households',
+  },
 
   // =====================================================
   // VISITORS
@@ -349,6 +369,16 @@ export const permissions = [
     module: 'Vehicles',
     description: 'View vehicles',
   },
+  {
+    code: 'vehicle.import',
+    module: 'Vehicles',
+    description: 'Import vehicles',
+  },
+  {
+    code: 'vehicle.export',
+    module: 'Vehicles',
+    description: 'Export vehicles',
+  },
 
   // =====================================================
   // PETS
@@ -379,6 +409,16 @@ export const permissions = [
     module: 'Pets',
     description: 'View pets',
   },
+  {
+    code: 'pet.import',
+    module: 'Pets',
+    description: 'Import pet registrations',
+  },
+  {
+    code: 'pet.export',
+    module: 'Pets',
+    description: 'Export pet registrations',
+  },
 
   // =====================================================
   // STAFF
@@ -403,6 +443,16 @@ export const permissions = [
     code: 'staff.view',
     module: 'Staff',
     description: 'View staff members',
+  },
+  {
+    code: 'staff.import',
+    module: 'Staff',
+    description: 'Import staff members',
+  },
+  {
+    code: 'staff.export',
+    module: 'Staff',
+    description: 'Export staff members',
   },
 
   // =====================================================
@@ -852,6 +902,36 @@ export const permissions = [
     module: 'Users',
     description: 'View users',
   },
+
+  // =====================================================
+  // VEHICLE STICKERS
+  // =====================================================
+
+  {
+    code: 'sticker.create',
+    module: 'Vehicle Stickers',
+    description: 'Create sticker applications',
+  },
+  {
+    code: 'sticker.view',
+    module: 'Vehicle Stickers',
+    description: 'View sticker records',
+  },
+  {
+    code: 'sticker.update',
+    module: 'Vehicle Stickers',
+    description: 'Edit sticker records',
+  },
+  {
+    code: 'sticker.delete',
+    module: 'Vehicle Stickers',
+    description: 'Delete sticker records',
+  },
+  {
+    code: 'sticker.verify',
+    module: 'Vehicle Stickers',
+    description: 'Approve or reject sticker applications',
+  },
 ];
 
 // Permission codes granted to the non-officer system roles (Member / Renter).
@@ -879,6 +959,8 @@ export const MEMBER_PERMISSIONS: string[] = [
   'settings.view',
   'resident.create',
   'vehicle.create',
+  'sticker.create',
+  'sticker.view',
   'pet.create',
   'pet.view',
 ];

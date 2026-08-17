@@ -1314,6 +1314,13 @@ async function seedSampleData(
       type: FeatureType.OPTIONAL,
     },
     {
+      code: 'vehicle-stickers',
+      name: 'Vehicle Sticker Management',
+      description:
+        'Issue and manage vehicle parking stickers with verification, renewal, and status tracking.',
+      type: FeatureType.OPTIONAL,
+    },
+    {
       code: 'complaints',
       name: 'Complaints & Incidents',
       description:

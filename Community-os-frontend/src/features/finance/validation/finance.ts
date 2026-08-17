@@ -177,6 +177,33 @@ export const expenseSchema = z.object({
 
 export type ExpenseFormValues = z.infer<typeof expenseSchema>
 
+// ==============================================
+// Utility Expenses
+// ==============================================
+
+export const UTILITY_TYPES = [
+  'ELECTRICITY',
+  'WATER',
+  'GARBAGE',
+  'SEWERAGE',
+  'INTERNET',
+  'OTHER',
+] as const
+
+export const utilityExpenseSchema = z.object({
+  providerName: z.string().min(1, 'Provider name is required').max(100),
+  utilityType: z.enum(UTILITY_TYPES, { error: 'Select a utility type' }),
+  amount: z.number({ error: 'Enter an amount' }).min(0.01, 'Amount must be greater than 0'),
+  expenseDate: z.string().min(1, 'Date is required'),
+  billingPeriod: z.string().max(50).optional().or(z.literal('')),
+  paymentMethod: z.enum(PAYMENT_METHODS, { error: 'Select a method' }),
+  referenceNumber: z.string().max(100).optional().or(z.literal('')),
+  invoiceNumber: z.string().max(100).optional().or(z.literal('')),
+  description: z.string().max(500).optional().or(z.literal('')),
+})
+
+export type UtilityExpenseFormValues = z.infer<typeof utilityExpenseSchema>
+
 export function toNumber(value: string | number | null | undefined): number | undefined {
   if (value === null || value === undefined || value === '') return undefined
   const n = Number(value)

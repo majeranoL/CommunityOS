@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PawPrint, Plus, Search } from 'lucide-react'
+import { Download, PawPrint, Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -14,6 +14,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { usePets } from '@/features/pets/hooks/use-pets'
@@ -23,6 +29,8 @@ import { useRevalidatePet } from '@/features/pets/hooks/use-pets'
 import { useDeletePet } from '@/features/pets/hooks/use-pets'
 import { PetFormDialog } from '@/features/pets/components/pet-form-dialog'
 import { PetDetailDialog } from '@/features/pets/components/pet-detail-dialog'
+import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
+import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { PetListItem } from '@/features/pets/types/pet'
 import { formatDate, toTitleCase } from '@/lib/format'
 
@@ -55,11 +63,15 @@ export default function PetsPage() {
   const [editPet, setEditPet] = useState<PetListItem | null>(null)
   const [detailPetId, setDetailPetId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<PetListItem | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const canCreate = useHasPermission(PERMISSIONS.petCreate)
   const canUpdate = useHasPermission(PERMISSIONS.petUpdate)
   const canDelete = useHasPermission(PERMISSIONS.petDelete)
   const canVerify = useHasPermission(PERMISSIONS.petVerify)
+  const canImport = useHasPermission(PERMISSIONS.petImport)
+  const canExport = useHasPermission(PERMISSIONS.petExport)
 
   const verifyPet = useVerifyPet()
   const deactivatePet = useDeactivatePet()
@@ -211,12 +223,38 @@ export default function PetsPage() {
         title="Pets"
         description="Registered household pets."
       >
-        {canCreate ? (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Register pet
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {(canImport || canExport) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4" />
+                  Import / Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canImport ? (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import from file
+                  </DropdownMenuItem>
+                ) : null}
+                {canExport ? (
+                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export data
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Register pet
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -306,6 +344,8 @@ export default function PetsPage() {
           deletePet.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
         }
       />
+      <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="pets" entityLabel="Pet" />
+      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="pets" entityLabel="Pet" />
     </div>
   )
 }

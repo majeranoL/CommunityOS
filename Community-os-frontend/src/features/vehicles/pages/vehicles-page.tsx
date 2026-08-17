@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Car, Plus, Search } from 'lucide-react'
+import { Car, Download, Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -13,6 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
@@ -21,6 +27,8 @@ import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useRevalidateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
 import { VehicleTransferDialog } from '@/features/vehicles/components/vehicle-transfer-dialog'
+import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
+import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { VehicleListItem } from '@/features/vehicles/types/vehicle'
 import { formatDate, toTitleCase } from '@/lib/format'
 
@@ -44,10 +52,14 @@ export default function VehiclesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editVehicle, setEditVehicle] = useState<VehicleListItem | null>(null)
   const [transferVehicle, setTransferVehicle] = useState<VehicleListItem | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const canCreate = useHasPermission(PERMISSIONS.vehicleCreate)
   const canUpdate = useHasPermission(PERMISSIONS.vehicleUpdate)
   const canVerify = useHasPermission(PERMISSIONS.vehicleVerify)
+  const canImport = useHasPermission(PERMISSIONS.vehicleImport)
+  const canExport = useHasPermission(PERMISSIONS.vehicleExport)
 
   const verifyVehicle = useVerifyVehicle()
   const deactivateVehicle = useDeactivateVehicle()
@@ -201,12 +213,38 @@ export default function VehiclesPage() {
         title="Vehicles"
         description="Registered vehicles and their residents."
       >
-        {canCreate ? (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add vehicle
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {(canImport || canExport) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4" />
+                  Import / Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canImport ? (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import from file
+                  </DropdownMenuItem>
+                ) : null}
+                {canExport ? (
+                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export data
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add vehicle
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -282,6 +320,8 @@ export default function VehiclesPage() {
         onOpenChange={(open) => !open && setTransferVehicle(null)}
         vehicle={transferVehicle}
       />
+      <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="vehicles" entityLabel="Vehicle" />
+      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="vehicles" entityLabel="Vehicle" />
     </div>
   )
 }

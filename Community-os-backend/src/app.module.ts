@@ -18,6 +18,7 @@ import { HouseholdsModule } from './modules/households/households.module';
 import { VisitorsModule } from './modules/visitors/visitors.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { PetsModule } from './modules/pets/pets.module';
+import { VehicleStickersModule } from './modules/vehicle-stickers/vehicle-stickers.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -36,6 +37,7 @@ import { FeaturesModule } from './modules/features/features.module';
 import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
+import { ImportExportModule } from './modules/import-export/import-export.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -62,6 +64,7 @@ import { HealthModule } from './modules/health/health.module';
     VisitorsModule,
     VehiclesModule,
     PetsModule,
+    VehicleStickersModule,
     StaffModule,
     MaintenanceModule,
     FinanceModule,
@@ -80,6 +83,7 @@ import { HealthModule } from './modules/health/health.module';
     PublicModule,
     AdminModule,
     HealthModule,
+    ImportExportModule,
   ],
   providers: [
     {

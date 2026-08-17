@@ -24,6 +24,7 @@ const ResidentsPage = lazy(() => import('@/features/residents/pages/residents-pa
 const HouseholdsPage = lazy(() => import('@/features/households/pages/households-page'))
 const VehiclesPage = lazy(() => import('@/features/vehicles/pages/vehicles-page'))
 const PetsPage = lazy(() => import('@/features/pets/pages/pets-page'))
+const VehicleStickersPage = lazy(() => import('@/features/vehicle-stickers/pages/vehicle-stickers-page'))
 const VisitorsPage = lazy(() => import('@/features/visitors/pages/visitors-page'))
 const StaffPage = lazy(() => import('@/features/staff/pages/staff-page'))
 const MaintenancePage = lazy(() => import('@/features/maintenance/pages/maintenance-page'))
@@ -147,6 +148,14 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute permission={PERMISSIONS.vehicleView}>
             {withSuspense(<VehiclesPage />)}
+          </PermissionRoute>
+        ),
+      },
+      {
+        path: 'stickers',
+        element: (
+          <PermissionRoute permission={PERMISSIONS.stickerView}>
+            {withSuspense(<VehicleStickersPage />)}
           </PermissionRoute>
         ),
       },

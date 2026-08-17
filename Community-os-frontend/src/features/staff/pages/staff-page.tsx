@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Briefcase, Plus, Search } from 'lucide-react'
+import { Briefcase, Download, Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -13,11 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useStaffList } from '@/features/staff/hooks/use-staff'
 import { StaffFormDialog } from '@/features/staff/components/staff-form-dialog'
 import { StaffDetailsDialog } from '@/features/staff/components/staff-details-dialog'
+import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
+import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { StaffListItem } from '@/features/staff/types/staff'
 import { formatDate, toTitleCase } from '@/lib/format'
 
@@ -32,9 +40,13 @@ export default function StaffPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editStaff, setEditStaff] = useState<StaffListItem | null>(null)
   const [detailsStaff, setDetailsStaff] = useState<StaffListItem | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const canCreate = useHasPermission(PERMISSIONS.staffCreate)
   const canUpdate = useHasPermission(PERMISSIONS.staffUpdate)
+  const canImport = useHasPermission(PERMISSIONS.staffImport)
+  const canExport = useHasPermission(PERMISSIONS.staffExport)
 
   const { data, isLoading, isFetching } = useStaffList({
     page,
@@ -129,12 +141,38 @@ export default function StaffPage() {
         title="Staff"
         description="Non-login personnel — guards, cleaners, and maintenance staff."
       >
-        {canCreate ? (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add staff
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {(canImport || canExport) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4" />
+                  Import / Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canImport ? (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import from file
+                  </DropdownMenuItem>
+                ) : null}
+                {canExport ? (
+                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export data
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add staff
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -213,6 +251,8 @@ export default function StaffPage() {
           onEdit={() => setEditStaff(detailsStaff)}
         />
       ) : null}
+      <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="staff" entityLabel="Staff" />
+      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="staff" entityLabel="Staff" />
     </div>
   )
 }

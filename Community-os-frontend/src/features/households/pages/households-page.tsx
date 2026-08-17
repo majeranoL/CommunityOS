@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Home, Plus, Search } from 'lucide-react'
+import { Download, Home, Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -13,12 +13,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useHouseholds } from '@/features/households/hooks/use-households'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { HouseholdFormDialog } from '@/features/households/components/household-form-dialog'
 import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
+import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
+import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { HouseholdListItem } from '@/features/households/types/household'
 import { formatCurrency, formatDate } from '@/lib/format'
 
@@ -45,9 +53,13 @@ export default function HouseholdsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const canCreate = useHasPermission(PERMISSIONS.householdCreate)
   const canUpdate = useHasPermission(PERMISSIONS.householdUpdate)
+  const canImport = useHasPermission(PERMISSIONS.householdImport)
+  const canExport = useHasPermission(PERMISSIONS.householdExport)
 
   const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
 
@@ -168,12 +180,38 @@ export default function HouseholdsPage() {
         title="Households"
         description="Property units and their current residents."
       >
-        {canCreate ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add household
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {(canImport || canExport) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4" />
+                  Import / Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canImport ? (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import from file
+                  </DropdownMenuItem>
+                ) : null}
+                {canExport ? (
+                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export data
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add household
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -271,6 +309,8 @@ export default function HouseholdsPage() {
           if (!open) setSelectedId(null)
         }}
       />
+      <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="households" entityLabel="Household" />
+      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="households" entityLabel="Household" />
     </div>
   )
 }

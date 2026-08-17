@@ -524,3 +524,56 @@ export interface IncomeStatement {
   monthly: IncomeStatementMonthly[]
   expenses: Expense[]
 }
+
+// ==============================================
+// Utility Expenses
+// ==============================================
+
+export type UtilityType =
+  | 'ELECTRICITY'
+  | 'WATER'
+  | 'GARBAGE'
+  | 'SEWERAGE'
+  | 'INTERNET'
+  | 'OTHER'
+
+export interface UtilityExpense {
+  id: string
+  utilityNumber: string
+  providerName: string
+  utilityType: UtilityType
+  amount: string | number
+  expenseDate: string
+  billingPeriod: string | null
+  paymentMethod: PaymentMethod
+  referenceNumber: string | null
+  invoiceNumber: string | null
+  description: string | null
+  receiptFileId: string | null
+  isImported: boolean
+  createdAt: string
+  updatedAt: string
+  createdBy: CreatedByRef | null
+}
+
+export interface CreateUtilityExpenseInput {
+  providerName: string
+  utilityType: UtilityType
+  amount: number
+  expenseDate: string
+  billingPeriod?: string
+  paymentMethod: PaymentMethod
+  referenceNumber?: string
+  invoiceNumber?: string
+  description?: string
+  receiptFileId?: string
+}
+
+export type UpdateUtilityExpenseInput = Partial<CreateUtilityExpenseInput>
+
+export interface UtilityExpenseSummary {
+  totalAmount: number
+  totalCount: number
+  byType: { type: UtilityType; total: number; count: number }[]
+  byProvider: { provider: string; total: number; count: number }[]
+}

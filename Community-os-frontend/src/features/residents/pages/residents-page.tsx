@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Download, Plus, Search, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -13,11 +13,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useResidents, useVerifyResident } from '@/features/residents/hooks/use-residents'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
 import { ResidentDetailsDialog } from '@/features/residents/components/resident-details-dialog'
+import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
+import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { ResidentListItem } from '@/features/residents/types/resident'
 import { formatDate, toTitleCase } from '@/lib/format'
 
@@ -41,10 +49,14 @@ export default function ResidentsPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const canCreate = useHasPermission(PERMISSIONS.residentCreate)
   const canUpdate = useHasPermission(PERMISSIONS.residentUpdate)
   const canVerify = useHasPermission(PERMISSIONS.residentVerify)
+  const canImport = useHasPermission(PERMISSIONS.residentImport)
+  const canExport = useHasPermission(PERMISSIONS.residentExport)
 
   const verifyResident = useVerifyResident()
 
@@ -195,12 +207,38 @@ export default function ResidentsPage() {
         title="Residents"
         description="Your community directory — residents, units, and household assignments."
       >
-        {canCreate ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
-            Add resident
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {(canImport || canExport) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4" />
+                  Import / Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canImport ? (
+                  <DropdownMenuItem onClick={() => setImportOpen(true)}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Import from file
+                  </DropdownMenuItem>
+                ) : null}
+                {canExport ? (
+                  <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export data
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Add resident
+            </Button>
+          ) : null}
+        </div>
       </PageHeader>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -280,6 +318,8 @@ export default function ResidentsPage() {
           if (!open) setSelectedId(null)
         }}
       />
+      <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="residents" entityLabel="Resident" />
+      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="residents" entityLabel="Resident" />
     </div>
   )
 }

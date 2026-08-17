@@ -9,6 +9,7 @@ import { FinanceTransactionsController } from './finance-transactions.controller
 import { FinanceImportExportController } from './finance-import-export.controller';
 import { ExpensesController } from './expenses.controller';
 import { IncomeStatementController } from './income-statement.controller';
+import { UtilityExpensesController } from './utility-expenses.controller';
 
 import { AssessmentsService } from './assessments.service';
 import { PaymentsService } from './payments.service';
@@ -19,6 +20,7 @@ import { BillingPeriodsService } from './billing-periods.service';
 import { FinanceTransactionsService } from './finance-transactions.service';
 import { FinanceImportExportService } from './finance-import-export.service';
 import { ExpensesService } from './expenses.service';
+import { UtilityExpensesService } from './utility-expenses.service';
 
 import { PrismaModule } from '../../prisma/prisma.module';
 
@@ -38,6 +40,7 @@ import { FeaturesModule } from '../features/features.module';
     FinanceImportExportController,
     ExpensesController,
     IncomeStatementController,
+    UtilityExpensesController,
   ],
   providers: [
     AssessmentsService,
@@ -49,6 +52,7 @@ import { FeaturesModule } from '../features/features.module';
     FinanceTransactionsService,
     FinanceImportExportService,
     ExpensesService,
+    UtilityExpensesService,
   ],
   exports: [
     AssessmentsService,

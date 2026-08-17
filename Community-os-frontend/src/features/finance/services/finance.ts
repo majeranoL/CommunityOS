@@ -339,3 +339,46 @@ export const financeResidentsService = {
     return { items: data.data, pagination: data.pagination }
   },
 }
+
+// ==============================================
+// Utility Expenses
+// ==============================================
+
+import type {
+  CreateUtilityExpenseInput,
+  UpdateUtilityExpenseInput,
+  UtilityExpense,
+  UtilityExpenseSummary,
+} from '@/features/finance/types/finance'
+
+export const utilityExpensesService = {
+  async list(params: ListQuery = {}) {
+    const { data } = await api.get<ApiEnvelope<UtilityExpense[]>>('/utility-expenses', { params })
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async get(id: string) {
+    const { data } = await api.get<ApiEnvelope<UtilityExpense>>(`/utility-expenses/${id}`)
+    return data.data
+  },
+
+  async summary(params: { from?: string; to?: string } = {}) {
+    const { data } = await api.get<ApiEnvelope<UtilityExpenseSummary>>('/utility-expenses/summary', { params })
+    return data.data
+  },
+
+  async create(input: CreateUtilityExpenseInput) {
+    const { data } = await api.post<ApiEnvelope<UtilityExpense>>('/utility-expenses', input)
+    return data.data
+  },
+
+  async update(id: string, input: UpdateUtilityExpenseInput) {
+    const { data } = await api.put<ApiEnvelope<UtilityExpense>>(`/utility-expenses/${id}`, input)
+    return data.data
+  },
+
+  async remove(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/utility-expenses/${id}`)
+    return data.data
+  },
+}
