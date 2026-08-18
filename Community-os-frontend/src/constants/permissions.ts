@@ -173,6 +173,8 @@ export const PERMISSIONS = {
 
   settingsView: 'settings.view',
   settingsManage: 'settings.manage',
+
+  communityBranding: 'community.branding',
 } as const
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

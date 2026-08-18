@@ -383,6 +383,11 @@ model Community {
   address       String?
   logoUrl       String?
 
+  primaryColor  String? @db.VarChar(20)
+  accentColor   String? @db.VarChar(20)
+  sidebarColor  String? @db.VarChar(20)
+  faviconUrl    String?
+
   status CommunityStatus @default(ACTIVE)
 
   roles             Role[]

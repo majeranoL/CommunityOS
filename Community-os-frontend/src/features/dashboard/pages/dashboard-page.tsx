@@ -6,10 +6,13 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
+  DollarSign,
   FileText,
   MessageSquareWarning,
   Megaphone,
   PenLine,
+  TrendingUp,
+  AlertCircle,
   Vote,
   Building2,
   Wrench,
@@ -45,6 +48,34 @@ function KpiSkeleton() {
       <Skeleton className="h-24 w-full" />
       <Skeleton className="h-24 w-full" />
     </>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-10 w-80" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiSkeleton />
+      </div>
+      <Skeleton className="h-48 w-full" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Skeleton className="h-48 w-full" />
+        <div className="lg:col-span-2">
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    </div>
   )
 }
 
@@ -445,89 +476,137 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={`${greet()}, ${user?.firstName ?? ''}!`}
-        description={`Here's what's happening in ${user?.community.displayName ?? 'your community'}.`}
-      />
+      {isLoading ? (
+        <DashboardSkeleton />
+      ) : (
+        <>
+          <PageHeader
+            title={`${greet()}, ${user?.firstName ?? ''}!`}
+            description={`Here's what's happening in ${user?.community.displayName ?? 'your community'}.`}
+          />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {isLoading ? (
-          <KpiSkeleton />
-        ) : isManagement ? (
-          <>
-            <KpiCard label="Pending reservations" value={counts?.pendingReservations} icon={Clock} />
-            <KpiCard label="Draft announcements" value={counts?.draftAnnouncements} icon={PenLine} />
-            <KpiCard label="Open complaints" value={counts?.openComplaints} icon={MessageSquareWarning} />
-            <KpiCard label="Available facilities" value={availableFacilities} icon={Building2} />
-          </>
-        ) : (
-          <>
-            <KpiCard label="Available facilities" value={availableFacilities} icon={Building2} />
-            <KpiCard label="Upcoming events" value={data?.upcomingEvents.length} icon={CalendarDays} />
-            <KpiCard label="Announcements" value={counts?.announcements} icon={Megaphone} />
-            <KpiCard label="Open complaints" value={counts?.openComplaints} icon={MessageSquareWarning} />
-          </>
-        )}
-      </div>
-
-      {canViewAnnouncements ? (
-        <AnnouncementsCarousel
-          data={data}
-          isLoading={isLoading}
-          onOpenAnnouncement={setAnnouncementId}
-        />
-      ) : null}
-
-      {quickActions.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {quickActions.map((action) => {
-            const Icon = action.icon
-            return (
-              <button
-                key={action.href}
-                type="button"
-                onClick={() => navigate(action.href)}
-                className="flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Icon className="h-5 w-5 text-primary" />
-                {action.label}
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {isManagement ? (
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-1">
-            <NeedsAttentionCard counts={counts} isLoading={isLoading} />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {isManagement ? (
+              <>
+                <div className="animate-card-enter" style={{ animationDelay: '0ms' }}>
+                  <KpiCard label="Pending reservations" value={counts?.pendingReservations} icon={Clock} />
+                </div>
+                <div className="animate-card-enter" style={{ animationDelay: '50ms' }}>
+                  <KpiCard label="Draft announcements" value={counts?.draftAnnouncements} icon={PenLine} />
+                </div>
+                <div className="animate-card-enter" style={{ animationDelay: '100ms' }}>
+                  <KpiCard label="Open complaints" value={counts?.openComplaints} icon={MessageSquareWarning} />
+                </div>
+                <div className="animate-card-enter" style={{ animationDelay: '150ms' }}>
+                  <KpiCard label="Available facilities" value={availableFacilities} icon={Building2} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="animate-card-enter" style={{ animationDelay: '0ms' }}>
+                  <KpiCard label="Available facilities" value={availableFacilities} icon={Building2} />
+                </div>
+                <div className="animate-card-enter" style={{ animationDelay: '50ms' }}>
+                  <KpiCard label="Upcoming events" value={data?.upcomingEvents.length} icon={CalendarDays} />
+                </div>
+                <div className="animate-card-enter" style={{ animationDelay: '100ms' }}>
+                  <KpiCard label="Announcements" value={counts?.announcements} icon={Megaphone} />
+                </div>
+                <div className="animate-card-enter" style={{ animationDelay: '150ms' }}>
+                  <KpiCard label="Open complaints" value={counts?.openComplaints} icon={MessageSquareWarning} />
+                </div>
+              </>
+            )}
           </div>
-          <div className="lg:col-span-2">
-            <RecentReservationsCard data={data} />
+
+          {isManagement && data?.finance ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="animate-card-enter" style={{ animationDelay: '200ms' }}>
+                <KpiCard label="Total billed" value={data.finance.totalBilled} icon={FileText} hint="All assessments issued" />
+              </div>
+              <div className="animate-card-enter" style={{ animationDelay: '250ms' }}>
+                <KpiCard label="Total collected" value={data.finance.totalCollected} icon={DollarSign} hint="Verified payments" />
+              </div>
+              <div className="animate-card-enter" style={{ animationDelay: '300ms' }}>
+                <KpiCard label="Outstanding" value={data.finance.outstanding} icon={AlertCircle} hint="Unpaid balance" />
+              </div>
+              <div className="animate-card-enter" style={{ animationDelay: '350ms' }}>
+                <KpiCard label="This month" value={data.finance.monthlyCollected} icon={TrendingUp} hint={`${data.finance.monthlyPaymentsCount} payment(s)`} />
+              </div>
+            </div>
+          ) : null}
+
+          {canViewAnnouncements ? (
+            <div className="animate-card-enter" style={{ animationDelay: '400ms' }}>
+              <AnnouncementsCarousel
+                data={data}
+                isLoading={isLoading}
+                onOpenAnnouncement={setAnnouncementId}
+              />
+            </div>
+          ) : null}
+
+          {quickActions.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {quickActions.map((action, index) => {
+                const Icon = action.icon
+                return (
+                  <button
+                    key={action.href}
+                    type="button"
+                    onClick={() => navigate(action.href)}
+                    className="animate-card-enter flex flex-col items-center gap-2 rounded-xl border bg-card p-4 text-sm font-medium shadow-sm transition-all duration-200 hover:bg-accent hover:text-accent-foreground hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ animationDelay: `${450 + index * 50}ms` }}
+                  >
+                    <Icon className="h-5 w-5 text-primary" />
+                    {action.label}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+
+          {isManagement ? (
+            <div className="grid gap-6 lg:grid-cols-3">
+              <div className="animate-card-enter space-y-6 lg:col-span-1" style={{ animationDelay: '700ms' }}>
+                <NeedsAttentionCard counts={counts} isLoading={isLoading} />
+              </div>
+              <div className="animate-card-enter lg:col-span-2" style={{ animationDelay: '750ms' }}>
+                <RecentReservationsCard data={data} />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="animate-card-enter" style={{ animationDelay: '800ms' }}>
+              <UpcomingEventsCard data={data} isLoading={isLoading} />
+            </div>
+            <div className="animate-card-enter" style={{ animationDelay: '850ms' }}>
+              <OpenComplaintsCard data={data} isLoading={isLoading} />
+            </div>
+            {canViewFacilities ? (
+              <div className="animate-card-enter" style={{ animationDelay: '900ms' }}>
+                <FacilitiesUnderMaintenanceCard />
+              </div>
+            ) : null}
           </div>
-        </div>
-      ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <UpcomingEventsCard data={data} isLoading={isLoading} />
-        <OpenComplaintsCard data={data} isLoading={isLoading} />
-        {canViewFacilities ? <FacilitiesUnderMaintenanceCard /> : null}
-      </div>
+          <AnnouncementDetailDialog
+            announcementId={announcementId}
+            open={Boolean(announcementId)}
+            onOpenChange={(open) => {
+              if (!open) setAnnouncementId(null)
+            }}
+          />
 
-      <AnnouncementDetailDialog
-        announcementId={announcementId}
-        open={Boolean(announcementId)}
-        onOpenChange={(open) => {
-          if (!open) setAnnouncementId(null)
-        }}
-      />
-
-      {user?.resident ? (
-        <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Welcome home.</span> Use the shortcuts above to report an
-          issue, book a facility, or join an event.
-        </div>
-      ) : null}
+          {user?.resident ? (
+            <div className="rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Welcome home.</span> Use the shortcuts above to report an
+              issue, book a facility, or join an event.
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   )
 }

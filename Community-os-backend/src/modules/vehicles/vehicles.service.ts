@@ -12,7 +12,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
-import { VerifyVehicleDto } from './dto/verify-vehicle.dto';
 import { VehicleQueryDto } from './dto/vehicle-query.dto';
 import { TransferVehicleDto } from './dto/transfer-vehicle.dto';
 
@@ -20,17 +19,18 @@ import { TransferVehicleDto } from './dto/transfer-vehicle.dto';
 export class VehiclesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private getPermissionCodes(user: any): string[] {
-    const codes: string[] = [];
+  // ==========================================
+  // Ownership Validation
+  // ==========================================
 
-    for (const userRole of user?.roles ?? []) {
-      for (const rp of userRole.role?.permissions ?? []) {
-        const code = rp.permission?.code as string;
-        if (code) codes.push(code);
-      }
+  private assertVehicleOwner(user: any, vehicle: any) {
+    const ownResidentId = user?.resident?.id;
+
+    if (!ownResidentId || vehicle.residentId !== ownResidentId) {
+      throw new ForbiddenException(
+        'You can only manage vehicles registered under your household.',
+      );
     }
-
-    return [...new Set(codes)];
   }
 
   private async getVerificationMode(communityId: string) {
@@ -81,28 +81,24 @@ export class VehiclesService {
     // Self-Service Scope
     // ==========================================
 
-    const permissions = this.getPermissionCodes(user);
+    // Only members (users linked to a resident) can create vehicles.
+    // Officers are view-only.
+    const ownResidentId = user?.resident?.id;
 
-    const isOfficer = permissions.includes('vehicle.verify');
+    if (!ownResidentId) {
+      throw new ForbiddenException(
+        'You must be linked to a resident to register a vehicle.',
+      );
+    }
+
+    dto.residentId = ownResidentId;
+
+    const verificationMode = await this.getVerificationMode(communityId);
 
     let vehicleStatus = dto.status ?? VehicleStatus.ACTIVE;
 
-    if (!isOfficer) {
-      const ownResidentId = user?.resident?.id;
-
-      if (!ownResidentId) {
-        throw new ForbiddenException(
-          'You must be linked to a resident to register a vehicle.',
-        );
-      }
-
-      dto.residentId = ownResidentId;
-
-      const verificationMode = await this.getVerificationMode(communityId);
-
-      if (verificationMode === 'approval') {
-        vehicleStatus = VehicleStatus.PENDING;
-      }
+    if (verificationMode === 'approval') {
+      vehicleStatus = VehicleStatus.PENDING;
     }
 
     // ==========================================
@@ -317,7 +313,7 @@ export class VehiclesService {
   // Update Vehicle
   // ==========================================
 
-  async update(communityId: string, id: string, dto: UpdateVehicleDto) {
+  async update(communityId: string, user: any, id: string, dto: UpdateVehicleDto) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,
@@ -329,6 +325,12 @@ export class VehiclesService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found.');
     }
+
+    // ==========================================
+    // Ownership Check
+    // ==========================================
+
+    this.assertVehicleOwner(user, vehicle);
 
     // ==========================================
     // Clean Inputs
@@ -416,10 +418,6 @@ export class VehiclesService {
           parkingStickerNumber: dto.parkingStickerNumber,
         }),
 
-        ...(dto.residentId !== undefined && {
-          residentId: dto.residentId,
-        }),
-
         ...(dto.status && { status: dto.status }),
       },
 
@@ -442,66 +440,10 @@ export class VehiclesService {
   }
 
   // ==========================================
-  // Verify Pending Vehicle
-  // ==========================================
-
-  async verify(
-    communityId: string,
-    verifierId: string,
-    id: string,
-    dto: VerifyVehicleDto,
-  ) {
-    const vehicle = await this.prisma.vehicle.findFirst({
-      where: {
-        id,
-        communityId,
-        deletedAt: null,
-      },
-    });
-
-    if (!vehicle) {
-      throw new NotFoundException('Vehicle not found.');
-    }
-
-    if (vehicle.status !== VehicleStatus.PENDING) {
-      throw new BadRequestException('Only pending vehicles can be verified.');
-    }
-
-    const updatedVehicle = await this.prisma.vehicle.update({
-      where: {
-        id,
-      },
-      data: {
-        status: dto.approved ? VehicleStatus.APPROVED : VehicleStatus.REJECTED,
-        verifiedById: verifierId,
-        verifiedAt: new Date(),
-        verificationRemarks: dto.remarks,
-      },
-      include: {
-        resident: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    });
-
-    return {
-      success: true,
-      message: dto.approved
-        ? 'Vehicle approved successfully.'
-        : 'Vehicle rejected successfully.',
-      data: updatedVehicle,
-    };
-  }
-
-  // ==========================================
   // Transfer Vehicle
   // ==========================================
 
-  async transfer(communityId: string, id: string, dto: TransferVehicleDto) {
+  async transfer(communityId: string, user: any, id: string, dto: TransferVehicleDto) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,
@@ -513,6 +455,12 @@ export class VehiclesService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found.');
     }
+
+    // ==========================================
+    // Ownership Check
+    // ==========================================
+
+    this.assertVehicleOwner(user, vehicle);
 
     const activeStatuses: VehicleStatus[] = [
       VehicleStatus.ACTIVE,
@@ -567,7 +515,7 @@ export class VehiclesService {
   // Deactivate Vehicle
   // ==========================================
 
-  async deactivate(communityId: string, id: string) {
+  async deactivate(communityId: string, user: any, id: string) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,
@@ -579,6 +527,12 @@ export class VehiclesService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found.');
     }
+
+    // ==========================================
+    // Ownership Check
+    // ==========================================
+
+    this.assertVehicleOwner(user, vehicle);
 
     const activeStatuses: VehicleStatus[] = [
       VehicleStatus.ACTIVE,
@@ -618,7 +572,7 @@ export class VehiclesService {
   // Revalidate Vehicle (re-activate)
   // ==========================================
 
-  async revalidate(communityId: string, id: string) {
+  async revalidate(communityId: string, user: any, id: string) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,
@@ -630,6 +584,12 @@ export class VehiclesService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found.');
     }
+
+    // ==========================================
+    // Ownership Check
+    // ==========================================
+
+    this.assertVehicleOwner(user, vehicle);
 
     const inactiveStatuses: VehicleStatus[] = [
       VehicleStatus.DEACTIVATED,
@@ -668,10 +628,10 @@ export class VehiclesService {
   }
 
   // ==========================================
-  // Delete Vehicle (Soft Delete)
+  // Unregister Vehicle (Soft Delete)
   // ==========================================
 
-  async remove(communityId: string, id: string) {
+  async remove(communityId: string, user: any, id: string) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,
@@ -683,6 +643,12 @@ export class VehiclesService {
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found.');
     }
+
+    // ==========================================
+    // Ownership Check
+    // ==========================================
+
+    this.assertVehicleOwner(user, vehicle);
 
     await this.prisma.vehicle.update({
       where: {
@@ -697,7 +663,7 @@ export class VehiclesService {
 
     return {
       success: true,
-      message: 'Vehicle deleted successfully.',
+      message: 'Vehicle unregistered successfully.',
     };
   }
 }

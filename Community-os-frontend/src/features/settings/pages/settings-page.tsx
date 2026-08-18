@@ -5,10 +5,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { useAuthStore } from '@/store/auth-store'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useAuthStore, useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
 import { useTheme } from '@/components/theme-provider'
 import { CommunitySettings } from '@/features/settings/components/community-settings'
 import { ChangePasswordForm } from '@/features/settings/components/change-password-form'
+import { BrandingSettings } from '@/features/branding/components/branding-settings'
+import { useBranding } from '@/features/branding/hooks/use-branding'
 import { initials } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Theme } from '@/components/theme-provider'
@@ -22,6 +26,8 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: typeof Sun }[] = [
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user)
   const { theme, setTheme } = useTheme()
+  const canBrand = useHasPermission(PERMISSIONS.communityBranding)
+  const { data: branding, isLoading: brandingLoading } = useBranding()
 
   return (
     <div className="space-y-6">
@@ -34,6 +40,7 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="community">Community</TabsTrigger>
+          {canBrand ? <TabsTrigger value="branding">Branding</TabsTrigger> : null}
         </TabsList>
 
         <TabsContent value="profile" className="mt-6">
@@ -167,6 +174,19 @@ export default function SettingsPage() {
         <TabsContent value="community" className="mt-6">
           <CommunitySettings />
         </TabsContent>
+
+        {canBrand ? (
+          <TabsContent value="branding" className="mt-6">
+            {brandingLoading ? (
+              <div className="space-y-6">
+                <Skeleton className="h-48 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            ) : branding ? (
+              <BrandingSettings data={branding} />
+            ) : null}
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   )

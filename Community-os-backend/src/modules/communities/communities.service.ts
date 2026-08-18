@@ -426,6 +426,90 @@ export class CommunitiesService {
   }
 
   // ==========================================
+  // Get Community Branding
+  // ==========================================
+
+  async getBranding(communityId: string) {
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: {
+        id: true,
+        displayName: true,
+        logoUrl: true,
+        primaryColor: true,
+        accentColor: true,
+        sidebarColor: true,
+        faviconUrl: true,
+      },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found.');
+    }
+
+    return {
+      success: true,
+      message: 'Branding retrieved successfully.',
+      data: {
+        displayName: community.displayName,
+        logoUrl: community.logoUrl,
+        primaryColor: community.primaryColor,
+        accentColor: community.accentColor,
+        sidebarColor: community.sidebarColor,
+        faviconUrl: community.faviconUrl,
+      },
+    };
+  }
+
+  // ==========================================
+  // Update Community Branding
+  // ==========================================
+
+  async updateBranding(
+    communityId: string,
+    dto: {
+      primaryColor?: string;
+      accentColor?: string;
+      sidebarColor?: string;
+      faviconUrl?: string;
+      logoUrl?: string;
+    },
+  ) {
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found.');
+    }
+
+    const updated = await this.prisma.community.update({
+      where: { id: communityId },
+      data: {
+        ...(dto.primaryColor !== undefined && { primaryColor: dto.primaryColor || null }),
+        ...(dto.accentColor !== undefined && { accentColor: dto.accentColor || null }),
+        ...(dto.sidebarColor !== undefined && { sidebarColor: dto.sidebarColor || null }),
+        ...(dto.faviconUrl !== undefined && { faviconUrl: dto.faviconUrl || null }),
+        ...(dto.logoUrl !== undefined && { logoUrl: dto.logoUrl || null }),
+      },
+      select: {
+        displayName: true,
+        logoUrl: true,
+        primaryColor: true,
+        accentColor: true,
+        sidebarColor: true,
+        faviconUrl: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Branding updated successfully.',
+      data: updated,
+    };
+  }
+
+  // ==========================================
   // Delete Community (Soft Delete)
   // ==========================================
 

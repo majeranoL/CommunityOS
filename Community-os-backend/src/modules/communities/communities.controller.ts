@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  Patch,
   Query,
   Request,
   UseGuards,
@@ -70,6 +71,29 @@ export class CommunitiesController {
     @Body() dto: UpdateCommunityDto,
   ) {
     return this.communitiesService.update(req.user.community.id, id, dto);
+  }
+
+  // ==========================================
+  // Get Community Branding
+  // ==========================================
+
+  @Get('me/branding')
+  @Permissions('community.view')
+  getBranding(@Request() req: any) {
+    return this.communitiesService.getBranding(req.user.community.id);
+  }
+
+  // ==========================================
+  // Update Community Branding
+  // ==========================================
+
+  @Patch('me/branding')
+  @Permissions('community.branding')
+  updateBranding(
+    @Request() req: any,
+    @Body() dto: { primaryColor?: string; accentColor?: string; sidebarColor?: string; faviconUrl?: string; logoUrl?: string },
+  ) {
+    return this.communitiesService.updateBranding(req.user.community.id, dto);
   }
 
   // ==========================================

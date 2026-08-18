@@ -23,6 +23,11 @@ export const permissions = [
     module: 'Communities',
     description: 'View communities',
   },
+  {
+    code: 'community.branding',
+    module: 'Communities',
+    description: 'Manage community branding and appearance',
+  },
 
   // =====================================================
   // ANNOUNCEMENTS
@@ -350,34 +355,9 @@ export const permissions = [
     description: 'Create vehicles',
   },
   {
-    code: 'vehicle.verify',
-    module: 'Vehicles',
-    description: 'Verify pending vehicles',
-  },
-  {
-    code: 'vehicle.update',
-    module: 'Vehicles',
-    description: 'Update vehicles',
-  },
-  {
-    code: 'vehicle.delete',
-    module: 'Vehicles',
-    description: 'Delete vehicles',
-  },
-  {
     code: 'vehicle.view',
     module: 'Vehicles',
     description: 'View vehicles',
-  },
-  {
-    code: 'vehicle.import',
-    module: 'Vehicles',
-    description: 'Import vehicles',
-  },
-  {
-    code: 'vehicle.export',
-    module: 'Vehicles',
-    description: 'Export vehicles',
   },
 
   // =====================================================
@@ -959,6 +939,7 @@ export const MEMBER_PERMISSIONS: string[] = [
   'settings.view',
   'resident.create',
   'vehicle.create',
+  'vehicle.view',
   'sticker.create',
   'sticker.view',
   'pet.create',

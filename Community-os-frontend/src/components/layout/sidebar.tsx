@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth-store'
 import { NAV_SECTIONS } from '@/components/layout/nav-items'
 import { useEnabledFeatures } from '@/features/features/hooks/use-enabled-features'
+import { useBranding } from '@/features/branding/hooks/use-branding'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -12,13 +13,18 @@ interface SidebarProps {
 function SidebarContent({ onNavigate }: SidebarProps) {
   const user = useAuthStore((state) => state.user)
   const { data: enabledFeatures } = useEnabledFeatures()
+  const { data: branding } = useBranding()
   const enabledCodes = new Set((enabledFeatures ?? []).map((feature) => feature.code))
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center gap-2 border-b px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-          C
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground overflow-hidden">
+          {branding?.logoUrl ? (
+            <img src={branding.logoUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
+          ) : (
+            'C'
+          )}
         </div>
         <div className="leading-tight">
           <p className="text-sm font-semibold">CommunityOS</p>
@@ -48,15 +54,22 @@ function SidebarContent({ onNavigate }: SidebarProps) {
                       onClick={onNavigate}
                       className={({ isActive }) =>
                         cn(
-                          'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                          'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                           isActive
                             ? 'bg-primary/10 text-primary'
                             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                         )
                       }
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="flex-1">{item.label}</span>
+                      {({ isActive }) => (
+                        <>
+                          {isActive && (
+                            <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary transition-all duration-200" />
+                          )}
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span className="flex-1">{item.label}</span>
+                        </>
+                      )}
                       {item.badge ? (
                         <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
                           {item.badge}
