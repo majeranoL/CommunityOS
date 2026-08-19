@@ -1291,6 +1291,14 @@ async function seedSampleData(
       description:
         'Register pets, link them to a household and caretaker, manage verification, certificates, and licenses.',
       type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
+      configSchema: {
+        required: ['verificationMode'],
+        properties: {
+          verificationMode: { type: 'string', enum: ['auto', 'approval'] },
+          documentsRequired: { type: 'boolean' },
+        },
+      },
     },
     {
       code: 'good-bad-standing',
@@ -1298,6 +1306,14 @@ async function seedSampleData(
       description:
         'Compute household standing from dues and restrict reserved services for delinquent households.',
       type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
+      configSchema: {
+        properties: {
+          delinquencyThresholdMonths: { type: 'number' },
+          badStandingBalanceThreshold: { type: 'number' },
+          restrictedServices: { type: 'array' },
+        },
+      },
     },
     {
       code: 'construction-management',
@@ -1305,6 +1321,7 @@ async function seedSampleData(
       description:
         'Manage construction and renovation applications, bonds, and inspections.',
       type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
     },
     {
       code: 'visitor-gate-management',
@@ -1312,6 +1329,7 @@ async function seedSampleData(
       description:
         'Create visitor invitations, generate passes, and verify visitors at the gate.',
       type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
     },
     {
       code: 'vehicle-stickers',
@@ -1319,6 +1337,7 @@ async function seedSampleData(
       description:
         'Issue and manage vehicle parking stickers with verification, renewal, and status tracking.',
       type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
     },
     {
       code: 'complaints',
@@ -1326,6 +1345,7 @@ async function seedSampleData(
       description:
         'Residents submit complaints, incidents, and service requests with officer assignment and resolution.',
       type: FeatureType.STANDARD,
+      dependencies: [] as string[],
     },
     {
       code: 'documents',
@@ -1333,6 +1353,7 @@ async function seedSampleData(
       description:
         'Centralized storage for HOA, household, financial, and pet documents with versioning and audit.',
       type: FeatureType.STANDARD,
+      dependencies: [] as string[],
     },
     {
       code: 'events-calendar',
@@ -1340,6 +1361,7 @@ async function seedSampleData(
       description:
         'Publish HOA events, meetings, deadlines, and facility schedules on a shared calendar.',
       type: FeatureType.STANDARD,
+      dependencies: [] as string[],
     },
     {
       code: 'reports-analytics',
@@ -1347,6 +1369,7 @@ async function seedSampleData(
       description:
         'Operational and financial reporting with filters and Excel/CSV export.',
       type: FeatureType.STANDARD,
+      dependencies: ['documents'],
     },
   ];
 
@@ -1396,6 +1419,29 @@ async function seedSampleData(
   });
 
   console.log('✅ Features created');
+
+  // Assign all STANDARD features to the demo community
+  const standardFeatureCodes = ['complaints', 'documents', 'events-calendar', 'reports-analytics'];
+  for (const code of standardFeatureCodes) {
+    const featureId = features.get(code);
+    if (!featureId) continue;
+
+    await prisma.communityFeature.upsert({
+      where: {
+        communityId_featureId: { communityId, featureId },
+      },
+      update: {},
+      create: {
+        communityId,
+        featureId,
+        enabled: true,
+        enabledBy: userId,
+        enabledAt: new Date(),
+      },
+    });
+  }
+
+  console.log('✅ Standard features assigned to demo community');
 
   // =====================================================
   // SETTINGS

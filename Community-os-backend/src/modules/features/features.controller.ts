@@ -104,11 +104,41 @@ export class FeaturesController {
   }
 
   // ==========================================
+  // Audit Log
+  // ==========================================
+
+  @Get(':id/audit')
+  listAuditLogs(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('communityId') communityId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.featuresService.listAuditLogs(id, {
+      communityId,
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  // ==========================================
   // Per-community view (superadmin)
   // ==========================================
 
   @Get('by-community/:communityId')
   listByCommunity(@Param('communityId', ParseUUIDPipe) communityId: string) {
     return this.featuresService.listByCommunity(communityId);
+  }
+
+  @Get('by-community/:communityId/audit')
+  listAuditLogsByCommunity(
+    @Param('communityId', ParseUUIDPipe) communityId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.featuresService.listAuditLogsByCommunity(communityId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
   }
 }

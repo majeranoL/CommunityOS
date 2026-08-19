@@ -40,6 +40,8 @@ export interface FeatureAssignment {
     code: string
     name: string
     type: FeatureType
+    description?: string | null
+    isActive?: boolean
   }
   community?: FeatureCommunityRef
 }
@@ -62,4 +64,23 @@ export interface FeatureAssignInput {
 export interface FeatureUpdateInput {
   enabled?: boolean
   config?: Record<string, unknown>
+}
+
+export type FeatureAuditAction =
+  | 'ASSIGNED'
+  | 'ENABLED'
+  | 'DISABLED'
+  | 'REVOKED'
+  | 'CONFIG_UPDATED'
+
+export interface FeatureAuditLog {
+  id: string
+  featureId: string
+  communityId: string
+  action: FeatureAuditAction
+  actorId: string | null
+  details: Record<string, unknown> | null
+  createdAt: string
+  feature?: { id: string; code: string; name: string }
+  community?: { id: string; code: string; displayName: string }
 }

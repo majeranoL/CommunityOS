@@ -6,6 +6,7 @@ import {
   Mail,
   MapPin,
   Phone,
+  Puzzle,
   ShieldCheck,
   Trash2,
 } from 'lucide-react'
@@ -34,6 +35,8 @@ import {
   useUpdateCommunityStatus,
 } from '@/features/admin/hooks/use-admin'
 import { formatCurrency, formatDate, initials } from '@/lib/format'
+import { useQuery } from '@tanstack/react-query'
+import { featuresService } from '@/features/admin/services/features'
 
 export default function AdminCommunityDetailPage() {
   const { id = '' } = useParams()
@@ -41,6 +44,11 @@ export default function AdminCommunityDetailPage() {
   const { data: community, isLoading } = useAdminCommunity(id)
   const updateStatus = useUpdateCommunityStatus()
   const remove = useDeleteCommunity()
+  const { data: communityFeatures } = useQuery({
+    queryKey: ['admin', 'features', 'community', id],
+    queryFn: () => featuresService.listByCommunity(id),
+    enabled: Boolean(id),
+  })
 
   if (isLoading) {
     return (
@@ -227,6 +235,46 @@ export default function AdminCommunityDetailPage() {
             </ul>
           ) : (
             <EmptyState title="No users" description="This community has no user accounts yet." />
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Features</CardTitle>
+          <CardDescription>Features assigned to this community.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {communityFeatures?.length ? (
+            <ul className="divide-y">
+              {communityFeatures.map((cf) => (
+                <li key={cf.id} className="flex items-center justify-between py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                      <Puzzle className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{cf.feature?.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{cf.feature?.code}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={cf.feature?.type === 'OPTIONAL' ? 'warning' : 'secondary'}>
+                      {cf.feature?.type === 'OPTIONAL' ? 'Optional' : 'Standard'}
+                    </Badge>
+                    <Badge variant={cf.enabled ? 'success' : 'muted'}>
+                      {cf.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState
+              icon={Puzzle}
+              title="No features assigned"
+              description="Assign features from the Features catalog."
+            />
           )}
         </CardContent>
       </Card>

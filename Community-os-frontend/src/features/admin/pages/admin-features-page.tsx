@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MoreHorizontal, Puzzle, Search } from 'lucide-react'
+import { MoreHorizontal, Pencil, Plus, Puzzle, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
 import { EmptyState } from '@/components/shared/empty-state'
 import { Pagination } from '@/components/shared/pagination'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,9 +16,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useFeatures } from '@/features/admin/hooks/use-features'
+import { useFeatures, useDeleteFeature } from '@/features/admin/hooks/use-features'
 import { FeatureAssignDialog } from '@/features/admin/components/feature-assign-dialog'
 import { FeatureCommunitiesDialog } from '@/features/admin/components/feature-communities-dialog'
+import { FeatureFormDialog } from '@/features/admin/components/feature-form-dialog'
 import type { Feature } from '@/features/admin/types/feature'
 
 export default function AdminFeaturesPage() {
@@ -26,6 +28,11 @@ export default function AdminFeaturesPage() {
   const [query, setQuery] = useState('')
   const [assigning, setAssigning] = useState<Feature | null>(null)
   const [communities, setCommunities] = useState<Feature | null>(null)
+  const [editing, setEditing] = useState<Feature | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [deleting, setDeleting] = useState<Feature | null>(null)
+
+  const deleteFeature = useDeleteFeature()
 
   const { data, isLoading } = useFeatures({
     page,
@@ -43,7 +50,12 @@ export default function AdminFeaturesPage() {
       <PageHeader
         title="Features"
         description="Optional functionality catalog and per-community assignments."
-      />
+      >
+        <Button onClick={() => setCreating(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          New feature
+        </Button>
+      </PageHeader>
 
       <Card>
         <CardHeader>
@@ -126,6 +138,10 @@ export default function AdminFeaturesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setEditing(feature)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setCommunities(feature)}>
                               <Puzzle className="mr-2 h-4 w-4" />
                               Communities
@@ -133,6 +149,13 @@ export default function AdminFeaturesPage() {
                             <DropdownMenuItem onClick={() => setAssigning(feature)}>
                               <Search className="mr-2 h-4 w-4" />
                               Assign
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => setDeleting(feature)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -153,6 +176,16 @@ export default function AdminFeaturesPage() {
         </CardContent>
       </Card>
 
+      <FeatureFormDialog
+        open={creating || Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCreating(false)
+            setEditing(null)
+          }
+        }}
+        feature={editing}
+      />
       <FeatureAssignDialog
         open={Boolean(assigning)}
         onOpenChange={(open) => !open && setAssigning(null)}
@@ -162,6 +195,19 @@ export default function AdminFeaturesPage() {
         open={Boolean(communities)}
         onOpenChange={(open) => !open && setCommunities(null)}
         feature={communities}
+      />
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete feature?"
+        description={`This will permanently remove "${deleting?.name}". It must have no active community assignments.`}
+        confirmLabel="Delete"
+        destructive
+        loading={deleteFeature.isPending}
+        onConfirm={() =>
+          deleting &&
+          deleteFeature.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+        }
       />
     </div>
   )

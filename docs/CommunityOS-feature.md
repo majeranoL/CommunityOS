@@ -114,6 +114,8 @@ IDEA 3 — Improved Feature-Specific Customization
 
 CommunityOS should maintain a single central codebase while allowing individual HOAs to receive features that other communities do not need. Any functionality that is not universally required should be designed as a feature-managed module rather than as a permanent assumption in the core system. The Superadmin should maintain a feature catalog and assign optional features to communities through the Features menu, while the feature itself can also have community-specific configuration values. When a feature is enabled for a community, the frontend should display its navigation, pages, actions, and related UI, while the backend independently verifies that the community has that feature before processing the request. This means a disabled feature is not merely hidden; its API is also inaccessible to the community. Optional features may include Good/Bad Standing, Pet Registration, Construction/Renovation Management, special financial workflows, specialized reports, and future HOA-specific modules. Each feature should be able to define dependencies so the system can prevent incompatible configurations. Features should also be separate from permissions: enabling a feature means the HOA has it, while role permissions determine whether a President, officer, resident, or other user may use its functions. If a custom feature later becomes broadly useful, it can be promoted to a standard CommunityOS feature without creating a second codebase. Custom feature development can be charged separately when requested by a specific HOA. This architecture allows CommunityOS to remain maintainable while still supporting different HOA policies and specialized requirements.
 
+IDEA 3 IS DONE — see completion checker below.
+
 IDEA 4 — Improved Online Payments, Financial Auditing & Migration
 
 CommunityOS should provide a complete online payment and financial auditing workflow where residents can view their own assessments, monthly dues, construction bonds, special assessments, facility fees, fines, penalties, and other charges, submit payments using available payment methods, and upload payment proof when external payments require manual verification. Each submission should record the amount, payment type, billing period, household, payer, payment method, transaction/reference number, payment date, proof file, submission timestamp, verification timestamp, verifier, and final status. Payment status should progress through clear states such as PENDING VERIFICATION, VERIFIED, REJECTED, REFUNDED, or CANCELLED. The system should provide separate finance views for categories such as Monthly Dues, Special Assessments, Construction Bonds, Facility Fees, Fines/Penalties, and Other Payments, plus an All Transactions view. The President and authorized officers should be able to view all community payment records when granted finance.view_all, while narrower permissions can allow an officer to view only specific categories such as monthly dues. Residents must only be able to view their own household's records and must never be able to retrieve another household's payment information or proof. The system should support granular permissions such as finance.view_own, finance.view_all, finance.verify, finance.reject, finance.refund, finance.import, finance.export, and module-specific category permissions. Financial records should support Excel/CSV import and export with preview, column mapping, validation, duplicate detection, and explicit confirmation before data is committed. Imported records must be marked as historical/migrated records and should retain information about the source batch, importing user, imported timestamp, and result counts. Export should support filters, custom columns, and configurable formats, while respecting exactly the same privacy and permission rules used for viewing data. Every import, export, verification, rejection, refund, adjustment, and manual modification should be audited. The system should preserve payer identity even when ownership changes later and should distinguish Household, Payer, Assessment, Payment, and Payment Allocation so historical financial records remain accurate. The architecture should initially support manual verification for GCash/bank/external payments but remain ready for future official payment gateway integrations and webhook-based automatic verification.
@@ -125,6 +127,8 @@ CommunityOS should support an optional Good/Bad Standing feature that is enabled
 IDEA 6 — Superadmin Feature Management
 
 CommunityOS should include a dedicated Features menu for the Superadmin that acts as the central feature catalog and community assignment system for optional functionality. The feature catalog should identify whether a feature is Standard or Optional/HOA-Specific, include a unique feature code, description, status, dependencies, configuration options, assigned communities, and activation history, and allow the Superadmin to search for communities and grant or revoke optional functionality without modifying code. Standard features such as Finance, Payments, Residents, Complaints, Announcements, and other core functionality are available to all SaaS communities. Optional features may include Good/Bad Standing, Pet Registration, Construction/Renovation Management, specialized HOA workflows, specialized reports, and future features that are not universally applicable. When the Superadmin assigns an optional feature, the system should record communityId, featureId, enabled status, enabledAt, enabledBy, and relevant audit information. Feature assignment should support dependencies, meaning an optional module may require another standard or optional module to function correctly. The Superadmin should be able to view which communities have each feature, which features each community has, and the status of the assignment. Feature availability is separate from role permissions: once a feature is enabled for a community, the President can then grant appropriate permissions to officers and users inside that community. This becomes the main mechanism for safely expanding CommunityOS without creating separate versions for different HOAs.
+
+IDEA 3 & 6 IS DONE — see completion checkers below.
 
 IDEA 7 — Community Appearance, Branding & White-Label Settings
 
@@ -448,6 +452,56 @@ Verification log:
 - Frontend: `npx tsc --noEmit` exit 0 (fixed `sidebar.tsx` NavLink children type error — react-router-dom v7 no longer accepts render function children; refactored to `SidebarLink` component using `useLocation` + `matchPath` for active state); `npx vite build` clean
 - Migration: `20260818220248_add_community_branding` applied (4 ALTER TABLE statements)
 - Branding fields visible in Prisma schema `CommunitySelect` type after client regeneration
+
+---
+
+### IDEA 3 — Improved Feature-Specific Customization — DONE (2026-08-19)
+
+Checklist:
+
+- [x] Single codebase with feature-managed modules — `Feature` model (`STANDARD` | `OPTIONAL`) + `CommunityFeature` assignment with `enabled`, `config` JSON, and audit fields (`enabledAt/By`, `disabledAt/By`)
+- [x] Superadmin feature catalog — `GET/POST/PATCH/DELETE /admin/features` with search, type filter, pagination; full CRUD via `FeatureFormDialog` (code, name, description, type, active, dependencies, configSchema)
+- [x] Community-specific configuration values — per-feature `config` JSON stored on `CommunityFeature`; dedicated config editors for `pet-registration` (verification mode, documents required) and `good-bad-standing` (thresholds, restricted services); generic JSON editor fallback for other features
+- [x] Config schema validation — `configSchema` JSON on Feature validated server-side on `assign()` and `updateAssignment()`; checks required fields, types, and enum values; returns field-level error messages
+- [x] Frontend feature gating — `useEnabledFeatures()` / `useIsFeatureEnabled()` hooks; sidebar nav items filtered by `feature` property; conditional columns/badges in Households and Finance pages
+- [x] Backend enforcement — `@Feature(code)` decorator + `FeatureGuard` on `PetsController` and `VehicleStickersController`; service-level `getConfig()` / `assertEnabled()` calls for `good-bad-standing` in HouseholdsService, AssessmentsService, ReservationsService
+- [x] Disabled feature = API inaccessible — `FeatureGuard` returns 403 when feature not enabled; service-level checks throw `ForbiddenException`
+- [x] Feature dependencies — `Feature.dependencies` string array; enforced at assignment time (all deps must be enabled); enforced on revoke (cannot revoke if dependents are enabled); enforced on delete (cannot delete if other features depend on it); dependency codes validated on create/update
+- [x] Features separate from permissions — feature assignment = HOA has it; role permissions determine who within the community can use it; `community.branding` permission gates settings access
+- [x] Custom features promotable to standard — STANDARD features auto-enabled for all communities on creation; STANDARD features auto-assigned when a new community is created; seed assigns all STANDARD features to demo community
+- [x] Config schema on Feature model — `configSchema` JSON field stores optional JSON Schema for per-community config validation; set via create/update; validated before assignment
+- [x] Seed data — 9 features seeded (5 OPTIONAL, 4 STANDARD); `pet-registration` and `good-bad-standing` assigned to demo community with config; all STANDARD features assigned; `reports-analytics` depends on `documents`
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0; `npx nest build` clean; eslint 0 errors; jest 14 suites / 74 tests pass
+- Frontend: `npx tsc --noEmit` exit 0; `npx vite build` clean; eslint 0 errors (61 warnings)
+- Migration: `20260819000000_add_feature_audit_log` applied (FeatureAuditLog model + indexes)
+- Schema: `FeatureAuditLog` model with `ASSIGNED/ENABLED/DISABLED/REVOKED/CONFIG_UPDATED` actions; relations on Feature and Community
+
+---
+
+### IDEA 6 — Superadmin Feature Management — DONE (2026-08-19)
+
+Checklist:
+
+- [x] Dedicated Features menu for Superadmin — `/admin/features` page with paginated, searchable feature catalog table; type badge, status badge, community count, dropdown actions
+- [x] Feature catalog — Standard vs Optional, unique code, description, active/inactive status, dependencies, configSchema, assigned communities count; CRUD via `FeatureFormDialog`
+- [x] Grant/revoke optional functionality — Assign dialog searches communities and assigns; Communities dialog shows per-community toggle (Switch) and revoke (Trash icon + confirmation)
+- [x] Activation history — `FeatureAuditLog` model records all assignment changes (ASSIGNED, ENABLED, DISABLED, REVOKED, CONFIG_UPDATED) with actor ID, timestamp, and details JSON; paginated audit query endpoints `GET /admin/features/:id/audit` and `GET /admin/features/by-community/:communityId/audit`; expandable Audit History section per assignment in `FeatureCommunitiesDialog`
+- [x] View which communities have each feature — Communities dialog lists all assigned communities with enabled/disabled status and config editor
+- [x] View which features each community has — Per-community features overview on admin community detail page (`/admin/communities/:id`) showing all assigned features with type and status badges
+- [x] Feature dependencies enforced — assignment blocked if deps not enabled; revoke blocked if dependents are enabled; delete blocked if deps or assignments exist
+- [x] Config schema validated — server-side validation on assign/update; field-level error messages returned
+- [x] Standard features auto-enabled — STANDARD features auto-assigned to all active communities on creation; new communities get all active STANDARD features automatically
+- [x] Feature CRUD UI — create/edit/delete from the admin features page; form with code, name, description, type, active toggle, dependency picker, configSchema editor
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0; `npx nest build` clean; eslint 0 errors; jest 14 suites / 74 tests pass
+- Frontend: `npx tsc --noEmit` exit 0; `npx vite build` clean; eslint 0 errors (61 warnings)
+- Migration: `20260819000000_add_feature_audit_log` applied
+- APIs verified: `GET /admin/features`, `POST /admin/features`, `PATCH /admin/features/:id`, `DELETE /admin/features/:id`, `POST /admin/features/:id/assign`, `PATCH /admin/features/:id/assignments/:communityId`, `DELETE /admin/features/:id/assignments/:communityId`, `GET /admin/features/:id/audit`, `GET /admin/features/by-community/:communityId/audit` — all gated by `PlatformAdminGuard`
 
 ---
 

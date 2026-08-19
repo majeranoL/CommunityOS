@@ -4,6 +4,8 @@ import type {
   Feature,
   FeatureAssignInput,
   FeatureAssignment,
+  FeatureAuditLog,
+  FeatureInput,
   FeatureUpdateInput,
 } from '@/features/admin/types/feature'
 
@@ -25,6 +27,21 @@ export const featuresService = {
 
   async get(id: string) {
     const { data } = await api.get<ApiEnvelope<Feature>>(`/admin/features/${id}`)
+    return data.data
+  },
+
+  async create(input: FeatureInput) {
+    const { data } = await api.post<ApiEnvelope<Feature>>('/admin/features', input)
+    return data.data
+  },
+
+  async update(id: string, input: Partial<FeatureInput>) {
+    const { data } = await api.patch<ApiEnvelope<Feature>>(`/admin/features/${id}`, input)
+    return data.data
+  },
+
+  async remove(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/admin/features/${id}`)
     return data.data
   },
 
@@ -63,5 +80,25 @@ export const featuresService = {
       `/admin/features/by-community/${communityId}`,
     )
     return data.data
+  },
+
+  async listAuditLogs(
+    featureId: string,
+    params: { communityId?: string; page?: number; limit?: number } = {},
+  ) {
+    const { data } = await api.get<
+      ApiEnvelope<FeatureAuditLog[]> & { pagination: Pagination }
+    >(`/admin/features/${featureId}/audit`, { params })
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async listAuditLogsByCommunity(
+    communityId: string,
+    params: { page?: number; limit?: number } = {},
+  ) {
+    const { data } = await api.get<
+      ApiEnvelope<FeatureAuditLog[]> & { pagination: Pagination }
+    >(`/admin/features/by-community/${communityId}/audit`, { params })
+    return { items: data.data, pagination: data.pagination }
   },
 }

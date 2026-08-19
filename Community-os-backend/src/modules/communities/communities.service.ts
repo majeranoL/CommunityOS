@@ -15,6 +15,8 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 
+import { FeaturesService } from '../features/features.service';
+
 import { MEMBER_PERMISSIONS, permissions } from '../../../prisma/permissions';
 
 import { CreateCommunityDto } from './dto/create-community.dto';
@@ -47,7 +49,10 @@ function addDays(date: Date, days: number) {
 
 @Injectable()
 export class CommunitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly featuresService: FeaturesService,
+  ) {}
 
   // ==========================================
   // Create Community
@@ -135,6 +140,8 @@ export class CommunitiesService {
         updatedAt: true,
       },
     });
+
+    await this.featuresService.assignStandardFeaturesToCommunity(community.id);
 
     return {
       success: true,
@@ -775,6 +782,10 @@ export class CommunitiesService {
 
       return { community, subscription, user };
     });
+
+    await this.featuresService.assignStandardFeaturesToCommunity(
+      result.community.id,
+    );
 
     return {
       success: true,

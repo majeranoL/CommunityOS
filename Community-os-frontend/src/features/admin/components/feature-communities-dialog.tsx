@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { History, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -24,17 +24,35 @@ import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/shared/empty-state'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import {
+  useFeatureAuditLogs,
   useFeatureCommunities,
   useRevokeFeature,
   useUpdateFeatureAssignment,
 } from '@/features/admin/hooks/use-features'
-import type { Feature, FeatureAssignment } from '@/features/admin/types/feature'
+import { formatDate } from '@/lib/format'
+import type { Feature, FeatureAuditLog, FeatureAssignment } from '@/features/admin/types/feature'
 
 const PET_FEATURE = 'pet-registration'
 const VERIFICATION_MODES = ['auto', 'approval'] as const
 const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
 const DEFAULT_DELINQUENCY_THRESHOLD_MONTHS = 4
 const DEFAULT_BAD_STANDING_BALANCE_THRESHOLD = 10000
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  ASSIGNED: 'Assigned',
+  ENABLED: 'Enabled',
+  DISABLED: 'Disabled',
+  REVOKED: 'Revoked',
+  CONFIG_UPDATED: 'Config updated',
+}
+
+const AUDIT_ACTION_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destructive' | 'secondary'> = {
+  ASSIGNED: 'success',
+  ENABLED: 'success',
+  DISABLED: 'warning',
+  REVOKED: 'destructive',
+  CONFIG_UPDATED: 'secondary',
+}
 
 interface FeatureCommunitiesDialogProps {
   open: boolean
@@ -84,6 +102,7 @@ export function FeatureCommunitiesDialog({ open, onOpenChange, feature }: Featur
 
 function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment; feature: Feature }) {
   const [revoking, setRevoking] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   const updateAssignment = useUpdateFeatureAssignment()
   const revokeFeature = useRevokeFeature()
@@ -118,6 +137,16 @@ function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment;
             type="button"
             variant="ghost"
             size="icon"
+            className="h-8 w-8"
+            onClick={() => setShowHistory(!showHistory)}
+            aria-label="Toggle audit history"
+          >
+            <History className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
             className="h-8 w-8 text-destructive"
             onClick={() => setRevoking(true)}
             aria-label="Revoke feature"
@@ -135,6 +164,13 @@ function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment;
         <GenericConfigEditor assignment={assignment} featureId={feature.id} />
       )}
 
+      {showHistory && (
+        <AuditHistory
+          featureId={feature.id}
+          communityId={assignment.communityId}
+        />
+      )}
+
       <ConfirmDialog
         open={revoking}
         onOpenChange={setRevoking}
@@ -150,6 +186,48 @@ function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment;
           )
         }
       />
+    </div>
+  )
+}
+
+function AuditHistory({
+  featureId,
+  communityId,
+}: {
+  featureId: string
+  communityId: string
+}) {
+  const { data, isLoading } = useFeatureAuditLogs(featureId, { communityId, limit: 10 })
+
+  if (isLoading) {
+    return <Skeleton className="h-20 w-full" />
+  }
+
+  const logs = data?.items ?? []
+
+  if (!logs.length) {
+    return (
+      <p className="text-xs text-muted-foreground italic">No audit history.</p>
+    )
+  }
+
+  return (
+    <div className="space-y-1.5 rounded-md border border-dashed p-3">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Audit history
+      </p>
+      <ul className="space-y-1">
+        {logs.map((log: FeatureAuditLog) => (
+          <li key={log.id} className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Badge variant={AUDIT_ACTION_VARIANTS[log.action] ?? 'muted'} className="text-[10px] px-1.5 py-0">
+                {AUDIT_ACTION_LABELS[log.action] ?? log.action}
+              </Badge>
+            </div>
+            <span className="text-muted-foreground">{formatDate(log.createdAt)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

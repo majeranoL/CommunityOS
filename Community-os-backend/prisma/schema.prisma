@@ -422,7 +422,8 @@ model Community {
   auditLogs         AuditLog[]
   settings          Setting[]
   uploads           Upload[]
-  communityFeatures CommunityFeature[]
+  communityFeatures  CommunityFeature[]
+  featureAuditLogs  FeatureAuditLog[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -455,6 +456,7 @@ model Feature {
   configSchema Json?
 
   communityFeatures CommunityFeature[]
+  auditLogs         FeatureAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -486,6 +488,36 @@ model CommunityFeature {
   @@unique([communityId, featureId])
   @@index([communityId])
   @@index([featureId])
+}
+
+enum FeatureAuditAction {
+  ASSIGNED
+  ENABLED
+  DISABLED
+  REVOKED
+  CONFIG_UPDATED
+}
+
+model FeatureAuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  featureId String  @db.Uuid
+  feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  action FeatureAuditAction
+
+  actorId String? @db.Uuid
+  details Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([featureId])
+  @@index([communityId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 /////////////////////////////////////////////////////

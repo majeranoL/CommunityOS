@@ -1,11 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 
-import { Prisma } from '@prisma/client';
+import { FeatureAuditAction, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -14,6 +15,53 @@ import { UpdateFeatureDto } from './dto/update-feature.dto';
 import { AssignFeatureDto } from './dto/assign-feature.dto';
 import { UpdateCommunityFeatureDto } from './dto/update-community-feature.dto';
 import { FeatureQueryDto } from './dto/feature-query.dto';
+
+interface SchemaProperty {
+  type?: string;
+  enum?: unknown[];
+  properties?: Record<string, SchemaProperty>;
+}
+
+interface ConfigSchema {
+  required?: string[];
+  properties?: Record<string, SchemaProperty>;
+}
+
+function validateConfig(
+  schema: ConfigSchema | null | undefined,
+  config: Record<string, unknown>,
+): string[] {
+  if (!schema || typeof schema !== 'object') return [];
+
+  const errors: string[] = [];
+  const props = schema.properties ?? {};
+
+  if (schema.required) {
+    for (const key of schema.required) {
+      if (config[key] === undefined || config[key] === null) {
+        errors.push(`"${key}" is required.`);
+      }
+    }
+  }
+
+  for (const [key, prop] of Object.entries(props)) {
+    const value = config[key];
+    if (value === undefined || value === null) continue;
+
+    if (prop.type) {
+      const actual = Array.isArray(value) ? 'array' : typeof value;
+      if (actual !== prop.type) {
+        errors.push(`"${key}" must be of type ${prop.type}, got ${actual}.`);
+      }
+    }
+
+    if (prop.enum && !prop.enum.includes(value)) {
+      errors.push(`"${key}" must be one of: ${prop.enum.join(', ')}.`);
+    }
+  }
+
+  return errors;
+}
 
 @Injectable()
 export class FeaturesService {
@@ -195,20 +243,40 @@ export class FeaturesService {
       throw new ConflictException('A feature with this code already exists.');
     }
 
+    if (dto.dependencies?.length) {
+      const deps = await this.prisma.feature.findMany({
+        where: { code: { in: dto.dependencies } },
+        select: { code: true },
+      });
+
+      const found = new Set(deps.map((d) => d.code));
+      const missing = dto.dependencies.filter((d) => !found.has(d));
+
+      if (missing.length) {
+        throw new BadRequestException(
+          `Unknown dependency codes: ${missing.join(', ')}.`,
+        );
+      }
+    }
+
     const feature = await this.prisma.feature.create({
       data: {
         code,
         name: dto.name.trim(),
         description: dto.description?.trim(),
 
-        type: dto.type,
+        type: dto.type ?? 'OPTIONAL',
         isActive: dto.isActive ?? true,
 
-        dependencies: dto.dependencies,
+        dependencies: dto.dependencies ?? [],
 
         configSchema: dto.configSchema as Prisma.InputJsonValue | undefined,
       },
     });
+
+    if (feature.type === 'STANDARD') {
+      await this.assignStandardFeature(feature.id);
+    }
 
     return {
       success: true,
@@ -250,6 +318,22 @@ export class FeaturesService {
     }
 
     if (dto.dependencies !== undefined) {
+      if (dto.dependencies.length) {
+        const deps = await this.prisma.feature.findMany({
+          where: { code: { in: dto.dependencies } },
+          select: { code: true },
+        });
+
+        const found = new Set(deps.map((d) => d.code));
+        const missing = dto.dependencies.filter((d) => !found.has(d));
+
+        if (missing.length) {
+          throw new BadRequestException(
+            `Unknown dependency codes: ${missing.join(', ')}.`,
+          );
+        }
+      }
+
       data.dependencies = dto.dependencies;
     }
 
@@ -272,11 +356,32 @@ export class FeaturesService {
   async remove(id: string) {
     const feature = await this.prisma.feature.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, code: true },
     });
 
     if (!feature) {
       throw new NotFoundException('Feature not found.');
+    }
+
+    const dependents = await this.prisma.feature.findMany({
+      where: { dependencies: { has: feature.code } },
+      select: { code: true, name: true },
+    });
+
+    if (dependents.length) {
+      throw new ConflictException(
+        `Cannot delete this feature. It is a dependency of: ${dependents.map((d) => d.name).join(', ')}.`,
+      );
+    }
+
+    const assignmentCount = await this.prisma.communityFeature.count({
+      where: { featureId: id },
+    });
+
+    if (assignmentCount > 0) {
+      throw new ConflictException(
+        `Cannot delete this feature. It is assigned to ${assignmentCount} community(ies). Revoke all assignments first.`,
+      );
     }
 
     await this.prisma.feature.delete({ where: { id } });
@@ -294,7 +399,13 @@ export class FeaturesService {
   async assign(featureId: string, actorId: string, dto: AssignFeatureDto) {
     const feature = await this.prisma.feature.findUnique({
       where: { id: featureId },
-      select: { id: true, isActive: true },
+      select: {
+        id: true,
+        code: true,
+        isActive: true,
+        dependencies: true,
+        configSchema: true,
+      },
     });
 
     if (!feature) {
@@ -307,6 +418,39 @@ export class FeaturesService {
       );
     }
 
+    if (dto.config && feature.configSchema) {
+      const errors = validateConfig(
+        feature.configSchema as ConfigSchema,
+        dto.config as Record<string, unknown>,
+      );
+
+      if (errors.length) {
+        throw new BadRequestException(
+          `Configuration validation failed: ${errors.join(' ')}`,
+        );
+      }
+    }
+
+    if (feature.dependencies.length) {
+      const enabledDeps = await this.prisma.communityFeature.findMany({
+        where: {
+          communityId: dto.communityId,
+          enabled: true,
+          feature: { code: { in: feature.dependencies }, isActive: true },
+        },
+        select: { feature: { select: { code: true } } },
+      });
+
+      const enabledCodes = new Set(enabledDeps.map((e) => e.feature.code));
+      const missing = feature.dependencies.filter((d) => !enabledCodes.has(d));
+
+      if (missing.length) {
+        throw new ConflictException(
+          `Cannot assign "${feature.code}". Missing required dependencies: ${missing.join(', ')}. Assign and enable those features first.`,
+        );
+      }
+    }
+
     const community = await this.prisma.community.findUnique({
       where: { id: dto.communityId },
       select: { id: true },
@@ -315,6 +459,16 @@ export class FeaturesService {
     if (!community) {
       throw new NotFoundException('Community not found.');
     }
+
+    const existing = await this.prisma.communityFeature.findUnique({
+      where: {
+        communityId_featureId: {
+          communityId: dto.communityId,
+          featureId,
+        },
+      },
+      select: { enabled: true },
+    });
 
     const assignment = await this.prisma.communityFeature.upsert({
       where: {
@@ -361,6 +515,14 @@ export class FeaturesService {
       },
     });
 
+    const action = existing?.enabled
+      ? FeatureAuditAction.CONFIG_UPDATED
+      : FeatureAuditAction.ASSIGNED;
+
+    await this.createAuditLog(featureId, dto.communityId, action, actorId, {
+      config: dto.config,
+    });
+
     return {
       success: true,
       message: 'Feature assigned to community successfully.',
@@ -374,6 +536,15 @@ export class FeaturesService {
     actorId: string,
     dto: UpdateCommunityFeatureDto,
   ) {
+    const feature = await this.prisma.feature.findUnique({
+      where: { id: featureId },
+      select: { id: true, code: true, dependencies: true, configSchema: true },
+    });
+
+    if (!feature) {
+      throw new NotFoundException('Feature not found.');
+    }
+
     const assignment = await this.prisma.communityFeature.findUnique({
       where: {
         communityId_featureId: {
@@ -389,7 +560,41 @@ export class FeaturesService {
       );
     }
 
+    if (dto.config !== undefined && feature.configSchema) {
+      const errors = validateConfig(
+        feature.configSchema as ConfigSchema,
+        dto.config as Record<string, unknown>,
+      );
+
+      if (errors.length) {
+        throw new BadRequestException(
+          `Configuration validation failed: ${errors.join(' ')}`,
+        );
+      }
+    }
+
+    if (dto.enabled === true && feature.dependencies.length) {
+      const enabledDeps = await this.prisma.communityFeature.findMany({
+        where: {
+          communityId,
+          enabled: true,
+          feature: { code: { in: feature.dependencies }, isActive: true },
+        },
+        select: { feature: { select: { code: true } } },
+      });
+
+      const enabledCodes = new Set(enabledDeps.map((e) => e.feature.code));
+      const missing = feature.dependencies.filter((d) => !enabledCodes.has(d));
+
+      if (missing.length) {
+        throw new ConflictException(
+          `Cannot enable "${feature.code}". Missing required dependencies: ${missing.join(', ')}.`,
+        );
+      }
+    }
+
     const data: Prisma.CommunityFeatureUpdateInput = {};
+    let auditAction: FeatureAuditAction = FeatureAuditAction.CONFIG_UPDATED;
 
     if (dto.enabled !== undefined) {
       data.enabled = dto.enabled;
@@ -399,9 +604,11 @@ export class FeaturesService {
         data.enabledBy = actorId;
         data.disabledAt = null;
         data.disabledBy = null;
+        auditAction = FeatureAuditAction.ENABLED;
       } else {
         data.disabledAt = new Date();
         data.disabledBy = actorId;
+        auditAction = FeatureAuditAction.DISABLED;
       }
     }
 
@@ -419,6 +626,11 @@ export class FeaturesService {
       data,
     });
 
+    await this.createAuditLog(featureId, communityId, auditAction, actorId, {
+      config: dto.config,
+      enabled: dto.enabled,
+    });
+
     return {
       success: true,
       message: 'Feature assignment updated successfully.',
@@ -427,6 +639,33 @@ export class FeaturesService {
   }
 
   async revoke(featureId: string, communityId: string) {
+    const feature = await this.prisma.feature.findUnique({
+      where: { id: featureId },
+      select: { id: true, code: true },
+    });
+
+    if (!feature) {
+      throw new NotFoundException('Feature not found.');
+    }
+
+    const dependents = await this.prisma.communityFeature.findMany({
+      where: {
+        communityId,
+        enabled: true,
+        feature: {
+          dependencies: { has: feature.code },
+          isActive: true,
+        },
+      },
+      include: { feature: { select: { name: true } } },
+    });
+
+    if (dependents.length) {
+      throw new ConflictException(
+        `Cannot revoke "${feature.code}". The following enabled features depend on it: ${dependents.map((d) => d.feature.name).join(', ')}. Disable or revoke those first.`,
+      );
+    }
+
     const assignment = await this.prisma.communityFeature.findUnique({
       where: {
         communityId_featureId: {
@@ -450,6 +689,14 @@ export class FeaturesService {
         },
       },
     });
+
+    await this.createAuditLog(
+      featureId,
+      communityId,
+      FeatureAuditAction.REVOKED,
+      null,
+      null,
+    );
 
     return {
       success: true,
@@ -518,6 +765,136 @@ export class FeaturesService {
   }
 
   // ==========================================
+  // Audit Log
+  // ==========================================
+
+  async listAuditLogs(
+    featureId: string,
+    query: { communityId?: string; page?: number; limit?: number },
+  ) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.FeatureAuditLogWhereInput = { featureId };
+
+    if (query.communityId) {
+      where.communityId = query.communityId;
+    }
+
+    const [logs, total] = await this.prisma.$transaction([
+      this.prisma.featureAuditLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          community: {
+            select: { id: true, code: true, displayName: true },
+          },
+        },
+      }),
+      this.prisma.featureAuditLog.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Audit logs retrieved successfully.',
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPreviousPage: page > 1,
+      },
+    };
+  }
+
+  async listAuditLogsByCommunity(
+    communityId: string,
+    query: { page?: number; limit?: number },
+  ) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.FeatureAuditLogWhereInput = { communityId };
+
+    const [logs, total] = await this.prisma.$transaction([
+      this.prisma.featureAuditLog.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          feature: {
+            select: { id: true, code: true, name: true },
+          },
+        },
+      }),
+      this.prisma.featureAuditLog.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Community feature audit logs retrieved successfully.',
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPreviousPage: page > 1,
+      },
+    };
+  }
+
+  // ==========================================
+  // Standard Feature Auto-Enable
+  // ==========================================
+
+  async assignStandardFeaturesToCommunity(communityId: string) {
+    const standardFeatures = await this.prisma.feature.findMany({
+      where: { type: 'STANDARD', isActive: true },
+      select: { id: true },
+    });
+
+    if (!standardFeatures.length) return;
+
+    await this.prisma.communityFeature.createMany({
+      data: standardFeatures.map((f) => ({
+        communityId,
+        featureId: f.id,
+        enabled: true,
+        enabledAt: new Date(),
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async assignStandardFeature(featureId: string) {
+    const communities = await this.prisma.community.findMany({
+      where: { status: 'ACTIVE', deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!communities.length) return;
+
+    await this.prisma.communityFeature.createMany({
+      data: communities.map((c) => ({
+        communityId: c.id,
+        featureId,
+        enabled: true,
+        enabledAt: new Date(),
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  // ==========================================
   // Community-facing: enabled features (frontend nav / config)
   // ==========================================
 
@@ -560,5 +937,27 @@ export class FeaturesService {
         config: (assignment.config as Record<string, unknown> | null) ?? {},
       })),
     };
+  }
+
+  // ==========================================
+  // Helpers
+  // ==========================================
+
+  private async createAuditLog(
+    featureId: string,
+    communityId: string,
+    action: FeatureAuditAction,
+    actorId: string | null,
+    details: Record<string, unknown> | null,
+  ) {
+    await this.prisma.featureAuditLog.create({
+      data: {
+        featureId,
+        communityId,
+        action,
+        actorId,
+        details: details as Prisma.InputJsonValue | undefined,
+      },
+    });
   }
 }
