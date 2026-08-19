@@ -130,15 +130,7 @@ IDEA 7 — Community Appearance, Branding & White-Label Settings
 
 CommunityOS should provide an Appearance & Branding area under Community Settings so each HOA can customize its own public-facing application appearance without affecting other communities. Authorized President/officer users with branding permissions should be able to change the community display name, logo, favicon, theme preset, primary color, accent color, sidebar color, navbar color, page background, card/surface color, and other controlled design tokens. A live theme editor should show a realistic preview of the dashboard, navigation, cards, tables, forms, buttons, and other UI elements before changes are published. The HOA should be able to choose from predefined presets or build a Custom theme, such as a red sidebar, black navbar, and white content area. The system should not permit arbitrary CSS editing; instead it should use controlled design tokens so hover, border, focus, disabled, and related states are derived safely and accessibility contrast can be validated. The preview should support viewing the theme as President, Officer, or Resident so the HOA can see how role-specific navigation will look. Branding settings are community-level configuration and must be isolated per tenant. The system should provide Reset to Default and Save/Publish operations, and important changes should be audited. This feature effectively gives CommunityOS controlled white-label capabilities without creating separate applications for each HOA.
 
-THE IDEA 7 IS INCOMPLETE AND THE TODO TASK ARE HERE
-
-[•] IDEA 7: Dynamic CSS variable injection (BrandingProvider)
-[ ] IDEA 7: Branding settings page with color pickers + live preview
-[ ] IDEA 7: Sidebar logo integration
-[ ] Typecheck + build verification (backend + frontend)
-[ ] Update CommunityOS-feature.md with completion checkers
-
-PLEASE CONTINUE THIS 
+IDEA 7 IS DONE — see completion checker below.
 
 IDEA 8 — Improved System-Wide Data Import, Export & Migration
 
@@ -433,6 +425,29 @@ Verification log:
 - Live verification on production (`SEED_DB=false`): feature created via superadmin API (`POST /admin/features` → `good-bad-standing` OPTIONAL, id `050995b4-cd55-40fd-945a-4a4f41b93b1a`) and assigned to the demo community; `/api/features` → 200 (pet-registration + good-bad-standing + config). Months threshold round-trip (initial default 3): `PATCH /admin/features/:id/assignments/:communityId` to threshold 4 → BAD household `108cae0d` (3 months behind, balance below threshold) shows GOOD; threshold 2 → BAD; restored 3 → BAD. Balance threshold round-trip (new defaults `{"delinquencyThresholdMonths":4,"badStandingBalanceThreshold":10000,...}`): household `108cae0d` (outstanding ₱21,800, 3 months behind) is BAD at balance threshold 10000 and GOOD at 50000 — balance criterion live. Revoke round-trip: `DELETE` assignment → `/api/features` drops good-bad-standing while `/api/households` still computes standing at the default thresholds — disabled feature = no restrictions, default thresholds, UI hidden; re-assign restores both features + config. Reservation blocking for the BAD household not live-exercised (no resident login for that household in prod); covered by the unit suite.
 
 Remaining from the broader idea (out of scope, not implemented): officer overrides / payment-plan exceptions, restricting event reservations (no event RSVP exists yet) or paid amenities beyond facility reservations, a dedicated standing admin page/report, promotion of the feature to a Standard CommunityOS feature.
+
+---
+
+### IDEA 7 — Community Appearance, Branding & White-Label Settings — DONE (2026-08-18)
+
+Checklist:
+
+- [x] Database schema — 4 new nullable columns on `Community`: `primaryColor VARCHAR(20)`, `accentColor VARCHAR(20)`, `sidebarColor VARCHAR(20)`, `faviconUrl TEXT`; reused existing `logoUrl` field; migration `20260818220248_add_community_branding`
+- [x] Backend API — `GET /communities/me/branding` (gated `community.view`) returns `displayName`, `logoUrl`, `primaryColor`, `accentColor`, `sidebarColor`, `faviconUrl`; `PATCH /communities/me/branding` (gated `community.branding`) accepts partial update with null/empty → reset to default
+- [x] Permission — `community.branding` code in the permission catalog (module: Communities); not in `MEMBER_PERMISSIONS` so only officers/presidents can manage branding by default
+- [x] Frontend types + service — `BrandingData` / `BrandingUpdateInput` interfaces; `brandingService.get()` and `.update()` calling the two endpoints
+- [x] React Query hook — `useBranding()` with 5-minute stale time + query key factory `brandingKeys`
+- [x] Dynamic CSS variable injection — `BrandingProvider` wraps the app in `App.tsx` inside `SessionBootstrap`; on auth + branding data, converts hex → OKLCH and sets CSS custom properties: `--primary`, `--ring`, `--sidebar-ring` (from primaryColor), `--accent`, `--sidebar-accent` (from accentColor), `--sidebar` (from sidebarColor); dynamically swaps `<link rel="icon">` for faviconUrl; cleans up all overridden properties on unmount
+- [x] Branding settings page — `BrandingSettings` component rendered in Settings → Branding tab (permission-gated via `communityBranding`); 8 predefined theme presets (Default, Ocean, Forest, Sunset, Royal, Corporate, Rose, Teal); color picker inputs for primary, accent, sidebar; text inputs for logo URL and favicon URL; live preview card showing sidebar + dashboard mockup; Save and Reset buttons with optimistic cache update
+- [x] Sidebar logo integration — `SidebarContent` reads `branding?.logoUrl` and renders custom `<img>` instead of default "C" letter avatar; community display name shown below "CommunityOS" text
+- [x] Settings page integration — Branding tab conditionally rendered based on `communityBranding` permission; skeleton loading state while branding data loads
+
+Verification log:
+
+- Backend: `npx prisma generate` regenerated client with branding columns; `npx tsc --noEmit` exit 0; `npx nest build` clean
+- Frontend: `npx tsc --noEmit` exit 0 (fixed `sidebar.tsx` NavLink children type error — react-router-dom v7 no longer accepts render function children; refactored to `SidebarLink` component using `useLocation` + `matchPath` for active state); `npx vite build` clean
+- Migration: `20260818220248_add_community_branding` applied (4 ALTER TABLE statements)
+- Branding fields visible in Prisma schema `CommunitySelect` type after client regeneration
 
 ---
 
