@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { ModuleConfig, ModuleImportConfig, ModuleExportConfig } from './import-export.types';
+import {
+  ModuleConfig,
+  ModuleImportConfig,
+  ModuleExportConfig,
+} from './import-export.types';
 
 @Injectable()
 export class ModuleRegistry {

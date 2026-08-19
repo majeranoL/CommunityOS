@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Save, RotateCcw, Palette } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -37,18 +37,6 @@ export function BrandingSettings({ data }: BrandingSettingsProps) {
   })
 
   const [hasChanges, setHasChanges] = useState(false)
-
-  useEffect(() => {
-    const current = {
-      primaryColor: data.primaryColor ?? '',
-      accentColor: data.accentColor ?? '',
-      sidebarColor: data.sidebarColor ?? '',
-      faviconUrl: data.faviconUrl ?? '',
-      logoUrl: data.logoUrl ?? '',
-    }
-    setColors(current)
-    setHasChanges(false)
-  }, [data])
 
   const updateMutation = useMutation({
     mutationFn: () => brandingService.update(colors),

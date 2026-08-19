@@ -313,7 +313,12 @@ export class VehiclesService {
   // Update Vehicle
   // ==========================================
 
-  async update(communityId: string, user: any, id: string, dto: UpdateVehicleDto) {
+  async update(
+    communityId: string,
+    user: any,
+    id: string,
+    dto: UpdateVehicleDto,
+  ) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,
@@ -443,7 +448,12 @@ export class VehiclesService {
   // Transfer Vehicle
   // ==========================================
 
-  async transfer(communityId: string, user: any, id: string, dto: TransferVehicleDto) {
+  async transfer(
+    communityId: string,
+    user: any,
+    id: string,
+    dto: TransferVehicleDto,
+  ) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: {
         id,

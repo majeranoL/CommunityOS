@@ -2,11 +2,47 @@ import { HouseholdStatus } from '@prisma/client';
 import type { ModuleConfig, TemplateField } from '../import-export.types';
 
 const fields: TemplateField[] = [
-  { key: 'block', label: 'Block', required: true, type: 'string', example: 'A', description: 'Block number or code' },
-  { key: 'lot', label: 'Lot', required: true, type: 'string', example: '12', description: 'Lot number' },
-  { key: 'unit', label: 'Unit', required: false, type: 'string', example: '3A', description: 'Unit number (for condos)' },
-  { key: 'address', label: 'Address', required: false, type: 'string', example: '123 Main St', description: 'Full address' },
-  { key: 'status', label: 'Status', required: false, type: 'enum', enumValues: Object.values(HouseholdStatus), example: 'ACTIVE', description: 'ACTIVE or INACTIVE' },
+  {
+    key: 'block',
+    label: 'Block',
+    required: true,
+    type: 'string',
+    example: 'A',
+    description: 'Block number or code',
+  },
+  {
+    key: 'lot',
+    label: 'Lot',
+    required: true,
+    type: 'string',
+    example: '12',
+    description: 'Lot number',
+  },
+  {
+    key: 'unit',
+    label: 'Unit',
+    required: false,
+    type: 'string',
+    example: '3A',
+    description: 'Unit number (for condos)',
+  },
+  {
+    key: 'address',
+    label: 'Address',
+    required: false,
+    type: 'string',
+    example: '123 Main St',
+    description: 'Full address',
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(HouseholdStatus),
+    example: 'ACTIVE',
+    description: 'ACTIVE or INACTIVE',
+  },
 ];
 
 export const householdsImportConfig: ModuleConfig = {
@@ -22,8 +58,13 @@ export const householdsImportConfig: ModuleConfig = {
     validateRow: (row) => {
       const errors: string[] = [];
       if (!row.block && !row.lot) errors.push('Block and Lot are required');
-      if (row.status && !Object.values(HouseholdStatus).includes(row.status.toUpperCase())) {
-        errors.push(`Invalid status: ${row.status}. Must be ${Object.values(HouseholdStatus).join(', ')}`);
+      if (
+        row.status &&
+        !Object.values(HouseholdStatus).includes(row.status.toUpperCase())
+      ) {
+        errors.push(
+          `Invalid status: ${row.status}. Must be ${Object.values(HouseholdStatus).join(', ')}`,
+        );
       }
       return errors;
     },
@@ -40,7 +81,10 @@ export const householdsImportConfig: ModuleConfig = {
             },
           });
           if (existing) {
-            duplicates.push({ row: row._row, message: `Block ${row.block} Lot ${row.lot} already exists` });
+            duplicates.push({
+              row: row._row,
+              message: `Block ${row.block} Lot ${row.lot} already exists`,
+            });
           }
         }
       }
@@ -49,7 +93,9 @@ export const householdsImportConfig: ModuleConfig = {
     applyRows: async (communityId, batchId, rows, ctx) => {
       let created = 0;
       for (const row of rows) {
-        const status = Object.values(HouseholdStatus).includes(row.status?.toUpperCase())
+        const status = Object.values(HouseholdStatus).includes(
+          row.status?.toUpperCase(),
+        )
           ? row.status.toUpperCase()
           : HouseholdStatus.ACTIVE;
         await ctx.prisma.household.create({
@@ -84,7 +130,9 @@ export const householdsImportConfig: ModuleConfig = {
     fetchRows: async (communityId, filters, prisma) => {
       const households = await prisma.household.findMany({
         where: { communityId, deletedAt: null },
-        include: { _count: { select: { residents: { where: { deletedAt: null } } } } },
+        include: {
+          _count: { select: { residents: { where: { deletedAt: null } } } },
+        },
         orderBy: { createdAt: 'desc' },
       });
       return households.map((h: any) => ({

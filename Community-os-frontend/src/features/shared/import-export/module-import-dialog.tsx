@@ -42,6 +42,13 @@ export function ModuleImportDialog({ open, onOpenChange, module, entityLabel }: 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const previewMutation = useImportPreview(module);
+
+  const handleReset = useCallback(() => {
+    setPreviewResult(null);
+    setSelectedFile(null);
+    previewMutation.reset();
+  }, [previewMutation]);
+
   const confirmMutation = useConfirmImport(() => handleReset());
   const downloadTemplate = useDownloadTemplate(module, format);
   const downloadErrors = useDownloadErrors();
@@ -52,13 +59,7 @@ export function ModuleImportDialog({ open, onOpenChange, module, entityLabel }: 
     setSelectedFile(file);
     setPreviewResult(null);
     previewMutation.mutate({ file });
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setPreviewResult(null);
-    setSelectedFile(null);
-    previewMutation.reset();
-  }, []);
+  }, [previewMutation]);
 
   const handleClose = useCallback(() => {
     handleReset();

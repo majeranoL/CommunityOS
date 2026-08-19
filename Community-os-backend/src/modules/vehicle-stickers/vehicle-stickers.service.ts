@@ -115,21 +115,6 @@ export class VehicleStickersService {
       : StickerStatus.ACTIVE;
 
     const sticker = await this.prisma.$transaction(async (tx) => {
-      const latestSticker = await tx.vehicleSticker.findFirst({
-        where: { communityId },
-        orderBy: { stickerNumber: 'desc' },
-        select: { stickerNumber: true },
-      });
-
-      let stickerNumber = 'STK-000001';
-
-      if (latestSticker) {
-        const latestNum = Number(
-          latestSticker.stickerNumber.replace('STK-', ''),
-        );
-        stickerNumber = `STK-${String(latestNum + 1).padStart(6, '0')}`;
-      }
-
       const duplicate = await tx.vehicleSticker.findFirst({
         where: { communityId, stickerNumber: dto.stickerNumber },
       });
@@ -355,7 +340,8 @@ export class VehicleStickersService {
     }
 
     const data: any = {};
-    if (dto.stickerNumber !== undefined) data.stickerNumber = dto.stickerNumber.trim();
+    if (dto.stickerNumber !== undefined)
+      data.stickerNumber = dto.stickerNumber.trim();
     if (dto.vehicleId !== undefined) data.vehicleId = dto.vehicleId;
     if (dto.issueDate !== undefined) data.issueDate = new Date(dto.issueDate);
     if (dto.expirationDate !== undefined)
@@ -434,9 +420,7 @@ export class VehicleStickersService {
     }
 
     if (sticker.status !== StickerStatus.PENDING) {
-      throw new BadRequestException(
-        'Only pending stickers can be verified.',
-      );
+      throw new BadRequestException('Only pending stickers can be verified.');
     }
 
     const newStatus = dto.approved

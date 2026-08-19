@@ -183,7 +183,7 @@ export default function SettingsPage() {
                 <Skeleton className="h-64 w-full" />
               </div>
             ) : branding ? (
-              <BrandingSettings data={branding} />
+              <BrandingSettings key={`${branding.primaryColor}-${branding.accentColor}-${branding.sidebarColor}-${branding.logoUrl}-${branding.faviconUrl}`} data={branding} />
             ) : null}
           </TabsContent>
         ) : null}

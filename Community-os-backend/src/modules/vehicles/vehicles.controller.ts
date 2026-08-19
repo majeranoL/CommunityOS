@@ -53,7 +53,12 @@ export class VehiclesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateVehicleDto,
   ) {
-    return this.vehiclesService.update(req.user.community.id, req.user, id, dto);
+    return this.vehiclesService.update(
+      req.user.community.id,
+      req.user,
+      id,
+      dto,
+    );
   }
 
   @Post(':id/transfer')
@@ -62,7 +67,12 @@ export class VehiclesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: TransferVehicleDto,
   ) {
-    return this.vehiclesService.transfer(req.user.community.id, req.user, id, dto);
+    return this.vehiclesService.transfer(
+      req.user.community.id,
+      req.user,
+      id,
+      dto,
+    );
   }
 
   @Post(':id/deactivate')

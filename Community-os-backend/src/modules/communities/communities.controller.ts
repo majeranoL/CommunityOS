@@ -91,7 +91,14 @@ export class CommunitiesController {
   @Permissions('community.branding')
   updateBranding(
     @Request() req: any,
-    @Body() dto: { primaryColor?: string; accentColor?: string; sidebarColor?: string; faviconUrl?: string; logoUrl?: string },
+    @Body()
+    dto: {
+      primaryColor?: string;
+      accentColor?: string;
+      sidebarColor?: string;
+      faviconUrl?: string;
+      logoUrl?: string;
+    },
   ) {
     return this.communitiesService.updateBranding(req.user.community.id, dto);
   }

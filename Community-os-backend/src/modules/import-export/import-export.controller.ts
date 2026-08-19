@@ -60,7 +60,9 @@ export class ImportExportController {
     @Body('columnMapping') columnMappingJson?: string,
     @Request() req?: any,
   ) {
-    const mapping = columnMappingJson ? JSON.parse(columnMappingJson) : undefined;
+    const mapping = columnMappingJson
+      ? JSON.parse(columnMappingJson)
+      : undefined;
     const result = await this.importExportService.preview(
       req.user.community.id,
       module,
@@ -76,18 +78,16 @@ export class ImportExportController {
 
     return {
       success: true,
-      message: result.invalidRows > 0
-        ? `File parsed with ${result.invalidRows} row(s) to review.`
-        : 'File parsed successfully. Ready to import.',
+      message:
+        result.invalidRows > 0
+          ? `File parsed with ${result.invalidRows} row(s) to review.`
+          : 'File parsed successfully. Ready to import.',
       data: result,
     };
   }
 
   @Post('import/:batchId/confirm')
-  async confirm(
-    @Param('batchId') batchId: string,
-    @Request() req: any,
-  ) {
+  async confirm(@Param('batchId') batchId: string, @Request() req: any) {
     return this.importExportService.confirm(
       req.user.community.id,
       batchId,
@@ -96,25 +96,13 @@ export class ImportExportController {
   }
 
   @Post('import/:batchId/cancel')
-  async cancel(
-    @Param('batchId') batchId: string,
-    @Request() req: any,
-  ) {
-    return this.importExportService.cancel(
-      req.user.community.id,
-      batchId,
-    );
+  async cancel(@Param('batchId') batchId: string, @Request() req: any) {
+    return this.importExportService.cancel(req.user.community.id, batchId);
   }
 
   @Post('import/:batchId/rollback')
-  async rollback(
-    @Param('batchId') batchId: string,
-    @Request() req: any,
-  ) {
-    return this.importExportService.rollback(
-      req.user.community.id,
-      batchId,
-    );
+  async rollback(@Param('batchId') batchId: string, @Request() req: any) {
+    return this.importExportService.rollback(req.user.community.id, batchId);
   }
 
   @Get('export/:module')
@@ -126,7 +114,9 @@ export class ImportExportController {
     @Request() req?: any,
     @Res() res?: any,
   ) {
-    const { format: _f, columns: _c, ...filters } = query ?? {};
+    const filters = { ...query };
+    delete filters.format;
+    delete filters.columns;
     const columns = columnsParam?.split(',').filter(Boolean);
     const file = await this.importExportService.exportData(
       req.user.community.id,

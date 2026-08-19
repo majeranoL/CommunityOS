@@ -486,10 +486,18 @@ export class CommunitiesService {
     const updated = await this.prisma.community.update({
       where: { id: communityId },
       data: {
-        ...(dto.primaryColor !== undefined && { primaryColor: dto.primaryColor || null }),
-        ...(dto.accentColor !== undefined && { accentColor: dto.accentColor || null }),
-        ...(dto.sidebarColor !== undefined && { sidebarColor: dto.sidebarColor || null }),
-        ...(dto.faviconUrl !== undefined && { faviconUrl: dto.faviconUrl || null }),
+        ...(dto.primaryColor !== undefined && {
+          primaryColor: dto.primaryColor || null,
+        }),
+        ...(dto.accentColor !== undefined && {
+          accentColor: dto.accentColor || null,
+        }),
+        ...(dto.sidebarColor !== undefined && {
+          sidebarColor: dto.sidebarColor || null,
+        }),
+        ...(dto.faviconUrl !== undefined && {
+          faviconUrl: dto.faviconUrl || null,
+        }),
         ...(dto.logoUrl !== undefined && { logoUrl: dto.logoUrl || null }),
       },
       select: {

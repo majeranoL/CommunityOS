@@ -51,10 +51,7 @@ export class UtilityExpensesController {
   @Get()
   @Permissions('finance.expense_view')
   findAll(@Request() req: any, @Query() query: UtilityExpenseQueryDto) {
-    return this.utilityExpensesService.findAll(
-      req.user.community.id,
-      query,
-    );
+    return this.utilityExpensesService.findAll(req.user.community.id, query);
   }
 
   // ==========================================
@@ -95,11 +92,7 @@ export class UtilityExpensesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUtilityExpenseDto,
   ) {
-    return this.utilityExpensesService.update(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.utilityExpensesService.update(req.user.community.id, id, dto);
   }
 
   // ==========================================

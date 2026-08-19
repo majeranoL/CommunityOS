@@ -1,21 +1,128 @@
-import { ResidentStatus, Gender, CivilStatus, ResidentType } from '@prisma/client';
+import {
+  ResidentStatus,
+  Gender,
+  CivilStatus,
+  ResidentType,
+} from '@prisma/client';
 import type { ModuleConfig, TemplateField } from '../import-export.types';
 
 const fields: TemplateField[] = [
-  { key: 'firstName', label: 'First Name', required: true, type: 'string', example: 'Juan', description: 'Resident first name' },
-  { key: 'lastName', label: 'Last Name', required: true, type: 'string', example: 'Dela Cruz', description: 'Resident last name' },
-  { key: 'middleName', label: 'Middle Name', required: false, type: 'string', example: 'Santos', description: 'Middle name' },
-  { key: 'suffix', label: 'Suffix', required: false, type: 'string', example: 'Jr.', description: 'Name suffix (Jr., Sr., III, etc.)' },
-  { key: 'block', label: 'Block', required: true, type: 'string', example: 'A', description: 'Block of household' },
-  { key: 'lot', label: 'Lot', required: true, type: 'string', example: '12', description: 'Lot of household' },
-  { key: 'unit', label: 'Unit', required: false, type: 'string', example: '3A', description: 'Unit of household (for condos)' },
-  { key: 'gender', label: 'Gender', required: false, type: 'enum', enumValues: Object.values(Gender), example: 'MALE', description: 'MALE, FEMALE, or OTHER' },
-  { key: 'civilStatus', label: 'Civil Status', required: false, type: 'enum', enumValues: Object.values(CivilStatus), example: 'SINGLE', description: 'SINGLE, MARRIED, WIDOWED, DIVORCED, SEPARATED' },
-  { key: 'residentType', label: 'Resident Type', required: false, type: 'enum', enumValues: Object.values(ResidentType), example: 'OWNER', description: 'OWNER or RENTER' },
-  { key: 'phoneNumber', label: 'Phone Number', required: false, type: 'string', example: '09171234567', description: 'Contact number' },
-  { key: 'email', label: 'Email', required: false, type: 'string', example: 'juan@example.com', description: 'Email address' },
-  { key: 'birthDate', label: 'Birth Date', required: false, type: 'date', example: '1990-01-15', description: 'Date of birth (YYYY-MM-DD)' },
-  { key: 'status', label: 'Status', required: false, type: 'enum', enumValues: Object.values(ResidentStatus), example: 'ACTIVE', description: 'ACTIVE, PENDING, INACTIVE' },
+  {
+    key: 'firstName',
+    label: 'First Name',
+    required: true,
+    type: 'string',
+    example: 'Juan',
+    description: 'Resident first name',
+  },
+  {
+    key: 'lastName',
+    label: 'Last Name',
+    required: true,
+    type: 'string',
+    example: 'Dela Cruz',
+    description: 'Resident last name',
+  },
+  {
+    key: 'middleName',
+    label: 'Middle Name',
+    required: false,
+    type: 'string',
+    example: 'Santos',
+    description: 'Middle name',
+  },
+  {
+    key: 'suffix',
+    label: 'Suffix',
+    required: false,
+    type: 'string',
+    example: 'Jr.',
+    description: 'Name suffix (Jr., Sr., III, etc.)',
+  },
+  {
+    key: 'block',
+    label: 'Block',
+    required: true,
+    type: 'string',
+    example: 'A',
+    description: 'Block of household',
+  },
+  {
+    key: 'lot',
+    label: 'Lot',
+    required: true,
+    type: 'string',
+    example: '12',
+    description: 'Lot of household',
+  },
+  {
+    key: 'unit',
+    label: 'Unit',
+    required: false,
+    type: 'string',
+    example: '3A',
+    description: 'Unit of household (for condos)',
+  },
+  {
+    key: 'gender',
+    label: 'Gender',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(Gender),
+    example: 'MALE',
+    description: 'MALE, FEMALE, or OTHER',
+  },
+  {
+    key: 'civilStatus',
+    label: 'Civil Status',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(CivilStatus),
+    example: 'SINGLE',
+    description: 'SINGLE, MARRIED, WIDOWED, DIVORCED, SEPARATED',
+  },
+  {
+    key: 'residentType',
+    label: 'Resident Type',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(ResidentType),
+    example: 'OWNER',
+    description: 'OWNER or RENTER',
+  },
+  {
+    key: 'phoneNumber',
+    label: 'Phone Number',
+    required: false,
+    type: 'string',
+    example: '09171234567',
+    description: 'Contact number',
+  },
+  {
+    key: 'email',
+    label: 'Email',
+    required: false,
+    type: 'string',
+    example: 'juan@example.com',
+    description: 'Email address',
+  },
+  {
+    key: 'birthDate',
+    label: 'Birth Date',
+    required: false,
+    type: 'date',
+    example: '1990-01-15',
+    description: 'Date of birth (YYYY-MM-DD)',
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(ResidentStatus),
+    example: 'ACTIVE',
+    description: 'ACTIVE, PENDING, INACTIVE',
+  },
 ];
 
 export const residentsImportConfig: ModuleConfig = {
@@ -34,16 +141,28 @@ export const residentsImportConfig: ModuleConfig = {
       if (!row.lastname) errors.push('Last Name is required');
       if (!row.block) errors.push('Block is required (to link to household)');
       if (!row.lot) errors.push('Lot is required (to link to household)');
-      if (row.gender && !Object.values(Gender).includes(row.gender.toUpperCase())) {
+      if (
+        row.gender &&
+        !Object.values(Gender).includes(row.gender.toUpperCase())
+      ) {
         errors.push(`Invalid gender: ${row.gender}`);
       }
-      if (row.civilstatus && !Object.values(CivilStatus).includes(row.civilstatus.toUpperCase())) {
+      if (
+        row.civilstatus &&
+        !Object.values(CivilStatus).includes(row.civilstatus.toUpperCase())
+      ) {
         errors.push(`Invalid civil status: ${row.civilstatus}`);
       }
-      if (row.residenttype && !Object.values(ResidentType).includes(row.residenttype.toUpperCase())) {
+      if (
+        row.residenttype &&
+        !Object.values(ResidentType).includes(row.residenttype.toUpperCase())
+      ) {
         errors.push(`Invalid resident type: ${row.residenttype}`);
       }
-      if (row.status && !Object.values(ResidentStatus).includes(row.status.toUpperCase())) {
+      if (
+        row.status &&
+        !Object.values(ResidentStatus).includes(row.status.toUpperCase())
+      ) {
         errors.push(`Invalid status: ${row.status}`);
       }
       if (row.birthdate && Number.isNaN(Date.parse(row.birthdate))) {
@@ -59,12 +178,21 @@ export const residentsImportConfig: ModuleConfig = {
             where: {
               communityId,
               deletedAt: null,
-              firstName: { equals: String(row.firstname).trim(), mode: 'insensitive' },
-              lastName: { equals: String(row.lastname).trim(), mode: 'insensitive' },
+              firstName: {
+                equals: String(row.firstname).trim(),
+                mode: 'insensitive',
+              },
+              lastName: {
+                equals: String(row.lastname).trim(),
+                mode: 'insensitive',
+              },
             },
           });
           if (existing) {
-            duplicates.push({ row: row._row, message: `Resident "${row.firstname} ${row.lastname}" already exists` });
+            duplicates.push({
+              row: row._row,
+              message: `Resident "${row.firstname} ${row.lastname}" already exists`,
+            });
           }
         }
       }
@@ -91,18 +219,32 @@ export const residentsImportConfig: ModuleConfig = {
         });
         let nextNumber = 0;
         if (residentNumber) {
-          const parsed = parseInt(residentNumber.residentNumber.replace(/^RES-/, ''), 10);
+          const parsed = parseInt(
+            residentNumber.residentNumber.replace(/^RES-/, ''),
+            10,
+          );
           if (!Number.isNaN(parsed)) nextNumber = parsed;
         }
 
-        const gender = row.gender && Object.values(Gender).includes(row.gender.toUpperCase())
-          ? row.gender.toUpperCase() : null;
-        const civilStatus = row.civilstatus && Object.values(CivilStatus).includes(row.civilstatus.toUpperCase())
-          ? row.civilstatus.toUpperCase() : null;
-        const residentType = row.residenttype && Object.values(ResidentType).includes(row.residenttype.toUpperCase())
-          ? row.residenttype.toUpperCase() : ResidentType.OWNER;
-        const status = row.status && Object.values(ResidentStatus).includes(row.status.toUpperCase())
-          ? row.status.toUpperCase() : ResidentStatus.ACTIVE;
+        const gender =
+          row.gender && Object.values(Gender).includes(row.gender.toUpperCase())
+            ? row.gender.toUpperCase()
+            : null;
+        const civilStatus =
+          row.civilstatus &&
+          Object.values(CivilStatus).includes(row.civilstatus.toUpperCase())
+            ? row.civilstatus.toUpperCase()
+            : null;
+        const residentType =
+          row.residenttype &&
+          Object.values(ResidentType).includes(row.residenttype.toUpperCase())
+            ? row.residenttype.toUpperCase()
+            : ResidentType.OWNER;
+        const status =
+          row.status &&
+          Object.values(ResidentStatus).includes(row.status.toUpperCase())
+            ? row.status.toUpperCase()
+            : ResidentStatus.ACTIVE;
 
         await ctx.prisma.resident.create({
           data: {
@@ -150,7 +292,9 @@ export const residentsImportConfig: ModuleConfig = {
     fetchRows: async (communityId, _filters, prisma) => {
       const residents = await prisma.resident.findMany({
         where: { communityId, deletedAt: null },
-        include: { household: { select: { block: true, lot: true, unit: true } } },
+        include: {
+          household: { select: { block: true, lot: true, unit: true } },
+        },
         orderBy: { createdAt: 'desc' },
       });
       return residents.map((r: any) => ({

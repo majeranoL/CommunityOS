@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { PaymentMethod, UtilityType } from '@prisma/client';
+import { PaymentMethod } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -32,7 +32,11 @@ export class UtilityExpensesService {
   // Create Utility Expense
   // ==========================================
 
-  async create(communityId: string, dto: CreateUtilityExpenseDto, userId: string) {
+  async create(
+    communityId: string,
+    dto: CreateUtilityExpenseDto,
+    userId: string,
+  ) {
     const utilityNumber = await this.nextUtilityNumber(communityId);
 
     const expense = await this.prisma.utilityExpense.create({
@@ -70,7 +74,17 @@ export class UtilityExpensesService {
   // ==========================================
 
   async findAll(communityId: string, query: UtilityExpenseQueryDto) {
-    const { page, limit, search, utilityType, providerName, from, to, sortBy, order } = query;
+    const {
+      page,
+      limit,
+      search,
+      utilityType,
+      providerName,
+      from,
+      to,
+      sortBy,
+      order,
+    } = query;
 
     const skip = (page - 1) * limit;
 
@@ -180,7 +194,8 @@ export class UtilityExpensesService {
       byType[typeKey].count += 1;
 
       const providerKey = expense.providerName;
-      if (!byProvider[providerKey]) byProvider[providerKey] = { total: 0, count: 0 };
+      if (!byProvider[providerKey])
+        byProvider[providerKey] = { total: 0, count: 0 };
       byProvider[providerKey].total += Number(expense.amount);
       byProvider[providerKey].count += 1;
     }
@@ -244,15 +259,21 @@ export class UtilityExpensesService {
     }
 
     const data: any = {};
-    if (dto.providerName !== undefined) data.providerName = dto.providerName.trim();
+    if (dto.providerName !== undefined)
+      data.providerName = dto.providerName.trim();
     if (dto.utilityType !== undefined) data.utilityType = dto.utilityType;
     if (dto.amount !== undefined) data.amount = dto.amount;
-    if (dto.expenseDate !== undefined) data.expenseDate = new Date(dto.expenseDate);
-    if (dto.billingPeriod !== undefined) data.billingPeriod = dto.billingPeriod?.trim();
+    if (dto.expenseDate !== undefined)
+      data.expenseDate = new Date(dto.expenseDate);
+    if (dto.billingPeriod !== undefined)
+      data.billingPeriod = dto.billingPeriod?.trim();
     if (dto.paymentMethod !== undefined) data.paymentMethod = dto.paymentMethod;
-    if (dto.referenceNumber !== undefined) data.referenceNumber = dto.referenceNumber?.trim();
-    if (dto.invoiceNumber !== undefined) data.invoiceNumber = dto.invoiceNumber?.trim();
-    if (dto.description !== undefined) data.description = dto.description?.trim();
+    if (dto.referenceNumber !== undefined)
+      data.referenceNumber = dto.referenceNumber?.trim();
+    if (dto.invoiceNumber !== undefined)
+      data.invoiceNumber = dto.invoiceNumber?.trim();
+    if (dto.description !== undefined)
+      data.description = dto.description?.trim();
     if (dto.receiptFileId !== undefined) data.receiptFileId = dto.receiptFileId;
 
     const updated = await this.prisma.utilityExpense.update({

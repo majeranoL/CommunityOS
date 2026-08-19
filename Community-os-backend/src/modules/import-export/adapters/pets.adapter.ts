@@ -2,17 +2,96 @@ import { PetSpecies, PetStatus } from '@prisma/client';
 import type { ModuleConfig, TemplateField } from '../import-export.types';
 
 const fields: TemplateField[] = [
-  { key: 'name', label: 'Pet Name', required: true, type: 'string', example: 'Buddy', description: 'Pet name' },
-  { key: 'species', label: 'Species', required: true, type: 'enum', enumValues: Object.values(PetSpecies), example: 'DOG', description: 'DOG, CAT, BIRD, FISH, REPTILE, SMALL_ANIMAL, OTHER' },
-  { key: 'breed', label: 'Breed', required: false, type: 'string', example: 'Labrador', description: 'Pet breed' },
-  { key: 'sex', label: 'Sex', required: false, type: 'string', example: 'Male', description: 'Male or Female' },
-  { key: 'color', label: 'Color', required: false, type: 'string', example: 'Golden', description: 'Pet color' },
-  { key: 'birthDate', label: 'Birth Date', required: false, type: 'date', example: '2022-06-15', description: 'Date of birth (YYYY-MM-DD)' },
-  { key: 'block', label: 'Block', required: true, type: 'string', example: 'A', description: 'Block of household' },
-  { key: 'lot', label: 'Lot', required: true, type: 'string', example: '12', description: 'Lot of household' },
-  { key: 'caretakerFirstName', label: 'Caretaker First Name', required: false, type: 'string', example: 'Juan', description: 'Primary caretaker first name' },
-  { key: 'caretakerLastName', label: 'Caretaker Last Name', required: false, type: 'string', example: 'Dela Cruz', description: 'Primary caretaker last name' },
-  { key: 'status', label: 'Status', required: false, type: 'enum', enumValues: Object.values(PetStatus), example: 'ACTIVE', description: 'ACTIVE, PENDING, APPROVED, etc.' },
+  {
+    key: 'name',
+    label: 'Pet Name',
+    required: true,
+    type: 'string',
+    example: 'Buddy',
+    description: 'Pet name',
+  },
+  {
+    key: 'species',
+    label: 'Species',
+    required: true,
+    type: 'enum',
+    enumValues: Object.values(PetSpecies),
+    example: 'DOG',
+    description: 'DOG, CAT, BIRD, FISH, REPTILE, SMALL_ANIMAL, OTHER',
+  },
+  {
+    key: 'breed',
+    label: 'Breed',
+    required: false,
+    type: 'string',
+    example: 'Labrador',
+    description: 'Pet breed',
+  },
+  {
+    key: 'sex',
+    label: 'Sex',
+    required: false,
+    type: 'string',
+    example: 'Male',
+    description: 'Male or Female',
+  },
+  {
+    key: 'color',
+    label: 'Color',
+    required: false,
+    type: 'string',
+    example: 'Golden',
+    description: 'Pet color',
+  },
+  {
+    key: 'birthDate',
+    label: 'Birth Date',
+    required: false,
+    type: 'date',
+    example: '2022-06-15',
+    description: 'Date of birth (YYYY-MM-DD)',
+  },
+  {
+    key: 'block',
+    label: 'Block',
+    required: true,
+    type: 'string',
+    example: 'A',
+    description: 'Block of household',
+  },
+  {
+    key: 'lot',
+    label: 'Lot',
+    required: true,
+    type: 'string',
+    example: '12',
+    description: 'Lot of household',
+  },
+  {
+    key: 'caretakerFirstName',
+    label: 'Caretaker First Name',
+    required: false,
+    type: 'string',
+    example: 'Juan',
+    description: 'Primary caretaker first name',
+  },
+  {
+    key: 'caretakerLastName',
+    label: 'Caretaker Last Name',
+    required: false,
+    type: 'string',
+    example: 'Dela Cruz',
+    description: 'Primary caretaker last name',
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(PetStatus),
+    example: 'ACTIVE',
+    description: 'ACTIVE, PENDING, APPROVED, etc.',
+  },
 ];
 
 export const petsImportConfig: ModuleConfig = {
@@ -31,10 +110,16 @@ export const petsImportConfig: ModuleConfig = {
       if (!row.species) errors.push('Species is required');
       if (!row.block) errors.push('Block is required (to link to household)');
       if (!row.lot) errors.push('Lot is required (to link to household)');
-      if (row.species && !Object.values(PetSpecies).includes(row.species.toUpperCase())) {
+      if (
+        row.species &&
+        !Object.values(PetSpecies).includes(row.species.toUpperCase())
+      ) {
         errors.push(`Invalid species: ${row.species}`);
       }
-      if (row.status && !Object.values(PetStatus).includes(row.status.toUpperCase())) {
+      if (
+        row.status &&
+        !Object.values(PetStatus).includes(row.status.toUpperCase())
+      ) {
         errors.push(`Invalid status: ${row.status}`);
       }
       return errors;
@@ -44,7 +129,12 @@ export const petsImportConfig: ModuleConfig = {
       for (const row of rows) {
         if (row.name && row.block && row.lot) {
           const household = await prisma.household.findFirst({
-            where: { communityId, deletedAt: null, block: String(row.block).trim(), lot: String(row.lot).trim() },
+            where: {
+              communityId,
+              deletedAt: null,
+              block: String(row.block).trim(),
+              lot: String(row.lot).trim(),
+            },
           });
           if (household) {
             const existing = await prisma.pet.findFirst({
@@ -56,7 +146,10 @@ export const petsImportConfig: ModuleConfig = {
               },
             });
             if (existing) {
-              duplicates.push({ row: row._row, message: `Pet "${row.name}" already exists in this household` });
+              duplicates.push({
+                row: row._row,
+                message: `Pet "${row.name}" already exists in this household`,
+              });
             }
           }
         }
@@ -83,8 +176,14 @@ export const petsImportConfig: ModuleConfig = {
               communityId,
               householdId: household.id,
               deletedAt: null,
-              firstName: { equals: String(row.caretakerfirstname).trim(), mode: 'insensitive' },
-              lastName: { equals: String(row.caretakerlastname).trim(), mode: 'insensitive' },
+              firstName: {
+                equals: String(row.caretakerfirstname).trim(),
+                mode: 'insensitive',
+              },
+              lastName: {
+                equals: String(row.caretakerlastname).trim(),
+                mode: 'insensitive',
+              },
             },
           });
           if (resident) residentId = resident.id;
@@ -101,10 +200,16 @@ export const petsImportConfig: ModuleConfig = {
           if (!Number.isNaN(parsed)) nextNumber = parsed;
         }
 
-        const species = row.species && Object.values(PetSpecies).includes(row.species.toUpperCase())
-          ? row.species.toUpperCase() : PetSpecies.OTHER;
-        const status = row.status && Object.values(PetStatus).includes(row.status.toUpperCase())
-          ? row.status.toUpperCase() : PetStatus.ACTIVE;
+        const species =
+          row.species &&
+          Object.values(PetSpecies).includes(row.species.toUpperCase())
+            ? row.species.toUpperCase()
+            : PetSpecies.OTHER;
+        const status =
+          row.status &&
+          Object.values(PetStatus).includes(row.status.toUpperCase())
+            ? row.status.toUpperCase()
+            : PetStatus.ACTIVE;
 
         await ctx.prisma.pet.create({
           data: {
@@ -163,7 +268,9 @@ export const petsImportConfig: ModuleConfig = {
         status: p.status,
         householdBlock: p.household?.block ?? '',
         householdLot: p.household?.lot ?? '',
-        caretakerName: p.resident ? `${p.resident.firstName} ${p.resident.lastName}` : '',
+        caretakerName: p.resident
+          ? `${p.resident.firstName} ${p.resident.lastName}`
+          : '',
         createdAt: p.createdAt?.toISOString?.() ?? '',
       }));
     },

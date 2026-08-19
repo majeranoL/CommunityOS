@@ -2,14 +2,72 @@ import { VehicleType, VehicleStatus } from '@prisma/client';
 import type { ModuleConfig, TemplateField } from '../import-export.types';
 
 const fields: TemplateField[] = [
-  { key: 'plateNumber', label: 'Plate Number', required: true, type: 'string', example: 'ABC 1234', description: 'Vehicle plate number' },
-  { key: 'make', label: 'Make', required: false, type: 'string', example: 'Toyota', description: 'Vehicle make/brand' },
-  { key: 'model', label: 'Model', required: false, type: 'string', example: 'Vios', description: 'Vehicle model' },
-  { key: 'color', label: 'Color', required: false, type: 'string', example: 'White', description: 'Vehicle color' },
-  { key: 'type', label: 'Type', required: false, type: 'enum', enumValues: Object.values(VehicleType), example: 'CAR', description: 'CAR, MOTORCYCLE, TRUCK, VAN, BICYCLE, OTHER' },
-  { key: 'block', label: 'Block', required: true, type: 'string', example: 'A', description: 'Block of owner household' },
-  { key: 'lot', label: 'Lot', required: true, type: 'string', example: '12', description: 'Lot of owner household' },
-  { key: 'status', label: 'Status', required: false, type: 'enum', enumValues: Object.values(VehicleStatus), example: 'ACTIVE', description: 'ACTIVE, PENDING, APPROVED, etc.' },
+  {
+    key: 'plateNumber',
+    label: 'Plate Number',
+    required: true,
+    type: 'string',
+    example: 'ABC 1234',
+    description: 'Vehicle plate number',
+  },
+  {
+    key: 'make',
+    label: 'Make',
+    required: false,
+    type: 'string',
+    example: 'Toyota',
+    description: 'Vehicle make/brand',
+  },
+  {
+    key: 'model',
+    label: 'Model',
+    required: false,
+    type: 'string',
+    example: 'Vios',
+    description: 'Vehicle model',
+  },
+  {
+    key: 'color',
+    label: 'Color',
+    required: false,
+    type: 'string',
+    example: 'White',
+    description: 'Vehicle color',
+  },
+  {
+    key: 'type',
+    label: 'Type',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(VehicleType),
+    example: 'CAR',
+    description: 'CAR, MOTORCYCLE, TRUCK, VAN, BICYCLE, OTHER',
+  },
+  {
+    key: 'block',
+    label: 'Block',
+    required: true,
+    type: 'string',
+    example: 'A',
+    description: 'Block of owner household',
+  },
+  {
+    key: 'lot',
+    label: 'Lot',
+    required: true,
+    type: 'string',
+    example: '12',
+    description: 'Lot of owner household',
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(VehicleStatus),
+    example: 'ACTIVE',
+    description: 'ACTIVE, PENDING, APPROVED, etc.',
+  },
 ];
 
 export const vehiclesImportConfig: ModuleConfig = {
@@ -27,10 +85,16 @@ export const vehiclesImportConfig: ModuleConfig = {
       if (!row.platenumber) errors.push('Plate Number is required');
       if (!row.block) errors.push('Block is required (to link to household)');
       if (!row.lot) errors.push('Lot is required (to link to household)');
-      if (row.type && !Object.values(VehicleType).includes(row.type.toUpperCase())) {
+      if (
+        row.type &&
+        !Object.values(VehicleType).includes(row.type.toUpperCase())
+      ) {
         errors.push(`Invalid vehicle type: ${row.type}`);
       }
-      if (row.status && !Object.values(VehicleStatus).includes(row.status.toUpperCase())) {
+      if (
+        row.status &&
+        !Object.values(VehicleStatus).includes(row.status.toUpperCase())
+      ) {
         errors.push(`Invalid status: ${row.status}`);
       }
       return errors;
@@ -43,11 +107,17 @@ export const vehiclesImportConfig: ModuleConfig = {
             where: {
               communityId,
               deletedAt: null,
-              plateNumber: { equals: String(row.platenumber).trim(), mode: 'insensitive' },
+              plateNumber: {
+                equals: String(row.platenumber).trim(),
+                mode: 'insensitive',
+              },
             },
           });
           if (existing) {
-            duplicates.push({ row: row._row, message: `Vehicle "${row.platenumber}" already exists` });
+            duplicates.push({
+              row: row._row,
+              message: `Vehicle "${row.platenumber}" already exists`,
+            });
           }
         }
       }
@@ -66,10 +136,16 @@ export const vehiclesImportConfig: ModuleConfig = {
           include: { residents: { where: { deletedAt: null }, take: 1 } },
         });
 
-        const type = row.type && Object.values(VehicleType).includes(row.type.toUpperCase())
-          ? row.type.toUpperCase() : VehicleType.CAR;
-        const status = row.status && Object.values(VehicleStatus).includes(row.status.toUpperCase())
-          ? row.status.toUpperCase() : VehicleStatus.ACTIVE;
+        const type =
+          row.type &&
+          Object.values(VehicleType).includes(row.type.toUpperCase())
+            ? row.type.toUpperCase()
+            : VehicleType.CAR;
+        const status =
+          row.status &&
+          Object.values(VehicleStatus).includes(row.status.toUpperCase())
+            ? row.status.toUpperCase()
+            : VehicleStatus.ACTIVE;
 
         await ctx.prisma.vehicle.create({
           data: {
@@ -126,7 +202,9 @@ export const vehiclesImportConfig: ModuleConfig = {
         color: v.color ?? '',
         type: v.type,
         status: v.status,
-        ownerName: v.resident ? `${v.resident.firstName} ${v.resident.lastName}` : '',
+        ownerName: v.resident
+          ? `${v.resident.firstName} ${v.resident.lastName}`
+          : '',
         block: v.resident?.household?.block ?? '',
         lot: v.resident?.household?.lot ?? '',
         createdAt: v.createdAt?.toISOString?.() ?? '',

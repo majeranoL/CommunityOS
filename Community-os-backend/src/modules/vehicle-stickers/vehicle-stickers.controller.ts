@@ -104,11 +104,7 @@ export class VehicleStickersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateStickerDto,
   ) {
-    return this.vehicleStickersService.update(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.vehicleStickersService.update(req.user.community.id, id, dto);
   }
 
   // ==========================================
@@ -122,11 +118,7 @@ export class VehicleStickersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: VerifyStickerDto,
   ) {
-    return this.vehicleStickersService.verify(
-      req.user.community.id,
-      id,
-      dto,
-    );
+    return this.vehicleStickersService.verify(req.user.community.id, id, dto);
   }
 
   // ==========================================

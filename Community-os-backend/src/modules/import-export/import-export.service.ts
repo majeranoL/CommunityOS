@@ -25,7 +25,9 @@ export class ImportExportService {
   async template(module: string, format: ExportFormat) {
     const config = this.registry.getImportConfig(module);
     if (!config) {
-      throw new BadRequestException(`Module "${module}" does not support import.`);
+      throw new BadRequestException(
+        `Module "${module}" does not support import.`,
+      );
     }
 
     const headers = config.templateFields.map((f) => f.label);
@@ -44,14 +46,24 @@ export class ImportExportService {
 
       ws.getRow(1).font = { bold: true };
       ws.getRow(1).eachCell((cell) => {
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9E1F2' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFD9E1F2' },
+        };
         cell.border = {
           bottom: { style: 'thin' },
         };
       });
 
       const instructions = wb.addWorksheet('Instructions');
-      instructions.addRow(['Field', 'Required', 'Type', 'Description', 'Accepted Values']);
+      instructions.addRow([
+        'Field',
+        'Required',
+        'Type',
+        'Description',
+        'Accepted Values',
+      ]);
       for (const field of config.templateFields) {
         instructions.addRow([
           field.label,
@@ -67,12 +79,20 @@ export class ImportExportService {
       return {
         buffer: Buffer.from(buffer),
         filename: `${module}-import-template.xlsx`,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       };
     }
 
-    const csvRows = [headers, config.templateFields.map((f) => f.example ?? '')];
-    const csvContent = csvRows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csvRows = [
+      headers,
+      config.templateFields.map((f) => f.example ?? ''),
+    ];
+    const csvContent = csvRows
+      .map((row) =>
+        row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
+      )
+      .join('\n');
     const buffer = Buffer.from('\uFEFF' + csvContent, 'utf-8');
     return {
       buffer,
@@ -85,7 +105,10 @@ export class ImportExportService {
   // FILE PARSING
   // ==========================================
 
-  async parseFile(buffer: Buffer, filename: string): Promise<Record<string, any>[]> {
+  async parseFile(
+    buffer: Buffer,
+    filename: string,
+  ): Promise<Record<string, any>[]> {
     const ext = filename.toLowerCase().split('.').pop();
     if (ext === 'csv') {
       return this.parseCsv(buffer);
@@ -137,13 +160,16 @@ export class ImportExportService {
     if (lines.length < 2) return [];
 
     const headers = lines[0].map((h) => this.normalizeHeader(h));
-    return lines.slice(1).map((row) => {
-      const obj: Record<string, any> = { _row: 0 };
-      headers.forEach((h, i) => {
-        obj[h] = row[i]?.trim() ?? '';
-      });
-      return obj;
-    }).map((obj, idx) => ({ ...obj, _row: idx + 2 }));
+    return lines
+      .slice(1)
+      .map((row) => {
+        const obj: Record<string, any> = { _row: 0 };
+        headers.forEach((h, i) => {
+          obj[h] = row[i]?.trim() ?? '';
+        });
+        return obj;
+      })
+      .map((obj, idx) => ({ ...obj, _row: idx + 2 }));
   }
 
   private async parseXlsx(buffer: Buffer): Promise<Record<string, any>[]> {
@@ -155,7 +181,7 @@ export class ImportExportService {
     const headerRow = ws.getRow(1);
     const headers: string[] = [];
     headerRow.eachCell((cell, colNumber) => {
-      headers[colNumber - 1] = this.normalizeHeader(String(cell.value ?? ''));
+      headers[colNumber - 1] = this.normalizeHeader(String(cell.text ?? ''));
     });
 
     const rows: Record<string, any>[] = [];
@@ -164,7 +190,7 @@ export class ImportExportService {
       const obj: Record<string, any> = { _row: rowNumber };
       headers.forEach((h, i) => {
         const cell = row.getCell(i + 1);
-        obj[h] = cell.value != null ? String(cell.value).trim() : '';
+        obj[h] = cell.text?.trim() ?? '';
       });
       if (Object.values(obj).some((v) => v !== '' && v !== rowNumber)) {
         rows.push(obj);
@@ -206,7 +232,8 @@ export class ImportExportService {
     for (const key of templateKeys) {
       const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, '');
       const match = sourceHeaders.find(
-        (h) => h === normalized || h.includes(normalized) || normalized.includes(h),
+        (h) =>
+          h === normalized || h.includes(normalized) || normalized.includes(h),
       );
       if (match) {
         mapping[key] = match;
@@ -228,7 +255,9 @@ export class ImportExportService {
   ): Promise<ImportPreviewResult> {
     const config = this.registry.getImportConfig(module);
     if (!config) {
-      throw new BadRequestException(`Module "${module}" does not support import.`);
+      throw new BadRequestException(
+        `Module "${module}" does not support import.`,
+      );
     }
 
     const rawRows = await this.parseFile(buffer, filename);
@@ -254,7 +283,11 @@ export class ImportExportService {
 
     let duplicates: { row: number; message: string }[] = [];
     if (config.checkDuplicates && config.duplicateKeys?.length) {
-      duplicates = await config.checkDuplicates(communityId, valid, this.prisma);
+      duplicates = await config.checkDuplicates(
+        communityId,
+        valid,
+        this.prisma,
+      );
       for (const dup of duplicates) {
         const row = valid.find((r) => r._row === dup.row);
         if (row) {
@@ -303,11 +336,14 @@ export class ImportExportService {
 
     if (!batch) throw new NotFoundException('Import batch not found.');
     if (batch.status !== ImportBatchStatus.PROCESSING) {
-      throw new BadRequestException('Import batch is not awaiting confirmation.');
+      throw new BadRequestException(
+        'Import batch is not awaiting confirmation.',
+      );
     }
 
     const config = this.registry.getImportConfig(batch.module);
-    if (!config) throw new BadRequestException('Module configuration not found.');
+    if (!config)
+      throw new BadRequestException('Module configuration not found.');
 
     const rows = (batch.data as any[]) ?? [];
     const validRows = rows.filter((row: any) => !row.errors?.length);
@@ -348,7 +384,9 @@ export class ImportExportService {
 
     if (!batch) throw new NotFoundException('Import batch not found.');
     if (batch.status !== ImportBatchStatus.PROCESSING) {
-      throw new BadRequestException('Only pending import batches can be cancelled.');
+      throw new BadRequestException(
+        'Only pending import batches can be cancelled.',
+      );
     }
 
     await this.prisma.importBatch.update({
@@ -366,7 +404,9 @@ export class ImportExportService {
 
     if (!batch) throw new NotFoundException('Import batch not found.');
     if (batch.status !== ImportBatchStatus.COMPLETED) {
-      throw new BadRequestException('Only completed import batches can be rolled back.');
+      throw new BadRequestException(
+        'Only completed import batches can be rolled back.',
+      );
     }
 
     const moduleModelMap: Record<string, string> = {
@@ -393,7 +433,10 @@ export class ImportExportService {
       data: { status: ImportBatchStatus.ROLLED_BACK, rolledBackAt: new Date() },
     });
 
-    return { success: true, message: 'Import batch rolled back. Records soft-deleted.' };
+    return {
+      success: true,
+      message: 'Import batch rolled back. Records soft-deleted.',
+    };
   }
 
   // ==========================================
@@ -409,7 +452,9 @@ export class ImportExportService {
   ) {
     const config = this.registry.getExportConfig(module);
     if (!config) {
-      throw new BadRequestException(`Module "${module}" does not support export.`);
+      throw new BadRequestException(
+        `Module "${module}" does not support export.`,
+      );
     }
 
     const allRows = await config.fetchRows(communityId, filters, this.prisma);
@@ -527,17 +572,29 @@ export class ImportExportService {
       return {
         buffer: Buffer.from(buffer),
         filename: `${label}-export.xlsx`,
-        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       };
     }
 
     if (rows.length === 0) {
-      return { buffer: Buffer.from(''), filename: `${label}-export.csv`, contentType: 'text/csv' };
+      return {
+        buffer: Buffer.from(''),
+        filename: `${label}-export.csv`,
+        contentType: 'text/csv',
+      };
     }
 
     const headers = Object.keys(rows[0]);
-    const csvRows = [headers, ...rows.map((r) => headers.map((h) => String(r[h] ?? '')))];
-    const csv = csvRows.map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csvRows = [
+      headers,
+      ...rows.map((r) => headers.map((h) => String(r[h] ?? ''))),
+    ];
+    const csv = csvRows
+      .map((row) =>
+        row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','),
+      )
+      .join('\n');
     return {
       buffer: Buffer.from('\uFEFF' + csv, 'utf-8'),
       filename: `${label}-export.csv`,

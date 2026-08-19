@@ -2,15 +2,80 @@ import { StaffRole, StaffStatus } from '@prisma/client';
 import type { ModuleConfig, TemplateField } from '../import-export.types';
 
 const fields: TemplateField[] = [
-  { key: 'firstName', label: 'First Name', required: true, type: 'string', example: 'Pedro', description: 'Staff first name' },
-  { key: 'lastName', label: 'Last Name', required: true, type: 'string', example: 'Santos', description: 'Staff last name' },
-  { key: 'middleName', label: 'Middle Name', required: false, type: 'string', example: 'Reyes', description: 'Middle name' },
-  { key: 'role', label: 'Role', required: false, type: 'enum', enumValues: Object.values(StaffRole), example: 'SECURITY', description: 'SECURITY, MAINTENANCE, CLEANING, ADMIN, OTHER' },
-  { key: 'phoneNumber', label: 'Phone Number', required: false, type: 'string', example: '09171234567', description: 'Contact number' },
-  { key: 'email', label: 'Email', required: false, type: 'string', example: 'pedro@example.com', description: 'Email address' },
-  { key: 'hireDate', label: 'Hire Date', required: false, type: 'date', example: '2024-01-15', description: 'Date hired (YYYY-MM-DD)' },
-  { key: 'notes', label: 'Notes', required: false, type: 'string', example: 'Night shift security', description: 'Additional notes' },
-  { key: 'status', label: 'Status', required: false, type: 'enum', enumValues: Object.values(StaffStatus), example: 'ACTIVE', description: 'ACTIVE or INACTIVE' },
+  {
+    key: 'firstName',
+    label: 'First Name',
+    required: true,
+    type: 'string',
+    example: 'Pedro',
+    description: 'Staff first name',
+  },
+  {
+    key: 'lastName',
+    label: 'Last Name',
+    required: true,
+    type: 'string',
+    example: 'Santos',
+    description: 'Staff last name',
+  },
+  {
+    key: 'middleName',
+    label: 'Middle Name',
+    required: false,
+    type: 'string',
+    example: 'Reyes',
+    description: 'Middle name',
+  },
+  {
+    key: 'role',
+    label: 'Role',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(StaffRole),
+    example: 'SECURITY',
+    description: 'SECURITY, MAINTENANCE, CLEANING, ADMIN, OTHER',
+  },
+  {
+    key: 'phoneNumber',
+    label: 'Phone Number',
+    required: false,
+    type: 'string',
+    example: '09171234567',
+    description: 'Contact number',
+  },
+  {
+    key: 'email',
+    label: 'Email',
+    required: false,
+    type: 'string',
+    example: 'pedro@example.com',
+    description: 'Email address',
+  },
+  {
+    key: 'hireDate',
+    label: 'Hire Date',
+    required: false,
+    type: 'date',
+    example: '2024-01-15',
+    description: 'Date hired (YYYY-MM-DD)',
+  },
+  {
+    key: 'notes',
+    label: 'Notes',
+    required: false,
+    type: 'string',
+    example: 'Night shift security',
+    description: 'Additional notes',
+  },
+  {
+    key: 'status',
+    label: 'Status',
+    required: false,
+    type: 'enum',
+    enumValues: Object.values(StaffStatus),
+    example: 'ACTIVE',
+    description: 'ACTIVE or INACTIVE',
+  },
 ];
 
 export const staffImportConfig: ModuleConfig = {
@@ -27,10 +92,16 @@ export const staffImportConfig: ModuleConfig = {
       const errors: string[] = [];
       if (!row.firstname) errors.push('First Name is required');
       if (!row.lastname) errors.push('Last Name is required');
-      if (row.role && !Object.values(StaffRole).includes(row.role.toUpperCase())) {
+      if (
+        row.role &&
+        !Object.values(StaffRole).includes(row.role.toUpperCase())
+      ) {
         errors.push(`Invalid role: ${row.role}`);
       }
-      if (row.status && !Object.values(StaffStatus).includes(row.status.toUpperCase())) {
+      if (
+        row.status &&
+        !Object.values(StaffStatus).includes(row.status.toUpperCase())
+      ) {
         errors.push(`Invalid status: ${row.status}`);
       }
       return errors;
@@ -43,12 +114,21 @@ export const staffImportConfig: ModuleConfig = {
             where: {
               communityId,
               deletedAt: null,
-              firstName: { equals: String(row.firstname).trim(), mode: 'insensitive' },
-              lastName: { equals: String(row.lastname).trim(), mode: 'insensitive' },
+              firstName: {
+                equals: String(row.firstname).trim(),
+                mode: 'insensitive',
+              },
+              lastName: {
+                equals: String(row.lastname).trim(),
+                mode: 'insensitive',
+              },
             },
           });
           if (existing) {
-            duplicates.push({ row: row._row, message: `Staff "${row.firstname} ${row.lastname}" already exists` });
+            duplicates.push({
+              row: row._row,
+              message: `Staff "${row.firstname} ${row.lastname}" already exists`,
+            });
           }
         }
       }
@@ -64,14 +144,22 @@ export const staffImportConfig: ModuleConfig = {
         });
         let nextNumber = 0;
         if (staffNumber) {
-          const parsed = parseInt(staffNumber.staffNumber.replace(/^STF-/, ''), 10);
+          const parsed = parseInt(
+            staffNumber.staffNumber.replace(/^STF-/, ''),
+            10,
+          );
           if (!Number.isNaN(parsed)) nextNumber = parsed;
         }
 
-        const role = row.role && Object.values(StaffRole).includes(row.role.toUpperCase())
-          ? row.role.toUpperCase() : StaffRole.SECURITY;
-        const status = row.status && Object.values(StaffStatus).includes(row.status.toUpperCase())
-          ? row.status.toUpperCase() : StaffStatus.ACTIVE;
+        const role =
+          row.role && Object.values(StaffRole).includes(row.role.toUpperCase())
+            ? row.role.toUpperCase()
+            : StaffRole.SECURITY;
+        const status =
+          row.status &&
+          Object.values(StaffStatus).includes(row.status.toUpperCase())
+            ? row.status.toUpperCase()
+            : StaffStatus.ACTIVE;
 
         await ctx.prisma.staff.create({
           data: {

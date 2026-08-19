@@ -194,6 +194,19 @@ export class SettingsService {
 
     const setting = await this.upsertOne(communityId, userId, entry);
 
+    if (key === 'communityName') {
+      const name =
+        typeof dto.value === 'string'
+          ? dto.value
+          : dto.value != null
+            ? JSON.stringify(dto.value)
+            : '';
+      await this.prisma.community.update({
+        where: { id: communityId },
+        data: { displayName: name },
+      });
+    }
+
     return {
       success: true,
       message: 'Setting updated successfully.',
@@ -219,6 +232,19 @@ export class SettingsService {
 
     for (const entry of entries) {
       const setting = await this.upsertOne(communityId, userId, entry);
+
+      if (entry.key === 'communityName') {
+        const name =
+          typeof entry.value === 'string'
+            ? entry.value
+            : entry.value != null
+              ? JSON.stringify(entry.value)
+              : '';
+        await this.prisma.community.update({
+          where: { id: communityId },
+          data: { displayName: name },
+        });
+      }
 
       updated.push({
         key: setting.key,
