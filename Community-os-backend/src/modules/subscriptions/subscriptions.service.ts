@@ -417,14 +417,24 @@ export class SubscriptionsService {
   ) {
     const invoiceNumber = await this.nextInvoiceNumber(communityId);
 
+    // Check if community has active billing exemption
+    const now = new Date();
+    const isExempt = await this.prisma.billingExemption.findFirst({
+      where: {
+        communityId,
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+      },
+    });
+
     return this.prisma.invoice.create({
       data: {
         communityId,
         subscriptionId,
         invoiceNumber,
-        amount,
+        amount: isExempt ? 0 : amount,
         billingCycle,
-        status: InvoiceStatus.ISSUED,
+        status: isExempt ? InvoiceStatus.WAIVED : InvoiceStatus.ISSUED,
         dueDate,
       },
     });

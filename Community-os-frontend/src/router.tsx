@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/app-shell'
 import { AdminShell } from '@/components/layout/admin-shell'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { PageTransition } from '@/components/shared/page-transition'
 import {
   FullPageLoader,
   ProtectedRoute,
@@ -54,7 +55,9 @@ const AdminMonitoringPage = lazy(() => import('@/features/admin/pages/admin-moni
 function withSuspense(element: React.ReactNode) {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
+      <Suspense fallback={<FullPageLoader />}>
+        <PageTransition>{element}</PageTransition>
+      </Suspense>
     </ErrorBoundary>
   )
 }

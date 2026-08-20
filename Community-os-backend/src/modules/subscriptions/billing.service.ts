@@ -31,8 +31,20 @@ export class BillingService {
   async sweep() {
     const now = new Date();
 
+    // Collect all community IDs with active exemptions
+    const activeExemptions = await this.prisma.billingExemption.findMany({
+      where: {
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+      },
+      select: { communityId: true },
+    });
+    const exemptCommunityIds = new Set(
+      activeExemptions.map((e) => e.communityId),
+    );
+
     // ==========================================
-    // 1. Mark overdue invoices (ISSUED past due date)
+    // 1. Mark overdue invoices (ISSUED past due date) — skip exempt
     // ==========================================
 
     const overdueResult = await this.prisma.invoice.updateMany({
@@ -40,12 +52,13 @@ export class BillingService {
         status: InvoiceStatus.ISSUED,
         dueDate: { lt: now },
         deletedAt: null,
+        communityId: { notIn: [...exemptCommunityIds] },
       },
       data: { status: InvoiceStatus.OVERDUE },
     });
 
     // ==========================================
-    // 2. Expire or auto-renew lapsed subscriptions
+    // 2. Expire or auto-renew lapsed subscriptions — skip exempt
     // ==========================================
 
     const lapsed = await this.prisma.subscription.findMany({
@@ -69,6 +82,22 @@ export class BillingService {
     let renewed = 0;
 
     for (const subscription of lapsed) {
+      // Skip exempt communities — keep subscription alive
+      if (exemptCommunityIds.has(subscription.communityId)) {
+        await this.prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            endsAt: this.addCycle(
+              new Date(subscription.endsAt),
+              subscription.plan?.billingCycle ?? BillingCycle.MONTHLY,
+            ),
+            status: SubscriptionStatus.ACTIVE,
+          },
+        });
+        renewed++;
+        continue;
+      }
+
       const canAutoRenew =
         subscription.status === SubscriptionStatus.ACTIVE &&
         subscription.autoRenew &&
@@ -127,6 +156,7 @@ export class BillingService {
         expired,
         renewed,
         processed: overdueResult.count + expired + renewed,
+        exemptCommunities: exemptCommunityIds.size,
         ranAt: now,
       },
     };
@@ -137,38 +167,50 @@ export class BillingService {
   // ==========================================
 
   async summary(communityId: string) {
-    const [current, invoices, outstanding] = await Promise.all([
-      this.prisma.subscription.findFirst({
-        where: {
-          communityId,
-          deletedAt: null,
-          status: {
-            in: [
-              SubscriptionStatus.TRIAL,
-              SubscriptionStatus.ACTIVE,
-              SubscriptionStatus.PAST_DUE,
-            ],
+    const now = new Date();
+
+    const [current, invoices, outstanding, activeExemption] = await Promise.all(
+      [
+        this.prisma.subscription.findFirst({
+          where: {
+            communityId,
+            deletedAt: null,
+            status: {
+              in: [
+                SubscriptionStatus.TRIAL,
+                SubscriptionStatus.ACTIVE,
+                SubscriptionStatus.PAST_DUE,
+              ],
+            },
           },
-        },
-        include: { plan: true },
-      }),
-      this.prisma.invoice.findMany({
-        where: {
-          communityId,
-          deletedAt: null,
-          status: { not: InvoiceStatus.VOID },
-        },
-        select: { status: true, amount: true, dueDate: true },
-      }),
-      this.prisma.invoice.aggregate({
-        where: {
-          communityId,
-          deletedAt: null,
-          status: { in: [InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE] },
-        },
-        _sum: { amount: true },
-      }),
-    ]);
+          include: { plan: true },
+        }),
+        this.prisma.invoice.findMany({
+          where: {
+            communityId,
+            deletedAt: null,
+            status: { notIn: [InvoiceStatus.VOID, InvoiceStatus.WAIVED] },
+          },
+          select: { status: true, amount: true, dueDate: true },
+        }),
+        this.prisma.invoice.aggregate({
+          where: {
+            communityId,
+            deletedAt: null,
+            status: { in: [InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE] },
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.billingExemption.findFirst({
+          where: {
+            communityId,
+            startDate: { lte: now },
+            OR: [{ endDate: null }, { endDate: { gte: now } }],
+          },
+          select: { id: true, reason: true, startDate: true, endDate: true },
+        }),
+      ],
+    );
 
     const byStatus: Record<string, number> = {
       [InvoiceStatus.DRAFT]: 0,
@@ -210,6 +252,7 @@ export class BillingService {
                     name: current.plan.name,
                     price: Number(current.plan.price),
                     billingCycle: current.plan.billingCycle,
+                    tier: current.plan.tier,
                   }
                 : null,
               startsAt: current.startsAt,
@@ -224,6 +267,7 @@ export class BillingService {
             : 0,
           expiringWithin30Days: expiringSoon,
         },
+        exemption: activeExemption ?? null,
       },
     };
   }
@@ -307,14 +351,24 @@ export class BillingService {
   ) {
     const invoiceNumber = await this.nextInvoiceNumber(communityId);
 
+    // Check if community has active billing exemption
+    const now = new Date();
+    const isExempt = await this.prisma.billingExemption.findFirst({
+      where: {
+        communityId,
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+      },
+    });
+
     return this.prisma.invoice.create({
       data: {
         communityId,
         subscriptionId,
         invoiceNumber,
-        amount,
+        amount: isExempt ? 0 : amount,
         billingCycle,
-        status: InvoiceStatus.ISSUED,
+        status: isExempt ? InvoiceStatus.WAIVED : InvoiceStatus.ISSUED,
         dueDate,
       },
     });

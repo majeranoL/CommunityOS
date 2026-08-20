@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { BillingCycle, Prisma } from '@prisma/client';
+import { BillingCycle, PlanTier, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -52,6 +52,7 @@ export class SubscriptionPlansService {
         description: dto.description,
         price: dto.price,
         billingCycle: dto.billingCycle ?? BillingCycle.MONTHLY,
+        tier: dto.tier ?? PlanTier.STANDARD,
         features: dto.features ?? [],
         maxUsers: dto.maxUsers ?? 1,
         maxResidents: dto.maxResidents ?? 0,
@@ -182,6 +183,7 @@ export class SubscriptionPlansService {
         }),
         ...(dto.price !== undefined && { price: dto.price }),
         ...(dto.billingCycle && { billingCycle: dto.billingCycle }),
+        ...(dto.tier && { tier: dto.tier }),
         ...(dto.features !== undefined && { features: dto.features }),
         ...(dto.maxUsers !== undefined && { maxUsers: dto.maxUsers }),
         ...(dto.maxResidents !== undefined && {

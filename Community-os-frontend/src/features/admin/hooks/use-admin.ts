@@ -7,10 +7,13 @@ import {
   fetchAdminCommunities,
   fetchAdminCommunity,
   fetchAdminOverview,
+  fetchExemptions,
   fetchPlatformStats,
   fetchSystemHealth,
   fetchTenantSubscription,
+  grantExemption,
   provisionCommunity,
+  revokeExemption,
   updateCommunityStatus,
 } from '@/features/admin/services/admin'
 import type { HoaSignupInput } from '@/types/api'
@@ -116,5 +119,48 @@ export function usePlatformStats() {
     queryKey: ['admin', 'monitoring', 'stats'],
     queryFn: fetchPlatformStats,
     refetchInterval: 60_000,
+  })
+}
+
+// ==========================================
+// Billing Exemptions
+// ==========================================
+
+export function useExemptions(communityId: string) {
+  return useQuery({
+    queryKey: ['admin', 'communities', communityId, 'exemptions'],
+    queryFn: () => fetchExemptions(communityId),
+    enabled: Boolean(communityId),
+  })
+}
+
+export function useGrantExemption(communityId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: { reason: string; startDate: string; endDate?: string }) =>
+      grantExemption(communityId, input),
+    onSuccess: () => {
+      toast.success('Billing exemption granted.')
+      queryClient.invalidateQueries({ queryKey: ['admin', 'communities', communityId, 'exemptions'] })
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Failed to grant exemption.'))
+    },
+  })
+}
+
+export function useRevokeExemption(communityId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (exemptionId: string) => revokeExemption(communityId, exemptionId),
+    onSuccess: () => {
+      toast.success('Billing exemption revoked.')
+      queryClient.invalidateQueries({ queryKey: ['admin', 'communities', communityId, 'exemptions'] })
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Failed to revoke exemption.'))
+    },
   })
 }

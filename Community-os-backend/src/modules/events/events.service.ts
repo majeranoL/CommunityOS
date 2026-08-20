@@ -93,7 +93,17 @@ export class EventsService {
   // ==========================================
 
   async findAll(communityId: string, query: EventQueryDto) {
-    const { page, limit, search, status, category, startFrom, startTo, sortBy, order } = query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      category,
+      startFrom,
+      startTo,
+      sortBy,
+      order,
+    } = query;
 
     const skip = (page - 1) * limit;
 
@@ -420,7 +430,7 @@ export class EventsService {
     });
 
     if (existing) {
-      throw new ConflictException('Already RSVP\'d to this event.');
+      throw new ConflictException("Already RSVP'd to this event.");
     }
 
     await this.prisma.eventAttendee.create({

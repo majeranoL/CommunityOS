@@ -13,7 +13,7 @@ import {
   Min,
 } from 'class-validator';
 
-import { BillingCycle } from '@prisma/client';
+import { BillingCycle, PlanTier } from '@prisma/client';
 
 export class CreateSubscriptionPlanDto {
   @IsString()
@@ -38,6 +38,10 @@ export class CreateSubscriptionPlanDto {
   @IsOptional()
   @IsEnum(BillingCycle)
   billingCycle?: BillingCycle;
+
+  @IsOptional()
+  @IsEnum(PlanTier)
+  tier?: PlanTier;
 
   @IsOptional()
   @IsArray()

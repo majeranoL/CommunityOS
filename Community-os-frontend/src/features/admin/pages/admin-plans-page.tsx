@@ -115,6 +115,7 @@ export default function AdminPlansPage() {
                   <TableRow>
                     <TableHead>Plan</TableHead>
                     <TableHead>Billing</TableHead>
+                    <TableHead>Tier</TableHead>
                     <TableHead>Limits</TableHead>
                     <TableHead>Features</TableHead>
                     <TableHead>Status</TableHead>
@@ -140,6 +141,11 @@ export default function AdminPlansPage() {
                         <p className="text-xs text-muted-foreground">
                           per {plan.billingCycle === 'MONTHLY' ? 'month' : 'year'}
                         </p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={plan.tier === 'CUSTOM' ? 'warning' : 'info'}>
+                          {plan.tier === 'CUSTOM' ? 'Custom' : 'Standard'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <p className="text-sm">{plan.maxUsers} users</p>

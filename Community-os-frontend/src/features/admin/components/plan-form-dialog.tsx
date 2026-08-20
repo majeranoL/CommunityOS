@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { billingCycles, planSchema, type PlanFormValues } from '@/features/admin/validation/plan'
+import { billingCycles, planTiers, planSchema, type PlanFormValues } from '@/features/admin/validation/plan'
 import { useCreatePlan, useUpdatePlan } from '@/features/admin/hooks/use-plans'
 import type { AdminPlan } from '@/features/admin/types/plan'
 
@@ -48,6 +48,7 @@ export function PlanFormDialog({ open, onOpenChange, plan }: PlanFormDialogProps
       description: '',
       price: '',
       billingCycle: 'MONTHLY',
+      tier: 'STANDARD',
       maxUsers: '1',
       maxResidents: '0',
       sortOrder: '0',
@@ -64,6 +65,7 @@ export function PlanFormDialog({ open, onOpenChange, plan }: PlanFormDialogProps
         description: plan?.description ?? '',
         price: plan?.price != null ? String(plan.price) : '',
         billingCycle: plan?.billingCycle ?? 'MONTHLY',
+        tier: plan?.tier ?? 'STANDARD',
         maxUsers: plan?.maxUsers != null ? String(plan.maxUsers) : '1',
         maxResidents: plan?.maxResidents != null ? String(plan.maxResidents) : '0',
         sortOrder: plan?.sortOrder != null ? String(plan.sortOrder) : '0',
@@ -80,6 +82,7 @@ export function PlanFormDialog({ open, onOpenChange, plan }: PlanFormDialogProps
       description: values.description || undefined,
       price: Number(values.price),
       billingCycle: values.billingCycle,
+      tier: values.tier,
       maxUsers: Number(values.maxUsers),
       maxResidents: toNumber(values.maxResidents) ?? 0,
       sortOrder: toNumber(values.sortOrder) ?? 0,
@@ -189,6 +192,31 @@ export function PlanFormDialog({ open, onOpenChange, plan }: PlanFormDialogProps
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="tier"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Plan tier</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a tier" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {planTiers.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Custom plans are tailored for specific communities.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}

@@ -24,6 +24,10 @@ describe('BillingService.sweep', () => {
         findMany: jest.fn(),
         update: jest.fn(),
       },
+      billingExemption: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -118,5 +122,46 @@ describe('BillingService.sweep', () => {
 
     expect(result.data).toMatchObject({ overdue: 0, expired: 0, renewed: 1 });
     expect(prisma.invoice.create).not.toHaveBeenCalled();
+  });
+
+  it('skips overdue marking for exempt communities and auto-renews them', async () => {
+    prisma.billingExemption.findMany.mockResolvedValue([{ communityId: 'c1' }]);
+    prisma.invoice.updateMany.mockResolvedValue({ count: 0 });
+    prisma.subscription.findMany.mockResolvedValue([
+      {
+        id: 's5',
+        communityId: 'c1',
+        status: SubscriptionStatus.ACTIVE,
+        autoRenew: true,
+        planId: 'p1',
+        endsAt: new Date('2020-01-01'),
+        plan: {
+          id: 'p1',
+          price: '100',
+          billingCycle: BillingCycle.MONTHLY,
+        },
+      },
+    ]);
+
+    const result = await service.sweep();
+
+    expect(result.data).toMatchObject({
+      overdue: 0,
+      expired: 0,
+      renewed: 1,
+      exemptCommunities: 1,
+    });
+    expect(prisma.invoice.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          communityId: { notIn: ['c1'] },
+        }),
+      }),
+    );
+    expect(prisma.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: SubscriptionStatus.ACTIVE }),
+      }),
+    );
   });
 });

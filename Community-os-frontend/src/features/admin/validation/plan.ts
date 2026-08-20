@@ -5,6 +5,11 @@ export const billingCycles = [
   { value: 'YEARLY', label: 'Yearly' },
 ] as const
 
+export const planTiers = [
+  { value: 'STANDARD', label: 'Standard' },
+  { value: 'CUSTOM', label: 'Custom' },
+] as const
+
 export const planSchema = z.object({
   code: z
     .string()
@@ -18,6 +23,7 @@ export const planSchema = z.object({
     .min(1, 'Price is required')
     .refine((value) => Number(value) >= 0, 'Price cannot be negative'),
   billingCycle: z.enum(['MONTHLY', 'YEARLY']),
+  tier: z.enum(['STANDARD', 'CUSTOM']),
   maxUsers: z
     .string()
     .min(1, 'Max users is required')

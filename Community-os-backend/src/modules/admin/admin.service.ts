@@ -11,6 +11,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { AdminCommunityQueryDto } from './dto/admin-community-query.dto';
 import { UpdateCommunityStatusDto } from './dto/update-community-status.dto';
+import { GrantExemptionDto } from './dto/grant-exemption.dto';
 
 @Injectable()
 export class AdminService {
@@ -532,21 +533,32 @@ export class AdminService {
       recentAuditLogs7d,
     ] = await Promise.all([
       this.prisma.community.count({ where: { deletedAt: null } }),
-      this.prisma.community.count({ where: { deletedAt: null, status: CommunityStatus.ACTIVE } }),
+      this.prisma.community.count({
+        where: { deletedAt: null, status: CommunityStatus.ACTIVE },
+      }),
       this.prisma.user.count({ where: { deletedAt: null } }),
-      this.prisma.user.count({ where: { deletedAt: null, updatedAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.user.count({
+        where: { deletedAt: null, updatedAt: { gte: thirtyDaysAgo } },
+      }),
       this.prisma.resident.count({ where: { deletedAt: null } }),
       this.prisma.household.count({ where: { deletedAt: null } }),
       this.prisma.complaint.count({ where: { deletedAt: null } }),
       this.prisma.complaint.count({
-        where: { deletedAt: null, status: { in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS] } },
+        where: {
+          deletedAt: null,
+          status: { in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS] },
+        },
       }),
       this.prisma.visitor.count({ where: { deletedAt: null } }),
-      this.prisma.visitor.count({ where: { deletedAt: null, status: 'CHECKED_IN' } }),
+      this.prisma.visitor.count({
+        where: { deletedAt: null, status: 'CHECKED_IN' },
+      }),
       this.prisma.notification.count({ where: {} }),
       this.prisma.notification.count({ where: { readAt: null } }),
       this.prisma.auditLog.count(),
-      this.prisma.auditLog.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+      this.prisma.auditLog.count({
+        where: { createdAt: { gte: sevenDaysAgo } },
+      }),
     ]);
 
     return {
@@ -558,11 +570,115 @@ export class AdminService {
         residents: { total: totalResidents },
         households: { total: totalHouseholds },
         complaints: { total: totalComplaints, open: openComplaints },
-        visitors: { total: totalVisitors, currentlyCheckedIn: checkedInVisitors },
-        notifications: { total: totalNotifications, unread: unreadNotifications },
+        visitors: {
+          total: totalVisitors,
+          currentlyCheckedIn: checkedInVisitors,
+        },
+        notifications: {
+          total: totalNotifications,
+          unread: unreadNotifications,
+        },
         auditLogs: { total: totalAuditLogs, last7Days: recentAuditLogs7d },
       },
     };
+  }
+
+  // ==========================================
+  // Billing Exemptions
+  // ==========================================
+
+  async findExemptions(communityId: string) {
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found.');
+    }
+
+    const exemptions = await this.prisma.billingExemption.findMany({
+      where: { communityId },
+      include: {
+        grantedBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      success: true,
+      message: 'Exemptions retrieved successfully.',
+      data: exemptions,
+    };
+  }
+
+  async grantExemption(
+    communityId: string,
+    dto: GrantExemptionDto,
+    grantedById: string,
+  ) {
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found.');
+    }
+
+    const exemption = await this.prisma.billingExemption.create({
+      data: {
+        communityId,
+        reason: dto.reason,
+        startDate: new Date(dto.startDate),
+        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        grantedById,
+      },
+      include: {
+        grantedBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Billing exemption granted successfully.',
+      data: exemption,
+    };
+  }
+
+  async revokeExemption(communityId: string, exemptionId: string) {
+    const exemption = await this.prisma.billingExemption.findFirst({
+      where: { id: exemptionId, communityId },
+    });
+
+    if (!exemption) {
+      throw new NotFoundException('Exemption not found.');
+    }
+
+    await this.prisma.billingExemption.delete({
+      where: { id: exemptionId },
+    });
+
+    return {
+      success: true,
+      message: 'Billing exemption revoked.',
+    };
+  }
+
+  async isCommunityExempt(communityId: string): Promise<boolean> {
+    const now = new Date();
+    const exemption = await this.prisma.billingExemption.findFirst({
+      where: {
+        communityId,
+        startDate: { lte: now },
+        OR: [{ endDate: null }, { endDate: { gte: now } }],
+      },
+    });
+    return exemption !== null;
   }
 
   private formatUptime(seconds: number): string {

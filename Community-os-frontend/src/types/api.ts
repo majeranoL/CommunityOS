@@ -103,6 +103,7 @@ export interface SubscriptionPlan {
   description: string | null
   price: string | number
   billingCycle: 'MONTHLY' | 'YEARLY'
+  tier: 'STANDARD' | 'CUSTOM'
   features: string[]
   maxUsers: number
   maxResidents: number
@@ -270,6 +271,7 @@ export interface AdminCommunityDetail {
       description: string | null
       price: string | number
       billingCycle: string
+      tier: string
     } | null
   } | null
   users: {

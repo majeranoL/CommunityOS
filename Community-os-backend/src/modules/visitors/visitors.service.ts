@@ -156,8 +156,18 @@ export class VisitorsService {
   // ==========================================
 
   async findAll(communityId: string, query: VisitorQueryDto) {
-    const { page, limit, search, status, category, hostResidentId, dateFrom, dateTo, sortBy, order } =
-      query;
+    const {
+      page,
+      limit,
+      search,
+      status,
+      category,
+      hostResidentId,
+      dateFrom,
+      dateTo,
+      sortBy,
+      order,
+    } = query;
 
     const skip = (page - 1) * limit;
 

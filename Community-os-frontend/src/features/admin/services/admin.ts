@@ -95,3 +95,41 @@ export async function fetchPlatformStats() {
   const { data } = await api.get<ApiEnvelope<PlatformStats>>('/admin/monitoring/stats')
   return data.data
 }
+
+// ==========================================
+// Billing Exemptions
+// ==========================================
+
+export interface BillingExemption {
+  id: string
+  communityId: string
+  reason: string
+  startDate: string
+  endDate: string | null
+  grantedById: string
+  grantedBy: { id: string; firstName: string; lastName: string } | null
+  createdAt: string
+}
+
+export async function fetchExemptions(communityId: string) {
+  const { data } = await api.get<ApiEnvelope<BillingExemption[]>>(`/admin/communities/${communityId}/exemptions`)
+  return data.data
+}
+
+export async function grantExemption(
+  communityId: string,
+  input: { reason: string; startDate: string; endDate?: string },
+) {
+  const { data } = await api.post<ApiEnvelope<BillingExemption>>(
+    `/admin/communities/${communityId}/exemptions`,
+    input,
+  )
+  return data.data
+}
+
+export async function revokeExemption(communityId: string, exemptionId: string) {
+  const { data } = await api.delete<ApiEnvelope<{ success: true }>>(
+    `/admin/communities/${communityId}/exemptions/${exemptionId}`,
+  )
+  return data.data
+}

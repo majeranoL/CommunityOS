@@ -672,3 +672,43 @@ Verification log:
 - Backend: `npx tsc --noEmit` exit 0
 - Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing warnings only)
 - Changes: `admin.controller.ts` (2 new endpoints), `admin.service.ts` (systemHealth + platformStats methods), `admin.ts` services (SystemHealth/PlatformStats types + fetch functions), `use-admin.ts` (useSystemHealth/usePlatformStats hooks with auto-refresh), `admin-monitoring-page.tsx` (new page), `admin-shell.tsx` (nav link), `router.tsx` (new route + lazy import)
+
+### IDEA 2 — Subscription / SaaS Business Model — DONE (2026-08-20)
+
+Checklist:
+
+- [x] `PlanTier` enum (STANDARD, CUSTOM) added to Prisma schema
+- [x] `tier` field added to `SubscriptionPlan` model
+- [x] `WAIVED` added to `InvoiceStatus` enum
+- [x] `BillingExemption` model — communityId, reason, startDate, endDate, grantedById with relations
+- [x] Migration `20260820034249_add_billing_exemption_plan_tier` applied
+- [x] Admin exemption endpoints — `GET/POST/DELETE /admin/communities/:id/exemptions`
+- [x] Billing sweep integration — exempt communities auto-renewed without overdue marking
+- [x] Subscription creation integration — invoices for exempt communities auto-marked WAIVED
+- [x] Billing summary — WAIVED invoices hidden, exemption status included
+- [x] Frontend: Exemption types, service functions, hooks (useExemptions, useGrantExemption, useRevokeExemption)
+- [x] Frontend: Community detail — exemption list card with grant/revoke actions
+- [x] Frontend: Plan form — tier select field (Standard/Custom)
+- [x] Frontend: Plans table — tier column with badge
+- [x] Frontend: Community detail subscription card — tier badge
+- [x] Frontend: `SubscriptionPlan` type updated with `tier` field
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing warnings only)
+- Changes: `schema.prisma` (PlanTier enum, BillingExemption model, WAIVED status, tier field), migration, `admin.controller.ts` (+3 endpoints), `admin.service.ts` (+4 methods), `admin/dto/grant-exemption.dto.ts` (new), `billing.service.ts` (exemption check in sweep + summary), `subscriptions.service.ts` (WAIVED invoice generation), `create-plan.dto.ts` (+tier), `subscription-plans.service.ts` (+tier in create/update), `admin.ts` services (+3 functions), `use-admin.ts` (+3 hooks), `admin-community-detail-page.tsx` (exemption card + dialog), `plan-form-dialog.tsx` (+tier field), `admin-plans-page.tsx` (+tier column), `validation/plan.ts` (+tier), `types/plan.ts` (+PlanTier), `types/api.ts` (+tier on SubscriptionPlan + AdminCommunityDetail)
+
+### IDEA 12 — UI/UX Improvements — DONE (2026-08-20)
+
+Checklist:
+
+- [x] `framer-motion` installed
+- [x] `PageTransition` component — fade+slide animation (opacity 0→1, y 8→0, 200ms tween)
+- [x] Integrated into `withSuspense` router wrapper — all lazy-loaded pages get smooth transitions
+- [x] Page transitions apply to both `/app` and `/admin` route trees
+
+Verification log:
+
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing warnings only)
+- Changes: `package.json` (+framer-motion), `page-transition.tsx` (new component), `router.tsx` (PageTransition wrapper)

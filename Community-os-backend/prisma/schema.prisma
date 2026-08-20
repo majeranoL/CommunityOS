@@ -382,7 +382,13 @@ enum InvoiceStatus {
   ISSUED
   PAID
   OVERDUE
+  WAIVED
   VOID
+}
+
+enum PlanTier {
+  STANDARD
+  CUSTOM
 }
 
 /////////////////////////////////////////////////////
@@ -437,6 +443,7 @@ model Community {
   notifications     Notification[]
   subscription      Subscription?
   invoices          Invoice[]
+  billingExemptions BillingExemption[]
   polls             Poll[]
   auditLogs         AuditLog[]
   settings          Setting[]
@@ -636,6 +643,7 @@ model User {
   updatedPlatformSettings PlatformSetting[] @relation("PlatformSettingUpdatedBy")
   verifiedResidents       Resident[]        @relation("ResidentVerifiedBy")
   verifiedVehicles        Vehicle[]         @relation("VehicleVerifiedBy")
+  grantedExemptions       BillingExemption[] @relation("ExemptionGrantedBy")
   verifiedPets            Pet[]             @relation("PetVerifiedBy")
   verifiedPayments        Payment[]         @relation("PaymentVerifiedBy")
   rejectedPayments        Payment[]         @relation("PaymentRejectedBy")
@@ -1777,6 +1785,7 @@ model SubscriptionPlan {
   description  String?
   price        Decimal      @db.Decimal(10, 2)
   billingCycle BillingCycle @default(MONTHLY)
+  tier         PlanTier     @default(STANDARD)
   features     String[]
   maxUsers     Int          @default(1)
   maxResidents Int          @default(0)
@@ -1853,6 +1862,29 @@ model Invoice {
   @@index([subscriptionId])
   @@index([status])
   @@index([dueDate])
+}
+
+/////////////////////////////////////////////////////
+// BILLING EXEMPTION
+/////////////////////////////////////////////////////
+
+model BillingExemption {
+  id          String  @id @default(uuid()) @db.Uuid
+  communityId String  @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  reason  String @db.VarChar(500)
+  startDate DateTime
+  endDate   DateTime?
+
+  grantedById String @db.Uuid
+  grantedBy   User   @relation("ExemptionGrantedBy", fields: [grantedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([communityId])
+  @@index([grantedById])
 }
 
 /////////////////////////////////////////////////////

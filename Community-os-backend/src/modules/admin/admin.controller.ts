@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 
@@ -19,6 +20,7 @@ import { PlatformAdmin } from '../../common/decorators/platform-admin.decorator'
 
 import { AdminCommunityQueryDto } from './dto/admin-community-query.dto';
 import { UpdateCommunityStatusDto } from './dto/update-community-status.dto';
+import { GrantExemptionDto } from './dto/grant-exemption.dto';
 import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
 import { CommunitiesService } from '../communities/communities.service';
 
@@ -82,5 +84,27 @@ export class AdminController {
   @Get('monitoring/stats')
   platformStats() {
     return this.adminService.platformStats();
+  }
+
+  @Get('communities/:id/exemptions')
+  findExemptions(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.findExemptions(id);
+  }
+
+  @Post('communities/:id/exemptions')
+  grantExemption(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: GrantExemptionDto,
+    @Request() req: any,
+  ) {
+    return this.adminService.grantExemption(id, dto, req.user.id);
+  }
+
+  @Delete('communities/:id/exemptions/:exemptionId')
+  revokeExemption(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('exemptionId', ParseUUIDPipe) exemptionId: string,
+  ) {
+    return this.adminService.revokeExemption(id, exemptionId);
   }
 }
