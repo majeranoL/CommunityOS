@@ -1,5 +1,4 @@
 import {
-  Briefcase,
   Building2,
   CalendarDays,
   Car,
@@ -7,7 +6,6 @@ import {
   CreditCard,
   DoorOpen,
   FileSpreadsheet,
-  FileText,
   History,
   Home,
   LayoutDashboard,
@@ -21,7 +19,6 @@ import {
   UserRound,
   Vote,
   Wallet,
-  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/constants/permissions'
@@ -64,7 +61,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Announcements', href: '/app/announcements', icon: Megaphone, permission: PERMISSIONS.announcementView },
       { label: 'Events', href: '/app/events', icon: CalendarDays, permission: PERMISSIONS.eventView },
       { label: 'Polls', href: '/app/polls', icon: Vote, permission: PERMISSIONS.pollView },
-      { label: 'Documents', href: '/app/documents', icon: FileText, permission: PERMISSIONS.documentView },
     ],
   },
   {
@@ -72,8 +68,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Complaints', href: '/app/complaints', icon: MessageSquareWarning, permission: PERMISSIONS.complaintView },
       { label: 'Facilities', href: '/app/facilities', icon: Building2, permission: PERMISSIONS.facilityView },
-      { label: 'Staff', href: '/app/staff', icon: Briefcase, permission: PERMISSIONS.staffView },
-      { label: 'Maintenance', href: '/app/maintenance', icon: Wrench, permission: PERMISSIONS.maintenanceView },
     ],
   },
   {
