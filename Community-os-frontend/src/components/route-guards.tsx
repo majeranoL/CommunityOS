@@ -77,7 +77,7 @@ export function PermissionRoute({
   const user = useAuthStore((state) => state.user)
 
   if (!user?.permissions.includes(permission)) {
-    return <Navigate to="/app/dashboard" replace />
+    return <Navigate to="/app/announcements" replace />
   }
 
   return children

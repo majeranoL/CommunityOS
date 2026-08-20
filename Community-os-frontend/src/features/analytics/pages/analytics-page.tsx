@@ -325,16 +325,18 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height={260} className="sm:max-w-[340px]">
                 <PieChart>
                   <Pie
-                    data={breakdownData}
+                    data={breakdownData.filter((entry) => entry.value > 0)}
                     dataKey="value"
                     nameKey="name"
                     innerRadius={60}
                     outerRadius={100}
                     paddingAngle={2}
                   >
-                    {breakdownData.map((entry, index) => (
-                      <Cell key={entry.name} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
-                    ))}
+                    {breakdownData
+                      .filter((entry) => entry.value > 0)
+                      .map((entry, index) => (
+                        <Cell key={entry.name} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                      ))}
                   </Pie>
                   <Tooltip />
                 </PieChart>

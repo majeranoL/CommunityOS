@@ -27,6 +27,10 @@ export interface ComplaintListItem {
   priority: ComplaintPriority
   status: ComplaintStatus
   resident: ComplaintResident
+  assignedTo: {
+    id: string
+    fullName: string
+  } | null
   createdAt: string
   updatedAt: string
 }

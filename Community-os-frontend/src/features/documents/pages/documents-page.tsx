@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Archive, Download, FileText, Plus, Search } from 'lucide-react'
+import { Archive, Download, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { DataTable, type Column } from '@/components/shared/data-table'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,7 +17,7 @@ import {
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { toast } from '@/components/ui/sonner'
-import { useArchiveDocument, useDocuments, usePublishDocument } from '@/features/documents/hooks/use-documents'
+import { useArchiveDocument, useDeleteDocument, useDocuments, usePublishDocument } from '@/features/documents/hooks/use-documents'
 import { documentsService } from '@/features/documents/services/documents'
 import { DocumentFormDialog } from '@/features/documents/components/document-form-dialog'
 import type { DocumentListItem } from '@/features/documents/types/document'
@@ -32,10 +33,12 @@ export default function DocumentsPage() {
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editDocument, setEditDocument] = useState<DocumentListItem | null>(null)
+  const [deleting, setDeleting] = useState<DocumentListItem | null>(null)
 
   const canCreate = useHasPermission(PERMISSIONS.documentCreate)
   const canPublish = useHasPermission(PERMISSIONS.documentPublish)
   const canArchive = useHasPermission(PERMISSIONS.documentArchive)
+  const canDelete = useHasPermission(PERMISSIONS.documentDelete)
 
   const { data, isLoading, isFetching } = useDocuments({
     page,
@@ -47,6 +50,7 @@ export default function DocumentsPage() {
 
   const publishDocument = usePublishDocument()
   const archiveDocument = useArchiveDocument()
+  const deleteDocument = useDeleteDocument()
 
   const openFile = (row: DocumentListItem) => {
     documentsService.openFile(row).catch(() => {
@@ -114,6 +118,16 @@ export default function DocumentsPage() {
             <Download className="h-4 w-4" />
             Open
           </Button>
+          {canPublish ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setEditDocument(row)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          ) : null}
           {row.status === 'DRAFT' && canPublish ? (
             <Button type="button" variant="ghost" size="sm" onClick={() => publishDocument.mutate(row.id)}>
               Publish
@@ -128,6 +142,16 @@ export default function DocumentsPage() {
             >
               <Archive className="h-4 w-4" />
               Archive
+            </Button>
+          ) : null}
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setDeleting(row)}
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           ) : null}
         </div>
@@ -216,6 +240,20 @@ export default function DocumentsPage() {
         open={Boolean(editDocument)}
         onOpenChange={(open) => !open && setEditDocument(null)}
         document={editDocument}
+      />
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => {
+          if (!open) setDeleting(null)
+        }}
+        title="Delete document?"
+        description={`"${deleting?.title}" will be permanently removed.`}
+        confirmLabel="Delete"
+        destructive
+        loading={deleteDocument.isPending}
+        onConfirm={() => {
+          if (deleting) deleteDocument.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+        }}
       />
     </div>
   )

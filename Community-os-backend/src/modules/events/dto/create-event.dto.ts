@@ -7,7 +7,7 @@ import {
   MaxLength,
 } from 'class-validator';
 
-import { EventStatus } from '@prisma/client';
+import { EventCategory, EventStatus } from '@prisma/client';
 
 export class CreateEventDto {
   @IsString()
@@ -38,4 +38,8 @@ export class CreateEventDto {
   @IsOptional()
   @IsEnum(EventStatus)
   status?: EventStatus;
+
+  @IsOptional()
+  @IsEnum(EventCategory)
+  category?: EventCategory;
 }

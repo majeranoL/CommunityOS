@@ -73,4 +73,14 @@ export class AdminController {
   findSubscription(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.findSubscription(id);
   }
+
+  @Get('monitoring/health')
+  systemHealth() {
+    return this.adminService.systemHealth();
+  }
+
+  @Get('monitoring/stats')
+  platformStats() {
+    return this.adminService.platformStats();
+  }
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/app-shell'
 import { AdminShell } from '@/components/layout/admin-shell'
+import { ErrorBoundary } from '@/components/error-boundary'
 import {
   FullPageLoader,
   ProtectedRoute,
@@ -48,9 +49,14 @@ const AdminProvisionPage = lazy(() => import('@/features/admin/pages/admin-provi
 const AdminPlansPage = lazy(() => import('@/features/admin/pages/admin-plans-page'))
 const AdminFeaturesPage = lazy(() => import('@/features/admin/pages/admin-features-page'))
 const AdminPlatformSettingsPage = lazy(() => import('@/features/admin/pages/admin-platform-settings-page'))
+const AdminMonitoringPage = lazy(() => import('@/features/admin/pages/admin-monitoring-page'))
 
 function withSuspense(element: React.ReactNode) {
-  return <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<FullPageLoader />}>{element}</Suspense>
+    </ErrorBoundary>
+  )
 }
 
 export const router = createBrowserRouter([
@@ -333,6 +339,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: withSuspense(<AdminPlatformSettingsPage />),
+      },
+      {
+        path: 'monitoring',
+        element: withSuspense(<AdminMonitoringPage />),
       },
     ],
   },

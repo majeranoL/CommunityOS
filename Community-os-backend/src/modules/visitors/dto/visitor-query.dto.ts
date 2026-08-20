@@ -1,4 +1,5 @@
 import {
+  IsDateString,
   IsEnum,
   IsIn,
   IsInt,
@@ -11,7 +12,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import { VisitorStatus } from '@prisma/client';
+import { VisitorCategory, VisitorStatus } from '@prisma/client';
 
 export class VisitorQueryDto {
   @IsOptional()
@@ -36,8 +37,20 @@ export class VisitorQueryDto {
   status?: VisitorStatus;
 
   @IsOptional()
+  @IsEnum(VisitorCategory)
+  category?: VisitorCategory;
+
+  @IsOptional()
   @IsUUID()
   hostResidentId?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  dateTo?: string;
 
   @IsOptional()
   @IsIn(['name', 'entryAt', 'createdAt'])

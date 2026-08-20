@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import {
   CommunityStatus,
+  ComplaintStatus,
   InvoiceStatus,
   SubscriptionStatus,
 } from '@prisma/client';
@@ -449,5 +450,129 @@ export class AdminService {
       message: 'Tenant subscription retrieved successfully.',
       data: subscription,
     };
+  }
+
+  // ==========================================
+  // Platform Monitoring — System Health
+  // ==========================================
+
+  async systemHealth() {
+    const start = Date.now();
+
+    let databaseStatus: 'up' | 'down' = 'up';
+    let dbLatencyMs = 0;
+
+    try {
+      const dbStart = Date.now();
+      await this.prisma.$queryRaw`SELECT 1`;
+      dbLatencyMs = Date.now() - dbStart;
+    } catch {
+      databaseStatus = 'down';
+    }
+
+    const mem = process.memoryUsage();
+    const uptimeSec = process.uptime();
+
+    return {
+      success: true,
+      message: 'System health retrieved successfully.',
+      data: {
+        status: databaseStatus === 'up' ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        uptime: {
+          seconds: Math.floor(uptimeSec),
+          human: this.formatUptime(uptimeSec),
+        },
+        database: {
+          status: databaseStatus,
+          latencyMs: dbLatencyMs,
+        },
+        memory: {
+          rssBytes: mem.rss,
+          heapUsedBytes: mem.heapUsed,
+          heapTotalBytes: mem.heapTotal,
+          externalBytes: mem.external,
+          rssMb: Math.round(mem.rss / 1024 / 1024),
+          heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
+          heapTotalMb: Math.round(mem.heapTotal / 1024 / 1024),
+        },
+        process: {
+          pid: process.pid,
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch,
+        },
+        responseMs: Date.now() - start,
+      },
+    };
+  }
+
+  // ==========================================
+  // Platform Monitoring — Stats
+  // ==========================================
+
+  async platformStats() {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      totalCommunities,
+      activeCommunities,
+      totalUsers,
+      activeUsers30d,
+      totalResidents,
+      totalHouseholds,
+      totalComplaints,
+      openComplaints,
+      totalVisitors,
+      checkedInVisitors,
+      totalNotifications,
+      unreadNotifications,
+      totalAuditLogs,
+      recentAuditLogs7d,
+    ] = await Promise.all([
+      this.prisma.community.count({ where: { deletedAt: null } }),
+      this.prisma.community.count({ where: { deletedAt: null, status: CommunityStatus.ACTIVE } }),
+      this.prisma.user.count({ where: { deletedAt: null } }),
+      this.prisma.user.count({ where: { deletedAt: null, updatedAt: { gte: thirtyDaysAgo } } }),
+      this.prisma.resident.count({ where: { deletedAt: null } }),
+      this.prisma.household.count({ where: { deletedAt: null } }),
+      this.prisma.complaint.count({ where: { deletedAt: null } }),
+      this.prisma.complaint.count({
+        where: { deletedAt: null, status: { in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS] } },
+      }),
+      this.prisma.visitor.count({ where: { deletedAt: null } }),
+      this.prisma.visitor.count({ where: { deletedAt: null, status: 'CHECKED_IN' } }),
+      this.prisma.notification.count({ where: {} }),
+      this.prisma.notification.count({ where: { readAt: null } }),
+      this.prisma.auditLog.count(),
+      this.prisma.auditLog.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Platform stats retrieved successfully.',
+      data: {
+        communities: { total: totalCommunities, active: activeCommunities },
+        users: { total: totalUsers, activeLast30Days: activeUsers30d },
+        residents: { total: totalResidents },
+        households: { total: totalHouseholds },
+        complaints: { total: totalComplaints, open: openComplaints },
+        visitors: { total: totalVisitors, currentlyCheckedIn: checkedInVisitors },
+        notifications: { total: totalNotifications, unread: unreadNotifications },
+        auditLogs: { total: totalAuditLogs, last7Days: recentAuditLogs7d },
+      },
+    };
+  }
+
+  private formatUptime(seconds: number): string {
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const parts: string[] = [];
+    if (d > 0) parts.push(`${d}d`);
+    if (h > 0) parts.push(`${h}h`);
+    parts.push(`${m}m`);
+    return parts.join(' ');
   }
 }

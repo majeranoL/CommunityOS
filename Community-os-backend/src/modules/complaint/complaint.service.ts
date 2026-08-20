@@ -125,10 +125,6 @@ export class ComplaintService {
     };
   }
 
-  // ==========================================
-  // Temporary Stubs
-  // ==========================================
-
   async findAll(communityId: string, query: ComplaintQueryDto) {
     // ==========================================
     // Extract Query Parameters
@@ -231,6 +227,14 @@ export class ComplaintService {
               lastName: true,
             },
           },
+
+          assignedTo: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
         },
       }),
 
@@ -260,6 +264,13 @@ export class ComplaintService {
           id: complaint.resident.id,
           fullName: `${complaint.resident.firstName} ${complaint.resident.lastName}`,
         },
+
+        assignedTo: complaint.assignedTo
+          ? {
+              id: complaint.assignedTo.id,
+              fullName: `${complaint.assignedTo.firstName} ${complaint.assignedTo.lastName}`,
+            }
+          : null,
 
         createdAt: complaint.createdAt,
         updatedAt: complaint.updatedAt,
@@ -298,6 +309,14 @@ export class ComplaintService {
             id: true,
             firstName: true,
             middleName: true,
+            lastName: true,
+          },
+        },
+
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
             lastName: true,
           },
         },
@@ -344,6 +363,13 @@ export class ComplaintService {
               : ''
           }${complaint.resident.lastName}`,
         },
+
+        assignedTo: complaint.assignedTo
+          ? {
+              id: complaint.assignedTo.id,
+              fullName: `${complaint.assignedTo.firstName} ${complaint.assignedTo.lastName}`,
+            }
+          : null,
 
         createdAt: complaint.createdAt,
         updatedAt: complaint.updatedAt,
@@ -602,6 +628,26 @@ export class ComplaintService {
     );
 
     // ==========================================
+    // Notify Resident
+    // ==========================================
+
+    const residentUser = await this.prisma.resident.findFirst({
+      where: { id: complaint.residentId, communityId, deletedAt: null },
+      include: { user: { select: { id: true } } },
+    });
+
+    if (residentUser?.user?.id) {
+      await this.notificationsService.notify(
+        communityId,
+        residentUser.user.id,
+        NotificationType.COMPLAINT,
+        `Your complaint ${complaint.complaintNumber} is being handled`,
+        `Your complaint "${complaint.title}" has been assigned to a staff member.`,
+        `/complaints/${complaint.id}`,
+      );
+    }
+
+    // ==========================================
     // Response
     // ==========================================
 
@@ -698,6 +744,26 @@ export class ComplaintService {
     }
 
     // ==========================================
+    // Notify Resident
+    // ==========================================
+
+    const resolveResidentUser = await this.prisma.resident.findFirst({
+      where: { id: complaint.residentId, communityId, deletedAt: null },
+      include: { user: { select: { id: true } } },
+    });
+
+    if (resolveResidentUser?.user?.id) {
+      await this.notificationsService.notify(
+        communityId,
+        resolveResidentUser.user.id,
+        NotificationType.COMPLAINT,
+        `Your complaint ${complaint.complaintNumber} has been resolved`,
+        `Your complaint "${complaint.title}" has been resolved.`,
+        `/complaints/${complaint.id}`,
+      );
+    }
+
+    // ==========================================
     // Response
     // ==========================================
 
@@ -781,6 +847,26 @@ export class ComplaintService {
         NotificationType.COMPLAINT,
         `Complaint ${complaint.complaintNumber} closed`,
         `${complaint.title} has been closed.`,
+        `/complaints/${complaint.id}`,
+      );
+    }
+
+    // ==========================================
+    // Notify Resident
+    // ==========================================
+
+    const closeResidentUser = await this.prisma.resident.findFirst({
+      where: { id: complaint.residentId, communityId, deletedAt: null },
+      include: { user: { select: { id: true } } },
+    });
+
+    if (closeResidentUser?.user?.id) {
+      await this.notificationsService.notify(
+        communityId,
+        closeResidentUser.user.id,
+        NotificationType.COMPLAINT,
+        `Your complaint ${complaint.complaintNumber} has been closed`,
+        `Your complaint "${complaint.title}" has been closed.`,
         `/complaints/${complaint.id}`,
       );
     }

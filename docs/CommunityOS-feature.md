@@ -538,3 +538,137 @@ Verification log:
 - Live verification on production (admin = President): login OK with all 7 new permission codes present; `GET /api/expenses` 200 (empty); created `EXP-000001` Guardhouse roof repair (MAINTENANCE, ₱8,500) → statement updated (income 4,900, expenses 8,500, fundBalance −3,600, billed 25,500) with category breakdown MAINTENANCE 8,500/1; PATCH amount → 9,000 + notes; search `roof` = 1 hit, category filter = 1 hit; CSV export `expenses-2026-08-16.csv` (`Content-Disposition: attachment`) with correct header + row; import preview 2/2 valid → confirm created EXP-000002 (Streetlight repair, UTILITIES 3,200) + EXP-000003 (Clubhouse cleaning, MAINTENANCE 1,500), both `isImported=true`, statement expenses 13,700; delete EXP-000002 → fundBalance −5,600; fresh preview batch cancel → "Import batch cancelled."; date range `from=2026-08-01&to=2026-08-31` → statement returns 2 embedded expenses; no-auth 401 on `/expenses` + `/finance/income-statement`; temp Member user (no finance codes) → 403 on `/expenses`, `/finance/income-statement`, `/expenses/:id` (deleted after test)
 
 Remaining from the broader idea (out of scope / deferred, consistent with prior decisions): per-category payment views and module-specific category permissions (charge categories exist, no per-category view perm), import column-mapping UI + full duplicate-detection, export custom-column selection, a dedicated payment gateway (payments remain manual per the Production-readiness decision), construction-bond/renovation modules (feature backlog).
+
+---
+
+### IDEA 15 — Complaints, Incidents & Service Requests — DONE (2026-08-20)
+
+Checklist:
+
+- [x] Resident complaint submission with title, category, description, location, priority, attachments — existing complaints module
+- [x] Workflow: OPEN → ASSIGNED → IN PROGRESS → RESOLVED → CLOSED — existing status lifecycle
+- [x] Officer assign → resident notification — `complaint.service.ts` includes `assignedTo` user on `findAll`/`findOne`; resident notified on assign/resolve/close via `notificationsService.notify`
+- [x] Category filter on complaints list — frontend `CategoryFilter` select with 9 categories (General, Noise, Maintenance, Security, Waste, Water, Parking, Rule Violation, Other); backend `category` query param
+- [x] Assignee column + detail card — `ComplaintListItem` type extended with `assignedTo`; table shows assignee name; detail dialog shows assigned-to card below reporter card
+- [x] Residents view only their own reports — existing household/member scoping
+- [x] Officers view community reports — existing `complaint.view_all` permission
+- [x] Attachments, status history, comments, notifications, audit logging — existing functionality
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing warnings only)
+- Changes: `complaint.service.ts` (assignedTo includes + resident notifications), `complaint.ts` types, `complaints-page.tsx` (category filter + assignee column), `complaint-detail-dialog.tsx` (assignee card)
+
+---
+
+### IDEA 16 — Documents & Digital Records — DONE (2026-08-20)
+
+Checklist:
+
+- [x] Centralized document storage with categorization, metadata, access permissions — existing documents module
+- [x] Upload/download/preview — existing `documentsService.upload` + `openFile` streaming
+- [x] Edit button wired — `setEditDocument` opens `DocumentFormDialog` in edit mode
+- [x] Delete with confirmation dialog — `ConfirmDialog` + `useDeleteDocument` mutation
+- [x] Client-side 10MB file size validation — `handleFileChange` in `DocumentFormDialog` checks `file.size > 10 * 1024 * 1024`
+- [x] Role-based access, audit logging — existing functionality
+
+Verification log:
+
+- Backend: no changes
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors
+- Changes: `documents-page.tsx` (edit/delete buttons + ConfirmDialog), `document-form-dialog.tsx` (10MB validation)
+
+---
+
+### IDEA 17 — Community Calendar & Event Scheduling — DONE (2026-08-20)
+
+Checklist:
+
+- [x] Create, publish, update, cancel, complete events — existing full CRUD + status lifecycle
+- [x] Event categories — `EventCategory` enum (GENERAL, MEETING, SOCIAL, SPORTS, WORKSHOP, FUNDRAISER, OTHER) + `category` field on Event model with default GENERAL
+- [x] RSVP tracking — `EventAttendee` model (unique `[eventId, userId]`, cascade deletes); `POST/DELETE /events/:id/rsvp` + `GET /events/:id/attendees` endpoints
+- [x] RSVP button in detail dialog — toggle Attending/RSVP with attendee count display
+- [x] Attendee count on all event queries — `_count: { attendees: true }` on findAll/findOne/create/update/status changes
+- [x] isRsvpd flag — `findOne` returns `attendees` relation (take:1) when userId provided; frontend reads `attendees.length > 0`
+- [x] Calendar view component — month grid with color-coded event dots by category, prev/next navigation, fetches events for visible month via `startFrom`/`startTo` query params
+- [x] List/Calendar view toggle — toggle button group on events page
+- [x] Category filter — select dropdown on events page + backend `category` query param
+- [x] Date range filtering — `startFrom`/`startTo` on `EventQueryDto` + backend date range where clause
+- [x] Category on create/edit form — category select field in `EventFormDialog`
+- [x] Category badge in detail dialog — outline badge showing category label
+- [x] Calendar legend — color legend below calendar grid
+
+Verification log:
+
+- Schema: migration `20260820024743_add_event_category_rsvp` (EventCategory enum, EventAttendee model, category column + index)
+- Backend: `npx tsc --noEmit` exit 0
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (1 pre-existing react-hook-form warning)
+- Changes: `prisma/schema.prisma` (EventCategory enum, Event.category, EventAttendee model), `events.service.ts` (RSVP methods, category/date filters, attendee counts), `events.controller.ts` (3 new endpoints), DTOs (category + date range fields), frontend types/services/hooks (RSVP + category), `event-detail-dialog.tsx` (RSVP button + attendee count + category badge), `events-calendar-view.tsx` (new component), `events-page.tsx` (view toggle + category filter + RSVP column), `event-form-dialog.tsx` (category select), `validation/event.ts` (category field)
+
+---
+
+### IDEA 14 — Visitor & Gate Management — DONE (2026-08-20)
+
+Checklist:
+
+- [x] Full CRUD — create, read, update, delete visitors with host resident + vehicle validation
+- [x] Check-in / Check-out / Cancel actions — `PATCH /visitors/:id/check-in|check-out|cancel` with timestamp tracking
+- [x] Visitor categories — `VisitorCategory` enum (ONE_TIME, RECURRING, SERVICE_PROVIDER, CONTRACTOR, DELIVERY, OTHER) + `category` field on Visitor model with default ONE_TIME
+- [x] QR code visitor pass — `qrcode.react` SVG pass with visitor name, host, plate, and timestamp in detail dialog
+- [x] Visitor detail dialog — full record view (name, phone, purpose, host, vehicle, entry/exit times, remarks, category badge, QR pass, action buttons)
+- [x] Delete with ConfirmDialog — permission-gated trash button with destructive confirmation dialog
+- [x] Category filter — select dropdown on visitors page + backend `category` query param
+- [x] Date range filtering — `dateFrom`/`dateTo` on `VisitorQueryDto` + backend `entryAt` date range clause
+- [x] Search — by visitor name, purpose, or host resident name
+- [x] Status filter — EXPECTED, CHECKED_IN, CHECKED_OUT, CANCELLED
+- [x] Status lifecycle — EXPECTED → CHECKED_IN → CHECKED_OUT (or CANCELLED)
+- [x] Guest pass auto-approve setting — community-level `autoApproveGuestPasses` flag
+- [x] Permission-based UI — check-in, check-out, cancel, delete buttons gated by role permissions
+
+Verification log:
+
+- Schema: migration `20260820031144_add_visitor_category` (VisitorCategory enum, category column + index)
+- Backend: `npx tsc --noEmit` exit 0
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors
+- Changes: `prisma/schema.prisma` (VisitorCategory enum, Visitor.category), `visitors.service.ts` (category + date range filtering), DTOs (category + date range fields), `visitors-page.tsx` (detail dialog, delete button, category/date filters, category column), `visitor-detail-dialog.tsx` (new), `visitor-qr-pass.tsx` (new), `visitor-form-dialog.tsx` (category select), types (VisitorCategory), services (remove method), hooks (useDeleteVisitor), validation (category field), `qrcode.react` dependency
+
+---
+
+### IDEA 19 — Reports & Analytics — DONE (2026-08-20)
+
+Checklist:
+
+- [x] Expense reports — `reportsService.expenses()` returns expense data (number, title, category, amount, payee, date) + CSV export; `GET /reports/expenses` endpoint
+- [x] Reservation reports — `reportsService.reservations()` returns reservation data (facility, resident, purpose, status, dates) + CSV export; `GET /reports/reservations` endpoint
+- [x] Staff reports — `reportsService.staff()` returns staff data (name, role, phone, email, hire date, status) + CSV export; `GET /reports/staff` endpoint
+- [x] Frontend report cards — 3 new report cards (Expenses, Reservations, Staff) with generate/download buttons on Reports page
+- [x] ReportType union extended — `'expenses' | 'reservations' | 'staff'` added to frontend type
+- [x] Donut chart color mismatch fix — Analytics page filters both Pie chart data AND legend consistently to prevent color/label mismatch
+- [x] Existing reports retained — monthly dues, outstanding balances, collection rates, payment history, household counts, vehicle counts, complaint volumes
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing warnings only)
+- Changes: `reports.service.ts` (3 new report methods), `reports.controller.ts` (3 new endpoints + methods map), `reports.ts` types, `reports-page.tsx` (3 new cards), `analytics-page.tsx` (donut fix)
+
+---
+
+### IDEA 20 — Superadmin Platform Monitoring & Operations — DONE (2026-08-20)
+
+Checklist:
+
+- [x] System health endpoint — `GET /admin/monitoring/health` returns DB status, DB latency, uptime, memory usage, process info, response time
+- [x] Platform stats endpoint — `GET /admin/monitoring/stats` returns community counts, user counts, resident/household counts, complaint stats, visitor stats, notification counts, audit log counts
+- [x] System Health page — new `/admin/monitoring` route with status indicator (healthy/degraded), DB latency, uptime, heap memory, process details (Node version, platform, arch, RSS)
+- [x] Platform stats cards — 12 KPI cards showing communities, users, residents, households, complaints, visitors, notifications, audit logs
+- [x] Auto-refresh — health polls every 30s, stats every 60s
+- [x] Admin shell nav — "System Health" link with ShieldCheck icon in sidebar
+- [x] Route guard — wrapped in `PlatformAdminRoute` + `AdminShell`
+
+Verification log:
+
+- Backend: `npx tsc --noEmit` exit 0
+- Frontend: `npx tsc --noEmit` exit 0; eslint 0 errors (pre-existing warnings only)
+- Changes: `admin.controller.ts` (2 new endpoints), `admin.service.ts` (systemHealth + platformStats methods), `admin.ts` services (SystemHealth/PlatformStats types + fetch functions), `use-admin.ts` (useSystemHealth/usePlatformStats hooks with auto-refresh), `admin-monitoring-page.tsx` (new page), `admin-shell.tsx` (nav link), `router.tsx` (new route + lazy import)

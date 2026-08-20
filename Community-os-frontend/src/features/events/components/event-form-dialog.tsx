@@ -7,11 +7,22 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DateTimePicker } from '@/components/shared/date-time-picker'
 import { useCreateEvent, useUpdateEvent } from '@/features/events/hooks/use-events'
 import { eventSchema, type EventFormValues } from '@/features/events/validation/event'
-import type { CommunityEvent } from '@/features/events/types/event'
+import type { CommunityEvent, EventCategory } from '@/features/events/types/event'
 import { formatDate } from '@/lib/format'
+
+const CATEGORY_OPTIONS: { value: EventCategory; label: string }[] = [
+  { value: 'GENERAL', label: 'General' },
+  { value: 'MEETING', label: 'Meeting' },
+  { value: 'SOCIAL', label: 'Social' },
+  { value: 'SPORTS', label: 'Sports' },
+  { value: 'WORKSHOP', label: 'Workshop' },
+  { value: 'FUNDRAISER', label: 'Fundraiser' },
+  { value: 'OTHER', label: 'Other' },
+]
 
 interface EventFormDialogProps {
   open: boolean
@@ -41,6 +52,7 @@ export function EventFormDialog({ open, onOpenChange, event }: EventFormDialogPr
       startAt: '',
       endAt: '',
       coverImageUrl: '',
+      category: 'GENERAL',
       publish: false,
     },
   })
@@ -57,6 +69,7 @@ export function EventFormDialog({ open, onOpenChange, event }: EventFormDialogPr
         startAt: event ? toLocalInputValue(event.startAt) : '',
         endAt: event ? toLocalInputValue(event.endAt) : '',
         coverImageUrl: event?.coverImageUrl ?? '',
+        category: event?.category ?? 'GENERAL',
         publish: false,
       })
     }
@@ -70,6 +83,7 @@ export function EventFormDialog({ open, onOpenChange, event }: EventFormDialogPr
       startAt: new Date(values.startAt).toISOString(),
       endAt: values.endAt ? new Date(values.endAt).toISOString() : undefined,
       coverImageUrl: values.coverImageUrl || undefined,
+      category: values.category as EventCategory,
       ...(isEdit
         ? event?.status === 'DRAFT'
           ? { status: values.publish ? ('PUBLISHED' as const) : undefined }
@@ -122,6 +136,30 @@ export function EventFormDialog({ open, onOpenChange, event }: EventFormDialogPr
                   <FormControl>
                     <Textarea placeholder="What should residents expect?" rows={3} {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

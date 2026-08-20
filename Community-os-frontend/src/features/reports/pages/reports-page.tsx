@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  Briefcase,
   CalendarDays,
   Car,
   CreditCard,
@@ -8,8 +9,10 @@ import {
   Home,
   MessageSquareWarning,
   Receipt,
+  ReceiptText,
   UserRound,
   Users,
+  Wallet,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
@@ -86,6 +89,24 @@ const REPORTS: ReportDef[] = [
     title: 'Events',
     description: 'Published events with organizer and schedule.',
     icon: CalendarDays,
+  },
+  {
+    key: 'expenses',
+    title: 'Expenses',
+    description: 'All expenses with category, amount, and payee details.',
+    icon: ReceiptText,
+  },
+  {
+    key: 'reservations',
+    title: 'Reservations',
+    description: 'Facility reservations with resident and schedule.',
+    icon: Wallet,
+  },
+  {
+    key: 'staff',
+    title: 'Staff',
+    description: 'Staff directory with role, contact, and hire details.',
+    icon: Briefcase,
   },
 ]
 

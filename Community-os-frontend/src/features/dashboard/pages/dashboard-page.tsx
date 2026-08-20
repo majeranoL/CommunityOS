@@ -13,8 +13,10 @@ import {
   PenLine,
   TrendingUp,
   AlertCircle,
+  AlertTriangle,
   Vote,
   Building2,
+  RefreshCw,
   Wrench,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,7 +30,7 @@ import { useDashboardOverview } from '@/features/dashboard/hooks/use-dashboard'
 import { useAuthStore, useHasAnyPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatDate, formatDateTime, relativeTime, toTitleCase } from '@/lib/format'
+import { formatDate, formatDateTime, formatCurrency, relativeTime, toTitleCase } from '@/lib/format'
 import { useFacilities } from '@/features/facilities/hooks/use-facilities'
 import { AnnouncementDetailDialog } from '@/features/announcements/components/announcement-detail-dialog'
 import type { DashboardOverview } from '@/features/dashboard/types/dashboard'
@@ -457,7 +459,7 @@ export default function DashboardPage() {
     PERMISSIONS.reservationApprove,
     PERMISSIONS.announcementCreate,
   ])
-  const { data, isLoading } = useDashboardOverview()
+  const { data, isLoading, isError, refetch } = useDashboardOverview()
   const navigate = useNavigate()
   const [announcementId, setAnnouncementId] = useState<string | null>(null)
 
@@ -478,6 +480,20 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {isLoading ? (
         <DashboardSkeleton />
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-4 py-20 text-center">
+          <AlertTriangle className="h-10 w-10 text-destructive" />
+          <div>
+            <p className="text-sm font-medium">Failed to load dashboard</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Something went wrong while fetching your dashboard data.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        </div>
       ) : (
         <>
           <PageHeader
@@ -522,16 +538,16 @@ export default function DashboardPage() {
           {isManagement && data?.finance ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="animate-card-enter" style={{ animationDelay: '200ms' }}>
-                <KpiCard label="Total billed" value={data.finance.totalBilled} icon={FileText} hint="All assessments issued" />
+                <KpiCard label="Total billed" value={data.finance.totalBilled} icon={FileText} hint="All assessments issued" formatter={formatCurrency} />
               </div>
               <div className="animate-card-enter" style={{ animationDelay: '250ms' }}>
-                <KpiCard label="Total collected" value={data.finance.totalCollected} icon={DollarSign} hint="Verified payments" />
+                <KpiCard label="Total collected" value={data.finance.totalCollected} icon={DollarSign} hint="Verified payments" formatter={formatCurrency} />
               </div>
               <div className="animate-card-enter" style={{ animationDelay: '300ms' }}>
-                <KpiCard label="Outstanding" value={data.finance.outstanding} icon={AlertCircle} hint="Unpaid balance" />
+                <KpiCard label="Outstanding" value={data.finance.outstanding} icon={AlertCircle} hint="Unpaid balance" formatter={formatCurrency} />
               </div>
               <div className="animate-card-enter" style={{ animationDelay: '350ms' }}>
-                <KpiCard label="This month" value={data.finance.monthlyCollected} icon={TrendingUp} hint={`${data.finance.monthlyPaymentsCount} payment(s)`} />
+                <KpiCard label="This month" value={data.finance.monthlyCollected} icon={TrendingUp} hint={`${data.finance.monthlyPaymentsCount} payment(s)`} formatter={formatCurrency} />
               </div>
             </div>
           ) : null}

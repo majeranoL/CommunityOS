@@ -325,6 +325,25 @@ enum EventStatus {
   COMPLETED
 }
 
+enum EventCategory {
+  GENERAL
+  MEETING
+  SOCIAL
+  SPORTS
+  WORKSHOP
+  FUNDRAISER
+  OTHER
+}
+
+enum VisitorCategory {
+  ONE_TIME
+  RECURRING
+  SERVICE_PROVIDER
+  CONTRACTOR
+  DELIVERY
+  OTHER
+}
+
 enum PollStatus {
   DRAFT
   OPEN
@@ -608,6 +627,7 @@ model User {
 
   uploadedDocuments       Document[]
   organizedEvents         Event[]
+  eventAttendances        EventAttendee[]
   createdPolls            Poll[]            @relation("PollCreatedBy")
   pollVotes               PollVote[]
   auditLogs               AuditLog[]
@@ -1094,6 +1114,8 @@ model Visitor {
   purpose     String?
   remarks     String?
 
+  category VisitorCategory @default(ONE_TIME)
+
   entryAt DateTime?
   exitAt  DateTime?
 
@@ -1107,6 +1129,7 @@ model Visitor {
   @@index([hostResidentId])
   @@index([vehicleId])
   @@index([status])
+  @@index([category])
   @@index([entryAt])
 }
 
@@ -1682,7 +1705,10 @@ model Event {
   endAt         DateTime?
   coverImageUrl String?
 
-  status EventStatus @default(DRAFT)
+  status   EventStatus  @default(DRAFT)
+  category EventCategory @default(GENERAL)
+
+  attendees EventAttendee[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1691,7 +1717,24 @@ model Event {
   @@index([communityId])
   @@index([organizerId])
   @@index([status])
+  @@index([category])
   @@index([startAt])
+}
+
+model EventAttendee {
+  id String @id @default(uuid()) @db.Uuid
+
+  eventId  String @db.Uuid
+  event    Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 /////////////////////////////////////////////////////

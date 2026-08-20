@@ -9,6 +9,7 @@ import {
   Menu,
   Puzzle,
   Settings,
+  ShieldCheck,
   Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -32,6 +33,7 @@ const ADMIN_NAV = [
   { label: 'Communities', href: '/admin/communities', icon: Building2 },
   { label: 'Plans', href: '/admin/plans', icon: CreditCard },
   { label: 'Features', href: '/admin/features', icon: Puzzle },
+  { label: 'System Health', href: '/admin/monitoring', icon: ShieldCheck },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
   { label: 'Provision', href: '/admin/communities/new', icon: Users },
 ]

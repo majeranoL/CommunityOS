@@ -68,3 +68,16 @@ export function useCheckOutVisitor(onSuccess?: () => void) {
 export function useCancelVisitor(onSuccess?: () => void) {
   return useVisitorAction((id) => visitorsService.cancel(id), 'Visit cancelled.', onSuccess)
 }
+
+export function useDeleteVisitor(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => visitorsService.remove(id),
+    onSuccess: () => {
+      toast.success('Visitor deleted.')
+      queryClient.invalidateQueries({ queryKey: visitorKeys.all })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete visitor.')),
+  })
+}

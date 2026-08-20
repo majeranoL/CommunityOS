@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogIn, LogOut, Plus, Search, UserRoundX, Users } from 'lucide-react'
+import { LogIn, LogOut, Plus, Search, Trash2, UserRoundX, Users } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -13,41 +13,73 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import {
   useCancelVisitor,
   useCheckInVisitor,
   useCheckOutVisitor,
+  useDeleteVisitor,
   useVisitors,
 } from '@/features/visitors/hooks/use-visitors'
 import { VisitorFormDialog } from '@/features/visitors/components/visitor-form-dialog'
-import type { VisitorListItem } from '@/features/visitors/types/visitor'
+import { VisitorDetailDialog } from '@/features/visitors/components/visitor-detail-dialog'
+import type { VisitorCategory, VisitorListItem } from '@/features/visitors/types/visitor'
 import { formatDateTime, toTitleCase } from '@/lib/format'
 
 const STATUS_FILTERS = ['ALL', 'EXPECTED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED'] as const
 
+const CATEGORY_FILTERS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'All categories' },
+  { value: 'ONE_TIME', label: 'One-time' },
+  { value: 'RECURRING', label: 'Recurring' },
+  { value: 'SERVICE_PROVIDER', label: 'Service Provider' },
+  { value: 'CONTRACTOR', label: 'Contractor' },
+  { value: 'DELIVERY', label: 'Delivery' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+const CATEGORY_LABELS: Record<VisitorCategory, string> = {
+  ONE_TIME: 'One-time',
+  RECURRING: 'Recurring',
+  SERVICE_PROVIDER: 'Service Provider',
+  CONTRACTOR: 'Contractor',
+  DELIVERY: 'Delivery',
+  OTHER: 'Other',
+}
+
 export default function VisitorsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
+  const [category, setCategory] = useState<string>('ALL')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<VisitorListItem | null>(null)
 
   const canCreate = useHasPermission(PERMISSIONS.visitorCreate)
   const canCheckIn = useHasPermission(PERMISSIONS.visitorCheckIn)
   const canCheckOut = useHasPermission(PERMISSIONS.visitorCheckOut)
   const canCancel = useHasPermission(PERMISSIONS.visitorCancel)
+  const canDelete = useHasPermission(PERMISSIONS.visitorDelete)
 
   const { data, isLoading, isFetching } = useVisitors({
     page,
     limit: 10,
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
+    category: category === 'ALL' ? undefined : category,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
   })
 
   const checkIn = useCheckInVisitor()
   const checkOut = useCheckOutVisitor()
   const cancelVisit = useCancelVisitor()
+  const deleteVisitor = useDeleteVisitor(() => setDeleteTarget(null))
 
   const hostName = (row: VisitorListItem) =>
     row.hostResident ? `${row.hostResident.firstName} ${row.hostResident.lastName}` : null
@@ -57,16 +89,26 @@ export default function VisitorsPage() {
       key: 'visitor',
       header: 'Visitor',
       cell: (row) => (
-        <div className="flex items-center gap-3">
+        <button
+          type="button"
+          className="flex items-center gap-3 text-left"
+          onClick={() => setDetailId(row.id)}
+        >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
             <Users className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="leading-tight">
-            <p className="font-medium">{row.name}</p>
+            <p className="font-medium hover:underline">{row.name}</p>
             <p className="text-xs text-muted-foreground">{row.phoneNumber || row.purpose || '—'}</p>
           </div>
-        </div>
+        </button>
       ),
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      cell: (row) => <span className="text-muted-foreground">{CATEGORY_LABELS[row.category]}</span>,
+      hideBelow: 'md',
     },
     {
       key: 'host',
@@ -136,6 +178,17 @@ export default function VisitorsPage() {
               Cancel
             </Button>
           ) : null}
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => setDeleteTarget(row)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
       ),
     },
@@ -186,6 +239,36 @@ export default function VisitorsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={category}
+          onValueChange={(value) => {
+            setCategory(value)
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="sm:w-48">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORY_FILTERS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          type="date"
+          className="sm:w-44"
+          value={dateFrom}
+          onChange={(e) => { setDateFrom(e.target.value); setPage(1) }}
+        />
+        <Input
+          type="date"
+          className="sm:w-44"
+          value={dateTo}
+          onChange={(e) => { setDateTo(e.target.value); setPage(1) }}
+        />
         {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
       </div>
 
@@ -200,6 +283,20 @@ export default function VisitorsPage() {
       <Pagination pagination={data?.pagination} onPageChange={setPage} />
 
       <VisitorFormDialog open={formOpen} onOpenChange={setFormOpen} />
+      <VisitorDetailDialog visitorId={detailId} open={detailId !== null} onOpenChange={(o) => { if (!o) setDetailId(null) }} />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}
+        title="Delete visitor"
+        description={`Permanently delete ${deleteTarget?.name ?? ''}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => {
+          if (deleteTarget) deleteVisitor.mutate(deleteTarget.id)
+        }}
+        loading={deleteVisitor.isPending}
+      />
     </div>
   )
 }

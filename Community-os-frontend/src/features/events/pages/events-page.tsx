@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, MoreHorizontal, Plus, Search, XCircle } from 'lucide-react'
+import { CheckCircle2, MoreHorizontal, Plus, Search, XCircle, CalendarDays, List } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -26,15 +26,29 @@ import {
 } from '@/features/events/hooks/use-events'
 import { EventFormDialog } from '@/features/events/components/event-form-dialog'
 import { EventDetailDialog } from '@/features/events/components/event-detail-dialog'
-import type { CommunityEvent } from '@/features/events/types/event'
+import { EventsCalendarView } from '@/features/events/components/events-calendar-view'
+import type { CommunityEvent, EventCategory } from '@/features/events/types/event'
 import { formatDate } from '@/lib/format'
 import { useViewParam } from '@/lib/use-view-param'
 
 const STATUS_FILTERS = ['ALL', 'DRAFT', 'UPCOMING', 'PUBLISHED', 'COMPLETED', 'CANCELLED'] as const
+const CATEGORY_FILTERS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'All categories' },
+  { value: 'GENERAL', label: 'General' },
+  { value: 'MEETING', label: 'Meeting' },
+  { value: 'SOCIAL', label: 'Social' },
+  { value: 'SPORTS', label: 'Sports' },
+  { value: 'WORKSHOP', label: 'Workshop' },
+  { value: 'FUNDRAISER', label: 'Fundraiser' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+type ViewMode = 'list' | 'calendar'
 
 export default function EventsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
+  const [category, setCategory] = useState<string>('ALL')
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<CommunityEvent | null>(null)
@@ -42,6 +56,7 @@ export default function EventsPage() {
   const [deleting, setDeleting] = useState<CommunityEvent | null>(null)
   const [cancelling, setCancelling] = useState<CommunityEvent | null>(null)
   const [completing, setCompleting] = useState<CommunityEvent | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
 
   const canCreate = useHasPermission(PERMISSIONS.eventCreate)
   const canUpdate = useHasPermission(PERMISSIONS.eventUpdate)
@@ -55,6 +70,7 @@ export default function EventsPage() {
     limit: 10,
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
+    category: category === 'ALL' ? undefined : (category as EventCategory),
   })
 
   const publishEvent = usePublishEvent()
@@ -80,10 +96,28 @@ export default function EventsPage() {
       ),
     },
     {
+      key: 'category',
+      header: 'Category',
+      cell: (row) => (
+        <span className="text-xs text-muted-foreground">
+          {row.category ? row.category.charAt(0) + row.category.slice(1).toLowerCase() : '—'}
+        </span>
+      ),
+      hideBelow: 'md',
+    },
+    {
       key: 'startAt',
       header: 'Starts',
       cell: (row) => <span className="text-muted-foreground">{formatDate(row.startAt)}</span>,
       hideBelow: 'md',
+    },
+    {
+      key: 'attendees',
+      header: 'RSVPs',
+      cell: (row) => (
+        <span className="text-muted-foreground">{row._count?.attendees ?? 0}</span>
+      ),
+      hideBelow: 'lg',
     },
     {
       key: 'organizer',
@@ -197,18 +231,59 @@ export default function EventsPage() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={category}
+          onValueChange={(value) => {
+            setCategory(value)
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="sm:w-44">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORY_FILTERS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex rounded-md border">
+          <Button
+            variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+            size="icon-sm"
+            className="rounded-r-none"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
+            size="icon-sm"
+            className="rounded-l-none"
+            onClick={() => setViewMode('calendar')}
+          >
+            <CalendarDays className="h-4 w-4" />
+          </Button>
+        </div>
         {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
       </div>
 
-      <DataTable
-        columns={columns}
-        rows={data?.items ?? []}
-        keyExtractor={(row) => row.id}
-        isLoading={isLoading}
-        emptyMessage="No events found."
-      />
-
-      <Pagination pagination={data?.pagination} onPageChange={setPage} />
+      {viewMode === 'calendar' ? (
+        <EventsCalendarView onEventClick={(id) => setDetailId(id)} />
+      ) : (
+        <>
+          <DataTable
+            columns={columns}
+            rows={data?.items ?? []}
+            keyExtractor={(row) => row.id}
+            isLoading={isLoading}
+            emptyMessage="No events found."
+          />
+          <Pagination pagination={data?.pagination} onPageChange={setPage} />
+        </>
+      )}
 
       <EventFormDialog open={formOpen} onOpenChange={setFormOpen} event={editing} />
       <EventDetailDialog

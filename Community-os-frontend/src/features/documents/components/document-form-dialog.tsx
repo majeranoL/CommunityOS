@@ -83,6 +83,10 @@ function DocumentForm({
   })
 
   const handleFileChange = (selected: File | null) => {
+    if (selected && selected.size > 10 * 1024 * 1024) {
+      toast.error('File must be 10 MB or smaller.')
+      return
+    }
     setFile(selected)
     if (selected) setFileUrl('')
   }

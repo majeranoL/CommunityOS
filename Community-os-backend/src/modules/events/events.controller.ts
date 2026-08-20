@@ -56,7 +56,7 @@ export class EventsController {
   @Get(':id')
   @Permissions('event.view')
   findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.eventsService.findOne(req.user.community.id, id);
+    return this.eventsService.findOne(req.user.community.id, id, req.user.id);
   }
 
   // ==========================================
@@ -111,5 +111,31 @@ export class EventsController {
   @Permissions('event.complete')
   complete(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.eventsService.complete(req.user.community.id, id);
+  }
+
+  // ==========================================
+  // RSVP
+  // ==========================================
+
+  @Post(':id/rsvp')
+  @Permissions('event.view')
+  rsvp(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.eventsService.rsvp(req.user.community.id, id, req.user.id);
+  }
+
+  @Delete(':id/rsvp')
+  @Permissions('event.view')
+  cancelRsvp(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.eventsService.cancelRsvp(
+      req.user.community.id,
+      id,
+      req.user.id,
+    );
+  }
+
+  @Get(':id/attendees')
+  @Permissions('event.view')
+  getAttendees(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.eventsService.getAttendees(req.user.community.id, id);
   }
 }

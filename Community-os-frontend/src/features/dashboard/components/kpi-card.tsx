@@ -10,9 +10,12 @@ interface KpiCardProps {
   hint?: string
   loading?: boolean
   className?: string
+  formatter?: (value: number) => string
 }
 
-export function KpiCard({ label, value, icon: Icon, hint, loading, className }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, hint, loading, className, formatter }: KpiCardProps) {
+  const displayValue = value != null ? (formatter ? formatter(value) : value.toLocaleString()) : '—'
+
   return (
     <Card className={cn('', className)}>
       <CardContent className="p-5">
@@ -23,7 +26,7 @@ export function KpiCard({ label, value, icon: Icon, hint, loading, className }: 
               <Skeleton className="h-8 w-16" />
             ) : (
               <p className="text-3xl font-semibold tracking-tight">
-                {value?.toLocaleString() ?? '—'}
+                {displayValue}
               </p>
             )}
             {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}

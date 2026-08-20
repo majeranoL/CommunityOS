@@ -1,4 +1,5 @@
 import {
+  IsDateString,
   IsEnum,
   IsIn,
   IsInt,
@@ -10,7 +11,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import { EventStatus } from '@prisma/client';
+import { EventCategory, EventStatus } from '@prisma/client';
 
 export class EventQueryDto {
   @IsOptional()
@@ -33,6 +34,18 @@ export class EventQueryDto {
   @IsOptional()
   @IsEnum(EventStatus)
   status?: EventStatus;
+
+  @IsOptional()
+  @IsEnum(EventCategory)
+  category?: EventCategory;
+
+  @IsOptional()
+  @IsDateString()
+  startFrom?: string;
+
+  @IsOptional()
+  @IsDateString()
+  startTo?: string;
 
   @IsOptional()
   @IsIn(['title', 'startAt', 'createdAt'])

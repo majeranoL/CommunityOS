@@ -130,6 +130,42 @@ export class ReportsController {
     return this.handle(req, res, query, 'events');
   }
 
+  @Get('expenses')
+  @Permissions('reports.export')
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Expenses export' })
+  expenses(
+    @Request() req: any,
+    @Query() query: ReportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.handle(req, res, query, 'expenses');
+  }
+
+  @Get('reservations')
+  @Permissions('reports.export')
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Reservations export' })
+  reservations(
+    @Request() req: any,
+    @Query() query: ReportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.handle(req, res, query, 'reservations');
+  }
+
+  @Get('staff')
+  @Permissions('reports.export')
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Staff export' })
+  staff(
+    @Request() req: any,
+    @Query() query: ReportQueryDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.handle(req, res, query, 'staff');
+  }
+
   @Get('status-options')
   @Permissions('reports.export')
   @ApiBearerAuth()
@@ -157,6 +193,9 @@ export class ReportsController {
       maintenance: (id) => this.reportsService.maintenance(id),
       visitors: (id) => this.reportsService.visitors(id),
       events: (id) => this.reportsService.events(id),
+      expenses: (id) => this.reportsService.expenses(id),
+      reservations: (id) => this.reportsService.reservations(id),
+      staff: (id) => this.reportsService.staff(id),
     };
 
     const report = await methods[type](req.user.community.id, query.month);

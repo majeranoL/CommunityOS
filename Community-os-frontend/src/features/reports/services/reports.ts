@@ -10,6 +10,9 @@ export type ReportType =
   | 'maintenance'
   | 'visitors'
   | 'events'
+  | 'expenses'
+  | 'reservations'
+  | 'staff'
 
 export async function downloadReport(type: ReportType, month?: string) {
   const { data, headers } = await api.get<Blob>(`/reports/${type}`, {

@@ -52,3 +52,46 @@ export async function fetchTenantSubscription(communityId: string) {
   const { data } = await api.get<ApiEnvelope<Subscription>>(`/admin/communities/${communityId}/subscription`)
   return data.data
 }
+
+// ==========================================
+// Platform Monitoring
+// ==========================================
+
+export interface SystemHealth {
+  status: 'healthy' | 'degraded'
+  timestamp: string
+  uptime: { seconds: number; human: string }
+  database: { status: 'up' | 'down'; latencyMs: number }
+  memory: {
+    rssBytes: number
+    heapUsedBytes: number
+    heapTotalBytes: number
+    externalBytes: number
+    rssMb: number
+    heapUsedMb: number
+    heapTotalMb: number
+  }
+  process: { pid: number; nodeVersion: string; platform: string; arch: string }
+  responseMs: number
+}
+
+export interface PlatformStats {
+  communities: { total: number; active: number }
+  users: { total: number; activeLast30Days: number }
+  residents: { total: number }
+  households: { total: number }
+  complaints: { total: number; open: number }
+  visitors: { total: number; currentlyCheckedIn: number }
+  notifications: { total: number; unread: number }
+  auditLogs: { total: number; last7Days: number }
+}
+
+export async function fetchSystemHealth() {
+  const { data } = await api.get<ApiEnvelope<SystemHealth>>('/admin/monitoring/health')
+  return data.data
+}
+
+export async function fetchPlatformStats() {
+  const { data } = await api.get<ApiEnvelope<PlatformStats>>('/admin/monitoring/stats')
+  return data.data
+}

@@ -9,6 +9,7 @@ export const eventKeys = {
   all: ['events'] as const,
   list: (params: ListQuery) => ['events', 'list', params] as const,
   detail: (id: string) => ['events', 'detail', id] as const,
+  attendees: (id: string) => ['events', 'attendees', id] as const,
 }
 
 export function useEvents(params: ListQuery) {
@@ -23,6 +24,14 @@ export function useEvent(id: string | null) {
   return useQuery({
     queryKey: eventKeys.detail(id ?? ''),
     queryFn: () => eventsService.get(id as string),
+    enabled: Boolean(id),
+  })
+}
+
+export function useEventAttendees(id: string | null) {
+  return useQuery({
+    queryKey: eventKeys.attendees(id ?? ''),
+    queryFn: () => eventsService.getAttendees(id as string),
     enabled: Boolean(id),
   })
 }
@@ -104,5 +113,29 @@ export function useDeleteEvent(onSuccess?: () => void) {
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete event.')),
+  })
+}
+
+export function useRsvpEvent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => eventsService.rsvp(id),
+    onSuccess: () => {
+      toast.success('RSVP confirmed!')
+      invalidateAll(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to RSVP.')),
+  })
+}
+
+export function useCancelRsvpEvent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => eventsService.cancelRsvp(id),
+    onSuccess: () => {
+      toast.success('RSVP cancelled.')
+      invalidateAll(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to cancel RSVP.')),
   })
 }

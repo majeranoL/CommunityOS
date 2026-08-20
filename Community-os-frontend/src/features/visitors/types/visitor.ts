@@ -1,5 +1,7 @@
 export type VisitorStatus = 'EXPECTED' | 'CHECKED_IN' | 'CHECKED_OUT' | 'CANCELLED'
 
+export type VisitorCategory = 'ONE_TIME' | 'RECURRING' | 'SERVICE_PROVIDER' | 'CONTRACTOR' | 'DELIVERY' | 'OTHER'
+
 export interface VisitorRef {
   id: string
   firstName: string
@@ -24,6 +26,7 @@ export interface VisitorListItem {
   exitAt: string | null
   remarks: string | null
   status: VisitorStatus
+  category: VisitorCategory
   createdAt: string
 }
 
@@ -36,5 +39,6 @@ export interface CreateVisitorInput {
   entryAt?: string
   exitAt?: string
   remarks?: string
+  category?: VisitorCategory
   status?: VisitorStatus
 }

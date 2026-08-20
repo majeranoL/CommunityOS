@@ -1,6 +1,6 @@
 import api from '@/lib/api'
 import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
-import type { CommunityEvent, CreateEventInput, UpdateEventInput } from '@/features/events/types/event'
+import type { CommunityEvent, CreateEventInput, EventAttendee, UpdateEventInput } from '@/features/events/types/event'
 
 export interface EventListResult {
   items: CommunityEvent[]
@@ -45,6 +45,21 @@ export const eventsService = {
 
   async complete(id: string) {
     const { data } = await api.patch<ApiEnvelope<CommunityEvent>>(`/events/${id}/complete`)
+    return data.data
+  },
+
+  async rsvp(id: string) {
+    const { data } = await api.post<ApiEnvelope<{ attendeeCount: number }>>(`/events/${id}/rsvp`)
+    return data.data
+  },
+
+  async cancelRsvp(id: string) {
+    const { data } = await api.delete<ApiEnvelope<{ attendeeCount: number }>>(`/events/${id}/rsvp`)
+    return data.data
+  },
+
+  async getAttendees(id: string) {
+    const { data } = await api.get<ApiEnvelope<EventAttendee[]>>(`/events/${id}/attendees`)
     return data.data
   },
 }

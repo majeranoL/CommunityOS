@@ -559,6 +559,137 @@ export class ReportsService {
   }
 
   // ==========================================
+  // Expenses
+  // ==========================================
+
+  async expenses(communityId: string): Promise<ReportResult> {
+    const expenses = await this.prisma.expense.findMany({
+      where: { communityId, deletedAt: null },
+      orderBy: { expenseDate: 'desc' },
+      include: {
+        createdBy: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      filename: 'expenses.csv',
+      columns: [
+        { key: 'expenseNumber', label: 'Expense Number' },
+        { key: 'title', label: 'Title' },
+        { key: 'category', label: 'Category' },
+        { key: 'amount', label: 'Amount' },
+        { key: 'expenseDate', label: 'Expense Date' },
+        { key: 'paymentMethod', label: 'Payment Method' },
+        { key: 'payee', label: 'Payee' },
+        { key: 'referenceNumber', label: 'Reference Number' },
+        { key: 'createdBy', label: 'Created By' },
+      ],
+      rows: expenses.map((expense) => ({
+        expenseNumber: expense.expenseNumber,
+        title: expense.title,
+        category: expense.category,
+        amount: this.toNumber(expense.amount),
+        expenseDate: this.fmtDate(expense.expenseDate),
+        paymentMethod: expense.paymentMethod,
+        payee: expense.payee ?? '',
+        referenceNumber: expense.referenceNumber ?? '',
+        createdBy: `${expense.createdBy.firstName} ${expense.createdBy.lastName}`,
+      })),
+    };
+  }
+
+  // ==========================================
+  // Reservations
+  // ==========================================
+
+  async reservations(communityId: string): Promise<ReportResult> {
+    const reservations = await this.prisma.reservation.findMany({
+      where: { communityId, deletedAt: null },
+      orderBy: { startAt: 'desc' },
+      include: {
+        facility: {
+          select: {
+            name: true,
+          },
+        },
+        resident: {
+          select: {
+            firstName: true,
+            middleName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    return {
+      filename: 'reservations.csv',
+      columns: [
+        { key: 'facility', label: 'Facility' },
+        { key: 'resident', label: 'Resident' },
+        { key: 'purpose', label: 'Purpose' },
+        { key: 'startAt', label: 'Start Date' },
+        { key: 'endAt', label: 'End Date' },
+        { key: 'status', label: 'Status' },
+      ],
+      rows: reservations.map((reservation) => ({
+        facility: reservation.facility.name,
+        resident: this.fullName(
+          reservation.resident.firstName,
+          reservation.resident.middleName,
+          reservation.resident.lastName,
+        ),
+        purpose: reservation.purpose ?? '',
+        startAt: this.fmtDate(reservation.startAt),
+        endAt: this.fmtDate(reservation.endAt),
+        status: reservation.status,
+      })),
+    };
+  }
+
+  // ==========================================
+  // Staff
+  // ==========================================
+
+  async staff(communityId: string): Promise<ReportResult> {
+    const staff = await this.prisma.staff.findMany({
+      where: { communityId, deletedAt: null },
+      orderBy: { lastName: 'asc' },
+    });
+
+    return {
+      filename: 'staff.csv',
+      columns: [
+        { key: 'staffNumber', label: 'Staff Number' },
+        { key: 'name', label: 'Name' },
+        { key: 'role', label: 'Role' },
+        { key: 'phoneNumber', label: 'Phone Number' },
+        { key: 'email', label: 'Email' },
+        { key: 'hireDate', label: 'Hire Date' },
+        { key: 'status', label: 'Status' },
+      ],
+      rows: staff.map((member) => ({
+        staffNumber: member.staffNumber,
+        name: this.fullName(
+          member.firstName,
+          member.middleName,
+          member.lastName,
+        ),
+        role: member.role,
+        phoneNumber: member.phoneNumber ?? '',
+        email: member.email ?? '',
+        hireDate: this.fmtDate(member.hireDate),
+        status: member.status,
+      })),
+    };
+  }
+
+  // ==========================================
   // Status Reference (for dropdowns)
   // ==========================================
 

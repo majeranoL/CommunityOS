@@ -43,27 +43,15 @@ export class EventsService {
   // ==========================================
 
   async create(communityId: string, userId: string, dto: CreateEventDto) {
-    // ==========================================
-    // Clean Inputs
-    // ==========================================
-
     dto.title = dto.title.trim();
     dto.description = dto.description?.trim();
     dto.location = dto.location?.trim();
     dto.coverImageUrl = dto.coverImageUrl?.trim();
 
-    // ==========================================
-    // Parse Dates
-    // ==========================================
-
     const startAt = new Date(dto.startAt);
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
 
     this.validateTimeRange(startAt, endAt);
-
-    // ==========================================
-    // Create Event
-    // ==========================================
 
     const event = await this.prisma.event.create({
       data: {
@@ -78,6 +66,7 @@ export class EventsService {
         coverImageUrl: dto.coverImageUrl,
 
         status: dto.status ?? EventStatus.DRAFT,
+        category: dto.category ?? 'GENERAL',
       },
 
       include: {
@@ -88,6 +77,7 @@ export class EventsService {
             lastName: true,
           },
         },
+        _count: { select: { attendees: true } },
       },
     });
 
@@ -103,7 +93,7 @@ export class EventsService {
   // ==========================================
 
   async findAll(communityId: string, query: EventQueryDto) {
-    const { page, limit, search, status, sortBy, order } = query;
+    const { page, limit, search, status, category, startFrom, startTo, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
 
@@ -112,7 +102,6 @@ export class EventsService {
       deletedAt: null,
     };
 
-    // Search
     if (search) {
       where.OR = [
         {
@@ -140,6 +129,16 @@ export class EventsService {
       where.status = status;
     }
 
+    if (category) {
+      where.category = category;
+    }
+
+    if (startFrom || startTo) {
+      where.startAt = {};
+      if (startFrom) where.startAt.gte = new Date(startFrom);
+      if (startTo) where.startAt.lte = new Date(startTo);
+    }
+
     const [events, total] = await this.prisma.$transaction([
       this.prisma.event.findMany({
         where,
@@ -159,6 +158,7 @@ export class EventsService {
               lastName: true,
             },
           },
+          _count: { select: { attendees: true } },
         },
       }),
 
@@ -187,7 +187,7 @@ export class EventsService {
   // Get Event By ID
   // ==========================================
 
-  async findOne(communityId: string, id: string) {
+  async findOne(communityId: string, id: string, userId?: string) {
     const event = await this.prisma.event.findFirst({
       where: {
         id,
@@ -203,6 +203,16 @@ export class EventsService {
             lastName: true,
           },
         },
+        _count: { select: { attendees: true } },
+        ...(userId
+          ? {
+              attendees: {
+                where: { userId },
+                select: { id: true },
+                take: 1,
+              },
+            }
+          : {}),
       },
     });
 
@@ -224,10 +234,6 @@ export class EventsService {
   async update(communityId: string, id: string, dto: UpdateEventDto) {
     const event = await this.findScoped(communityId, id);
 
-    // ==========================================
-    // Clean Inputs
-    // ==========================================
-
     if (dto.title) dto.title = dto.title.trim();
 
     if (dto.description) dto.description = dto.description.trim();
@@ -236,19 +242,11 @@ export class EventsService {
 
     if (dto.coverImageUrl) dto.coverImageUrl = dto.coverImageUrl.trim();
 
-    // ==========================================
-    // Parse Dates
-    // ==========================================
-
     const startAt = dto.startAt ? new Date(dto.startAt) : event.startAt;
 
     const endAt = dto.endAt ? new Date(dto.endAt) : (event.endAt ?? undefined);
 
     this.validateTimeRange(startAt, endAt);
-
-    // ==========================================
-    // Update Event
-    // ==========================================
 
     const updatedEvent = await this.prisma.event.update({
       where: {
@@ -275,6 +273,8 @@ export class EventsService {
         }),
 
         ...(dto.status && { status: dto.status }),
+
+        ...(dto.category && { category: dto.category }),
       },
 
       include: {
@@ -285,6 +285,7 @@ export class EventsService {
             lastName: true,
           },
         },
+        _count: { select: { attendees: true } },
       },
     });
 
@@ -400,6 +401,95 @@ export class EventsService {
   }
 
   // ==========================================
+  // RSVP
+  // ==========================================
+
+  async rsvp(communityId: string, eventId: string, userId: string) {
+    const event = await this.findScoped(communityId, eventId);
+
+    if (event.status === EventStatus.CANCELLED) {
+      throw new ConflictException('Cannot RSVP to a cancelled event.');
+    }
+
+    if (event.status === EventStatus.COMPLETED) {
+      throw new ConflictException('Cannot RSVP to a completed event.');
+    }
+
+    const existing = await this.prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+    });
+
+    if (existing) {
+      throw new ConflictException('Already RSVP\'d to this event.');
+    }
+
+    await this.prisma.eventAttendee.create({
+      data: { eventId, userId },
+    });
+
+    const attendeeCount = await this.prisma.eventAttendee.count({
+      where: { eventId },
+    });
+
+    return {
+      success: true,
+      message: 'RSVP confirmed.',
+      data: { attendeeCount },
+    };
+  }
+
+  async cancelRsvp(communityId: string, eventId: string, userId: string) {
+    await this.findScoped(communityId, eventId);
+
+    const existing = await this.prisma.eventAttendee.findUnique({
+      where: { eventId_userId: { eventId, userId } },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('RSVP not found.');
+    }
+
+    await this.prisma.eventAttendee.delete({
+      where: { eventId_userId: { eventId, userId } },
+    });
+
+    const attendeeCount = await this.prisma.eventAttendee.count({
+      where: { eventId },
+    });
+
+    return {
+      success: true,
+      message: 'RSVP cancelled.',
+      data: { attendeeCount },
+    };
+  }
+
+  async getAttendees(communityId: string, eventId: string) {
+    await this.findScoped(communityId, eventId);
+
+    const attendees = await this.prisma.eventAttendee.findMany({
+      where: { eventId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      success: true,
+      message: 'Attendees retrieved successfully.',
+      data: attendees,
+    };
+  }
+
+  // ==========================================
   // Helpers
   // ==========================================
 
@@ -441,6 +531,7 @@ export class EventsService {
             lastName: true,
           },
         },
+        _count: { select: { attendees: true } },
       },
     });
 

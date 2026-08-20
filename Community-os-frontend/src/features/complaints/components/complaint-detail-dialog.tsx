@@ -122,6 +122,18 @@ export function ComplaintDetailDialog({ complaintId, open, onOpenChange }: Compl
                 <p className="text-xs text-muted-foreground">Reporter</p>
               </div>
             </div>
+
+            {complaint.assignedTo ? (
+              <div className="flex items-center gap-2 rounded-md border p-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <UserRound className="h-4 w-4 text-primary" />
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium">{complaint.assignedTo.fullName}</p>
+                  <p className="text-xs text-muted-foreground">Assigned to</p>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
 

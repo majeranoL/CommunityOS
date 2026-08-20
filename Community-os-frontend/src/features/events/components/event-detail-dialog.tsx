@@ -1,11 +1,24 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import { CalendarDays, MapPin, UserRound } from 'lucide-react'
+import { CalendarDays, MapPin, UserRound, Users, Check } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { useEvent } from '@/features/events/hooks/use-events'
+import { useEvent, useRsvpEvent, useCancelRsvpEvent } from '@/features/events/hooks/use-events'
+import { useAuthStore } from '@/store/auth-store'
 import { formatDateTime } from '@/lib/format'
+import type { EventCategory } from '@/features/events/types/event'
+
+const CATEGORY_LABELS: Record<EventCategory, string> = {
+  GENERAL: 'General',
+  MEETING: 'Meeting',
+  SOCIAL: 'Social',
+  SPORTS: 'Sports',
+  WORKSHOP: 'Workshop',
+  FUNDRAISER: 'Fundraiser',
+  OTHER: 'Other',
+}
 
 interface EventDetailDialogProps {
   eventId: string | null
@@ -15,6 +28,13 @@ interface EventDetailDialogProps {
 
 export function EventDetailDialog({ eventId, open, onOpenChange }: EventDetailDialogProps) {
   const { data: event, isLoading } = useEvent(eventId)
+  const rsvpEvent = useRsvpEvent()
+  const cancelRsvpEvent = useCancelRsvpEvent()
+  const user = useAuthStore((s) => s.user)
+
+  const isRsvpd = Boolean(event?.attendees && event.attendees.length > 0)
+  const attendeeCount = event?._count?.attendees ?? 0
+  const canRsvp = user && event && event.status !== 'CANCELLED' && event.status !== 'COMPLETED'
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -35,8 +55,9 @@ export function EventDetailDialog({ eventId, open, onOpenChange }: EventDetailDi
             {event.coverImageUrl ? (
               <img src={event.coverImageUrl} alt={event.title} className="h-40 w-full rounded-md object-cover" />
             ) : null}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={event.status} />
+              <Badge variant="outline">{CATEGORY_LABELS[event.category] ?? event.category}</Badge>
               {event.endAt && new Date(event.endAt) < new Date() && event.status !== 'CANCELLED' ? (
                 <Badge variant="muted">Past</Badge>
               ) : null}
@@ -61,7 +82,41 @@ export function EventDetailDialog({ eventId, open, onOpenChange }: EventDetailDi
                   {event.organizer.firstName} {event.organizer.lastName}
                 </p>
               ) : null}
+              <p className="flex items-center gap-2 text-muted-foreground">
+                <Users className="h-4 w-4" />
+                {attendeeCount} {attendeeCount === 1 ? 'attendee' : 'attendees'}
+              </p>
             </div>
+
+            {canRsvp ? (
+              <>
+                <Separator />
+                <Button
+                  variant={isRsvpd ? 'outline' : 'default'}
+                  className="w-full"
+                  disabled={rsvpEvent.isPending || cancelRsvpEvent.isPending}
+                  onClick={() => {
+                    if (isRsvpd) {
+                      cancelRsvpEvent.mutate(event.id)
+                    } else {
+                      rsvpEvent.mutate(event.id)
+                    }
+                  }}
+                >
+                  {isRsvpd ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Attending
+                    </>
+                  ) : rsvpEvent.isPending ? (
+                    'RSVPing…'
+                  ) : (
+                    'RSVP'
+                  )}
+                </Button>
+              </>
+            ) : null}
+
             {event.description ? (
               <>
                 <Separator />

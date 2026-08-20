@@ -19,9 +19,25 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ResidentSelect } from '@/features/facilities/components/resident-select'
 import { useCreateVisitor } from '@/features/visitors/hooks/use-visitors'
-import { visitorFormSchema, type VisitorFormValues } from '@/features/visitors/validation/visitor'
+import { visitorFormSchema, type VisitorFormValues, VISITOR_CATEGORIES } from '@/features/visitors/validation/visitor'
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ONE_TIME: 'One-time',
+  RECURRING: 'Recurring',
+  SERVICE_PROVIDER: 'Service Provider',
+  CONTRACTOR: 'Contractor',
+  DELIVERY: 'Delivery',
+  OTHER: 'Other',
+}
 
 interface VisitorFormDialogProps {
   open: boolean
@@ -40,6 +56,7 @@ export function VisitorFormDialog({ open, onOpenChange }: VisitorFormDialogProps
       hostResidentId: '',
       vehiclePlate: '',
       remarks: '',
+      category: 'ONE_TIME',
     },
   })
 
@@ -50,6 +67,7 @@ export function VisitorFormDialog({ open, onOpenChange }: VisitorFormDialogProps
       purpose: values.purpose || undefined,
       hostResidentId: values.hostResidentId || undefined,
       remarks: values.remarks || undefined,
+      category: values.category,
     })
   }
 
@@ -87,6 +105,30 @@ export function VisitorFormDialog({ open, onOpenChange }: VisitorFormDialogProps
                   <FormControl>
                     <Input placeholder="09xx xxx xxxx" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {VISITOR_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {CATEGORY_LABELS[cat]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

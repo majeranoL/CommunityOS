@@ -7,6 +7,8 @@ import {
   fetchAdminCommunities,
   fetchAdminCommunity,
   fetchAdminOverview,
+  fetchPlatformStats,
+  fetchSystemHealth,
   fetchTenantSubscription,
   provisionCommunity,
   updateCommunityStatus,
@@ -94,5 +96,25 @@ export function useDeleteCommunity() {
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Failed to delete community.'))
     },
+  })
+}
+
+// ==========================================
+// Platform Monitoring
+// ==========================================
+
+export function useSystemHealth() {
+  return useQuery({
+    queryKey: ['admin', 'monitoring', 'health'],
+    queryFn: fetchSystemHealth,
+    refetchInterval: 30_000,
+  })
+}
+
+export function usePlatformStats() {
+  return useQuery({
+    queryKey: ['admin', 'monitoring', 'stats'],
+    queryFn: fetchPlatformStats,
+    refetchInterval: 60_000,
   })
 }

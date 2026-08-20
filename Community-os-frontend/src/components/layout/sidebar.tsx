@@ -3,6 +3,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { NAV_SECTIONS } from '@/components/layout/nav-items'
 import { useEnabledFeatures } from '@/features/features/hooks/use-enabled-features'
 import { useBranding } from '@/features/branding/hooks/use-branding'
+import { useNavBadges } from '@/features/dashboard/hooks/use-dashboard'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { LucideIcon } from 'lucide-react'
@@ -56,7 +57,14 @@ function SidebarContent({ onNavigate }: SidebarProps) {
   const user = useAuthStore((state) => state.user)
   const { data: enabledFeatures } = useEnabledFeatures()
   const { data: branding } = useBranding()
+  const { data: badges } = useNavBadges()
   const enabledCodes = new Set((enabledFeatures ?? []).map((feature) => feature.code))
+
+  const badgeMap: Record<string, string | undefined> = {
+    '/app/complaints': badges?.complaints ? String(badges.complaints) : undefined,
+    '/app/facilities': badges?.reservations ? String(badges.reservations) : undefined,
+    '/app/announcements': badges?.announcements ? String(badges.announcements) : undefined,
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -93,7 +101,7 @@ function SidebarContent({ onNavigate }: SidebarProps) {
                     to={item.href}
                     icon={item.icon}
                     label={item.label}
-                    badge={item.badge}
+                    badge={badgeMap[item.href] ?? item.badge}
                     onClick={onNavigate}
                   />
                 ))}

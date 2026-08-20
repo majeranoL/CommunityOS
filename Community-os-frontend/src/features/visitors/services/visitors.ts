@@ -37,4 +37,9 @@ export const visitorsService = {
     const { data } = await api.patch<ApiEnvelope<VisitorListItem>>(`/visitors/${id}/cancel`)
     return data.data
   },
+
+  async remove(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/visitors/${id}`)
+    return data.data
+  },
 }

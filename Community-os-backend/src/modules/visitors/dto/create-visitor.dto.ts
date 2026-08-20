@@ -8,7 +8,7 @@ import {
   MaxLength,
 } from 'class-validator';
 
-import { VisitorStatus } from '@prisma/client';
+import { VisitorCategory, VisitorStatus } from '@prisma/client';
 
 export class CreateVisitorDto {
   @IsString()
@@ -44,6 +44,10 @@ export class CreateVisitorDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+
+  @IsOptional()
+  @IsEnum(VisitorCategory)
+  category?: VisitorCategory;
 
   @IsOptional()
   @IsEnum(VisitorStatus)

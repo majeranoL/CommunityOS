@@ -38,6 +38,7 @@ export default function ComplaintsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
   const [priority, setPriority] = useState<string>('ALL')
+  const [category, setCategory] = useState<string>('ALL')
   const [myOnly, setMyOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
@@ -54,6 +55,7 @@ export default function ComplaintsPage() {
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
     priority: priority === 'ALL' ? undefined : priority,
+    category: category === 'ALL' ? undefined : category,
     residentId: myOnly ? myResidentId : undefined,
   })
 
@@ -77,6 +79,14 @@ export default function ComplaintsPage() {
       header: 'Reporter',
       cell: (row) => <span className="text-muted-foreground">{row.resident.fullName}</span>,
       hideBelow: 'md',
+    },
+    {
+      key: 'assignedTo',
+      header: 'Assignee',
+      cell: (row) => (
+        <span className="text-muted-foreground">{row.assignedTo?.fullName ?? '—'}</span>
+      ),
+      hideBelow: 'lg',
     },
     {
       key: 'category',
@@ -201,6 +211,25 @@ export default function ComplaintsPage() {
           <SelectContent>
             <SelectItem value="ALL">All priorities</SelectItem>
             {PRIORITY_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={category}
+          onValueChange={(value) => {
+            setCategory(value)
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="sm:w-40">
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All categories</SelectItem>
+            {CATEGORY_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>

@@ -12,3 +12,16 @@ export function useDashboardOverview() {
     staleTime: 30 * 1000,
   })
 }
+
+export function useNavBadges() {
+  return useQuery({
+    queryKey: dashboardKeys.overview,
+    queryFn: () => dashboardService.overview(),
+    staleTime: 60 * 1000,
+    select: (data) => ({
+      complaints: data.counts.openComplaints || undefined,
+      reservations: data.counts.pendingReservations || undefined,
+      announcements: data.counts.draftAnnouncements || undefined,
+    }),
+  })
+}

@@ -124,6 +124,7 @@ export class VisitorsService {
         exitAt,
 
         status,
+        category: dto.category ?? 'ONE_TIME',
       },
 
       include: {
@@ -155,7 +156,7 @@ export class VisitorsService {
   // ==========================================
 
   async findAll(communityId: string, query: VisitorQueryDto) {
-    const { page, limit, search, status, hostResidentId, sortBy, order } =
+    const { page, limit, search, status, category, hostResidentId, dateFrom, dateTo, sortBy, order } =
       query;
 
     const skip = (page - 1) * limit;
@@ -165,7 +166,6 @@ export class VisitorsService {
       deletedAt: null,
     };
 
-    // Search
     if (search) {
       where.OR = [
         {
@@ -205,8 +205,18 @@ export class VisitorsService {
       where.status = status;
     }
 
+    if (category) {
+      where.category = category;
+    }
+
     if (hostResidentId) {
       where.hostResidentId = hostResidentId;
+    }
+
+    if (dateFrom || dateTo) {
+      where.entryAt = {};
+      if (dateFrom) where.entryAt.gte = new Date(dateFrom);
+      if (dateTo) where.entryAt.lte = new Date(dateTo);
     }
 
     const [visitors, total] = await this.prisma.$transaction([
@@ -412,6 +422,8 @@ export class VisitorsService {
         ...(dto.exitAt && { exitAt }),
 
         ...(dto.status && { status: dto.status }),
+
+        ...(dto.category && { category: dto.category }),
       },
 
       include: {
