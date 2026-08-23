@@ -400,6 +400,51 @@ export interface GenerateAssessmentsInput {
   billingPeriodId?: string
 }
 
+export interface DuesMonthSummary {
+  periodKey: string
+  label: string
+  perHousehold: number
+  householdCount: number
+  paidCount: number
+  partialCount: number
+  unpaidCount: number
+  overdueCount: number
+  waivedCount: number
+  totalExpected: number
+  totalCollected: number
+  dueDate: string | null
+}
+
+export interface DuesMonthHousehold {
+  assessmentId: string
+  householdId: string
+  block: string | null
+  lot: string | null
+  unit: string | null
+  amountDue: number
+  paidAmount: number
+  status: AssessmentStatus
+  lastPaymentDate: string | null
+}
+
+export interface DuesMonthDetail {
+  summary: DuesMonthSummary
+  households: DuesMonthHousehold[]
+}
+
+export interface CreateDuesMonthInput {
+  month: string
+  amount?: number
+  dueDate?: string
+}
+
+export interface DuesMonthMutationResult {
+  periodKey: string
+  createdCount: number
+  skippedCount: number
+  householdCount: number
+}
+
 export interface GenerateAssessmentsResult {
   createdCount: number
   skippedCount: number

@@ -8,6 +8,7 @@ import { BillingPeriodsController } from './billing-periods.controller';
 import { FinanceTransactionsController } from './finance-transactions.controller';
 import { FinanceOverviewController } from './finance-overview.controller';
 import { DuesAutomationController } from './dues-automation.controller';
+import { DuesMonthsController } from './dues-months.controller';
 import { FinanceImportExportController } from './finance-import-export.controller';
 import { ExpensesController } from './expenses.controller';
 import { IncomeStatementController } from './income-statement.controller';
@@ -21,6 +22,7 @@ import { ChargeTypesService } from './charge-types.service';
 import { BillingPeriodsService } from './billing-periods.service';
 import { FinanceTransactionsService } from './finance-transactions.service';
 import { DuesAutomationService } from './dues-automation.service';
+import { DuesMonthsService } from './dues-months.service';
 import { FinanceImportExportService } from './finance-import-export.service';
 import { ExpensesService } from './expenses.service';
 import { UtilityExpensesService } from './utility-expenses.service';
@@ -42,6 +44,7 @@ import { FeaturesModule } from '../features/features.module';
     FinanceTransactionsController,
     FinanceOverviewController,
     DuesAutomationController,
+    DuesMonthsController,
     FinanceImportExportController,
     ExpensesController,
     IncomeStatementController,
@@ -56,6 +59,7 @@ import { FeaturesModule } from '../features/features.module';
     BillingPeriodsService,
     FinanceTransactionsService,
     DuesAutomationService,
+    DuesMonthsService,
     FinanceImportExportService,
     ExpensesService,
     UtilityExpensesService,

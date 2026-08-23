@@ -6,6 +6,7 @@ import {
   assessmentsService,
   billingPeriodsService,
   chargeTypesService,
+  duesMonthsService,
   expensesService,
   financeHouseholdsService,
   financeImportExportService,
@@ -20,6 +21,7 @@ import type {
   CreateAssessmentInput,
   CreateBillingPeriodInput,
   CreateChargeTypeInput,
+  CreateDuesMonthInput,
   CreateExpenseInput,
   CreatePaymentInput,
   GenerateAssessmentsInput,
@@ -53,6 +55,9 @@ export const financeKeys = {
   overview: ['finance', 'overview'] as const,
   utilityConfigs: ['finance', 'utility-configs'] as const,
   utilityReadings: ['finance', 'utility-readings'] as const,
+  duesMonths: ['finance', 'dues-months'] as const,
+  duesMonthDetail: (periodKey: string) =>
+    ['finance', 'dues-months', 'detail', periodKey] as const,
 }
 
 // ==============================================
@@ -89,6 +94,57 @@ function invalidateAssessments(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
   queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
   queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+  queryClient.invalidateQueries({ queryKey: financeKeys.duesMonths })
+}
+
+// ==============================================
+// Dues months (simplified monthly dues view)
+// ==============================================
+
+export function useDuesMonths() {
+  return useQuery({
+    queryKey: financeKeys.duesMonths,
+    queryFn: () => duesMonthsService.list(),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useDuesMonth(periodKey: string | null) {
+  return useQuery({
+    queryKey: financeKeys.duesMonthDetail(periodKey ?? ''),
+    queryFn: () => duesMonthsService.get(periodKey as string),
+    enabled: Boolean(periodKey),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useCreateDuesMonth(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateDuesMonthInput) => duesMonthsService.create(input),
+    onSuccess: (result) => {
+      toast.success(result.message || 'Monthly dues created.')
+      invalidateAssessments(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to create monthly dues.')),
+  })
+}
+
+export function useSyncDuesMonthHouseholds(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (periodKey: string) =>
+      duesMonthsService.syncHouseholds(periodKey),
+    onSuccess: (result) => {
+      toast.success(result.message || 'Households synced.')
+      invalidateAssessments(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to sync households.')),
+  })
 }
 
 export function useCreateAssessment(onSuccess?: () => void) {

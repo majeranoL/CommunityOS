@@ -72,6 +72,7 @@ import {
 import { AssessmentFormDialog } from '@/features/finance/components/assessment-form-dialog'
 import { AssessmentDetailDialog } from '@/features/finance/components/assessment-detail-dialog'
 import { GenerateDuesDialog } from '@/features/finance/components/generate-dues-dialog'
+import { DuesMonthsTab } from '@/features/finance/components/dues-months-tab'
 import { MyBalanceCard } from '@/features/finance/components/my-balance-card'
 import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
 import { PaymentDetailDialog } from '@/features/finance/components/payment-detail-dialog'
@@ -150,7 +151,9 @@ export default function FinancePage() {
   const showExpenses = canViewExpenses || canViewIncomeStatement || canManage
   const showUtilities = canViewExpenses || canViewIncomeStatement || canManage
   const showReports = canViewIncomeStatement || canManage
-  const showSettingsMenu = (showChargeTypes || showBillingPeriods || showImportExport) && isManager
+  const showSettingsMenu =
+    (showChargeTypes || showBillingPeriods || showImportExport || showMonthlyDues) &&
+    isManager
 
   const tabs: Array<{ value: string; label: string }> = []
   if (showOverview) tabs.push({ value: 'overview', label: 'Overview' })
@@ -189,6 +192,11 @@ export default function FinancePage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {showMonthlyDues ? (
+                <DropdownMenuItem onClick={() => setActiveTab('dues-bills-advanced')}>
+                  All dues bills (advanced)
+                </DropdownMenuItem>
+              ) : null}
               {showChargeTypes ? (
                 <DropdownMenuItem onClick={() => setActiveTab('charge-types')}>
                   Charge types
@@ -224,7 +232,7 @@ export default function FinancePage() {
         ) : null}
         {showMonthlyDues ? (
           <TabsContent value="monthly-dues">
-            <AssessmentsTab variant="dues" />
+            <DuesMonthsTab />
           </TabsContent>
         ) : null}
         {showOtherCharges ? (
@@ -265,6 +273,11 @@ export default function FinancePage() {
         {showImportExport ? (
           <TabsContent value="import-export">
             <ImportExportPanel />
+          </TabsContent>
+        ) : null}
+        {showMonthlyDues ? (
+          <TabsContent value="dues-bills-advanced" className="mt-0">
+            <AssessmentsTab variant="dues" />
           </TabsContent>
         ) : null}
       </Tabs>

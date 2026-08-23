@@ -7,9 +7,13 @@ import type {
   CreateBillingPeriodInput,
   CreateAssessmentInput,
   CreateChargeTypeInput,
+  CreateDuesMonthInput,
   CreateExpenseInput,
   CreatePaymentInput,
   ChargeType,
+  DuesMonthDetail,
+  DuesMonthMutationResult,
+  DuesMonthSummary,
   DuesTracker,
   Expense,
   ExportFormat,
@@ -97,6 +101,35 @@ export const assessmentsService = {
   async waive(id: string) {
     const { data } = await api.patch<ApiEnvelope<Assessment>>(`/assessments/${id}/waive`)
     return data.data
+  },
+}
+
+export const duesMonthsService = {
+  async list() {
+    const { data } = await api.get<ApiEnvelope<DuesMonthSummary[]>>('/finance/dues-months')
+    return data.data
+  },
+
+  async get(periodKey: string) {
+    const { data } = await api.get<ApiEnvelope<DuesMonthDetail>>(
+      `/finance/dues-months/${periodKey}`,
+    )
+    return data.data
+  },
+
+  async create(input: CreateDuesMonthInput) {
+    const { data } = await api.post<ApiEnvelope<DuesMonthMutationResult>>(
+      '/finance/dues-months',
+      input,
+    )
+    return { message: data.message, ...data.data }
+  },
+
+  async syncHouseholds(periodKey: string) {
+    const { data } = await api.post<ApiEnvelope<DuesMonthMutationResult>>(
+      `/finance/dues-months/${periodKey}/sync-households`,
+    )
+    return { message: data.message, ...data.data }
   },
 }
 
