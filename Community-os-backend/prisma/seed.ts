@@ -362,6 +362,33 @@ async function main() {
     },
   });
 
+  const vicePresidentRole = await prisma.role.create({
+    data: {
+      communityId: community.id,
+      name: 'Vice President',
+      description: 'Acts on behalf of the President',
+      isSystem: true,
+    },
+  });
+
+  const treasurerRole = await prisma.role.create({
+    data: {
+      communityId: community.id,
+      name: 'Treasurer',
+      description: 'Handles dues, payments, expenses, and financial reports',
+      isSystem: true,
+    },
+  });
+
+  const secretaryRole = await prisma.role.create({
+    data: {
+      communityId: community.id,
+      name: 'Secretary',
+      description: 'Handles records, announcements, events, and correspondence',
+      isSystem: true,
+    },
+  });
+
   const memberRole = await prisma.role.create({
     data: {
       communityId: community.id,
@@ -382,6 +409,127 @@ async function main() {
 
   console.log('✅ Roles created');
 
+  // =====================================================
+  // PERMISSIONS & ROLE ASSIGNMENTS
+  // =====================================================
+
+  const allPermissionCodes = permissions.map((item) => item.code);
+
+  const rolePermissionSets: { roleId: string; codes: string[] }[] = [
+    { roleId: presidentRole.id, codes: allPermissionCodes },
+    {
+      roleId: vicePresidentRole.id,
+      codes: allPermissionCodes.filter(
+        (code) => !['community.delete', 'user.delete', 'audit.manage'].includes(code),
+      ),
+    },
+    {
+      roleId: treasurerRole.id,
+      codes: [
+        'dashboard.view',
+        'household.view',
+        'resident.view',
+        'assessment.create',
+        'assessment.update',
+        'assessment.delete',
+        'assessment.view',
+        'assessment.issue',
+        'assessment.cancel',
+        'payment.create',
+        'payment.update',
+        'payment.delete',
+        'payment.view',
+        'payment.cancel',
+        'billing.create',
+        'billing.update',
+        'billing.approve',
+        'billing.view',
+        'billing.manage',
+        'finance.view_own',
+        'finance.view_all',
+        'finance.verify',
+        'finance.reject',
+        'finance.refund',
+        'finance.cancel',
+        'finance.import',
+        'finance.export',
+        'finance.manage',
+        'finance.waive',
+        'finance.expense_view',
+        'finance.expense_create',
+        'finance.expense_update',
+        'finance.expense_delete',
+        'finance.expense_import',
+        'finance.expense_export',
+        'finance.income_statement_view',
+        'reports.export',
+        'analytics.view',
+        'notification.view',
+        'notification.update',
+        'settings.view',
+      ],
+    },
+    {
+      roleId: secretaryRole.id,
+      codes: [
+        'dashboard.view',
+        'announcement.create',
+        'announcement.update',
+        'announcement.delete',
+        'announcement.view',
+        'announcement.publish',
+        'event.create',
+        'event.update',
+        'event.delete',
+        'event.view',
+        'event.publish',
+        'event.cancel',
+        'event.complete',
+        'poll.create',
+        'poll.update',
+        'poll.delete',
+        'poll.view',
+        'poll.publish',
+        'poll.close',
+        'document.create',
+        'document.update',
+        'document.delete',
+        'document.view',
+        'document.publish',
+        'document.archive',
+        'complaint.view',
+        'complaint.update',
+        'complaint.assign',
+        'complaint.resolve',
+        'complaint.close',
+        'resident.view',
+        'resident.create',
+        'resident.update',
+        'household.view',
+        'household.create',
+        'household.update',
+        'visitor.view',
+        'visitor.create',
+        'visitor.update',
+        'visitor.check-in',
+        'visitor.check-out',
+        'facility.view',
+        'reservation.view',
+        'reservation.update',
+        'reservation.approve',
+        'reservation.reject',
+        'reservation.cancel',
+        'reservation.complete',
+        'upload.file',
+        'notification.view',
+        'notification.update',
+        'settings.view',
+      ],
+    },
+  ];
+
+  const permissionIdByCode = new Map<string, string>();
+
   for (const item of permissions) {
     const permission = await prisma.permission.create({
       data: {
@@ -392,21 +540,24 @@ async function main() {
       },
     });
 
-    await prisma.rolePermission.create({
-      data: { roleId: presidentRole.id, permissionId: permission.id },
+    permissionIdByCode.set(item.code, permission.id);
+  }
+
+  for (const { roleId, codes } of rolePermissionSets) {
+    await prisma.rolePermission.createMany({
+      data: codes
+        .filter((code) => permissionIdByCode.has(code))
+        .map((code) => ({ roleId, permissionId: permissionIdByCode.get(code)! })),
     });
   }
 
   for (const roleId of [memberRole.id, renterRole.id]) {
     for (const code of MEMBER_PERMISSIONS) {
-      const permission = await prisma.permission.findFirst({
-        where: { communityId: community.id, code },
-        select: { id: true },
-      });
+      const permissionId = permissionIdByCode.get(code);
 
-      if (permission) {
+      if (permissionId) {
         await prisma.rolePermission.create({
-          data: { roleId, permissionId: permission.id },
+          data: { roleId, permissionId },
         });
       }
     }
@@ -534,8 +685,11 @@ async function main() {
   // =====================================================
 
   const demoUserData = [
-    { referenceNumber: 'USR-000002', email: 'juan.delacruz@example.com', firstName: 'Juan', lastName: 'Dela Cruz', residentIndex: 0 },
-    { referenceNumber: 'USR-000003', email: 'pedro.reyes@example.com', firstName: 'Pedro', lastName: 'Reyes', residentIndex: 2 },
+    { referenceNumber: 'USR-000002', email: 'juan.delacruz@example.com', firstName: 'Juan', lastName: 'Dela Cruz', residentIndex: 0, roleId: memberRole.id },
+    { referenceNumber: 'USR-000003', email: 'pedro.reyes@example.com', firstName: 'Pedro', lastName: 'Reyes', residentIndex: 2, roleId: memberRole.id },
+    { referenceNumber: 'USR-000004', email: 'maria.delacruz@example.com', firstName: 'Maria', lastName: 'Dela Cruz', residentIndex: 1, roleId: treasurerRole.id },
+    { referenceNumber: 'USR-000005', email: 'carlo.mendoza@example.com', firstName: 'Carlo', lastName: 'Mendoza', residentIndex: 4, roleId: secretaryRole.id },
+    { referenceNumber: 'USR-000006', email: 'lorna.bautista@example.com', firstName: 'Lorna', lastName: 'Bautista', residentIndex: 8, roleId: vicePresidentRole.id },
   ];
 
   const demoUsers: { id: string }[] = [];
@@ -562,13 +716,13 @@ async function main() {
     });
 
     await prisma.userRole.create({
-      data: { userId: user.id, roleId: memberRole.id },
+      data: { userId: user.id, roleId: item.roleId },
     });
 
     demoUsers.push(user);
   }
 
-  console.log('✅ Demo member users created');
+  console.log('✅ Demo users created');
 
   // =====================================================
   // BILLING PERIODS & MONTHLY DUES (Jun–Aug 2026)
@@ -1390,9 +1544,12 @@ async function main() {
   console.log('\n===================================');
   console.log(' CommunityOS Demo Accounts');
   console.log('===================================');
-  console.log('Officer : admin@communityos.com / Admin123!');
-  console.log('Member  : juan.delacruz@example.com / Admin123!');
-  console.log('Member  : pedro.reyes@example.com / Admin123!');
+  console.log('President      : admin@communityos.com / Admin123!');
+  console.log('Vice President : lorna.bautista@example.com / Admin123!');
+  console.log('Treasurer      : maria.delacruz@example.com / Admin123!');
+  console.log('Secretary      : carlo.mendoza@example.com / Admin123!');
+  console.log('Member         : juan.delacruz@example.com / Admin123!');
+  console.log('Member         : pedro.reyes@example.com / Admin123!');
   console.log('===================================');
 }
 
