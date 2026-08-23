@@ -359,6 +359,7 @@ Checklist:
 - [x] Officers can view, verify, edit, deactivate, and correct community-wide resident and vehicle records (officer create bypasses approval; `POST /residents/:id/verify` and `POST /vehicles/:id/verify` gated by `resident.verify` / `vehicle.verify`; verify records `verifiedBy` + `verifiedAt` + `verificationRemarks`)
 - [x] Verification audit: who/when/remarks persisted on Resident and Vehicle
 - [x] Finance, Complaints, Notifications, Import/Export, Occupancy, Permissions modules keep household-level / person-level / login-level data distinct (existing design retained; no regressions)
+- [x] Role assignment by officers (2026-08-23) — `PUT /users/:id` accepts `roleId` and replaces the user's single role in a transaction; User details dialog gains a Role selector + Save button gated by `user.update`; every role change writes a `USER_ROLE_CHANGED` audit-log entry with before/after roles (actor = requesting officer); last-President protection: demoting, suspending, or deleting the community's only ACTIVE system President is rejected with 409 until another user holds the role
 
 
 NOTE: THE IDEA 9 HAS BEEN MODIFIED AND THERE ARE NEW FEATURES ADDED PLEASE CONFIRM THE GAP AND ADD IF THE FEATURE IS NOT FOUND ADD IT IN THE CODE AND ONCE DONE MODIFY THIS CHECKLIST
@@ -370,6 +371,7 @@ Verification log:
 - Migrations applied: `20260813152423_add_verification_workflow`, `20260813154628_add_verification_audit`
 - Live API smoke (admin + member accounts): officer create in `auto` mode → ACTIVE; setting flipped to `approval` → member create → PENDING with household/resident scoping enforced; officer verify approve → resident ACTIVE / vehicle APPROVED; reject → resident INACTIVE / vehicle REJECTED with remarks + verifier + timestamp persisted; verify on non-PENDING → 400 "Only pending … can be verified."
 - Test data cleaned up; settings restored to `auto`; one-off `sync-permissions.ts` backfill script removed (new communities receive the new permission codes via provision/seed)
+- Role assignment implementation (2026-08-23): backend — UsersService injects AuditLogsService (`AuditLogsModule` added to `UsersModule`); `update()`/`remove()` fetch the user's roles and enforce last-active-President via `ensureNotLastActivePresident` (system `President` role, other holders counted excluding INACTIVE/deleted users); successful role changes log `USER_ROLE_CHANGED`, deletions log `USER_DELETED`. Frontend — `UpdateUserInput.roleId`, Role select + Save in `user-details-dialog.tsx` (hidden without `user.update`, save disabled until changed). New suite `users.service.spec.ts`: 5 tests covering demotion blocked/allowed, audit entry payload, suspension guard, deletion guard. Verification: backend `tsc --noEmit` exit 0, eslint 0 errors, jest 16 suites / 81 tests pass (incl. `app-module-di.spec.ts` compiling the full AppModule graph); frontend `tsc --noEmit` clean, eslint clean, `vite build` success. Not yet deployed.
 
 Remaining from the broader idea (tracked under IDEA 10): move-in/move-out history, ownership transfer, renter occupancy history, payer identity on payments, per-household Occupancy History.
 

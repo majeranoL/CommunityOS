@@ -80,7 +80,12 @@ export class UsersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateUserDto,
   ) {
-    return this.usersService.update(req.user.community.id, id, dto);
+    return this.usersService.update(
+      req.user.community.id,
+      id,
+      dto,
+      req.user.id,
+    );
   }
 
   // ==========================================
@@ -90,6 +95,6 @@ export class UsersController {
   @Delete(':id')
   @Permissions('user.delete')
   remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.usersService.remove(req.user.community.id, id);
+    return this.usersService.remove(req.user.community.id, id, req.user.id);
   }
 }

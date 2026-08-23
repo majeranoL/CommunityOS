@@ -7,11 +7,13 @@ import { UsersService } from './users.service';
 
 import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../../mail/mail.module';
+import { AuditLogsModule } from '../auditlogs/audit-logs.module';
 
 @Module({
   imports: [
     PrismaModule,
     MailModule,
+    AuditLogsModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET!,
       signOptions: {

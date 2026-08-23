@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from '../../mail/mail.service';
+import { AuditLogsService } from '../auditlogs/audit-logs.service';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -33,6 +34,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
   private capitalize(value?: string) {
@@ -42,6 +44,64 @@ export class UsersService {
       .trim()
       .toLowerCase()
       .replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  // ==========================================
+  // Role helpers
+  // ==========================================
+
+  private async getSystemRole(communityId: string, name: string) {
+    return this.prisma.role.findFirst({
+      where: {
+        communityId,
+        name,
+        isSystem: true,
+        deletedAt: null,
+      },
+    });
+  }
+
+  /**
+   * Rejects demotion / deactivation / deletion when the user is the only
+   * active holder of the community's system President role.
+   */
+  private async ensureNotLastActivePresident(
+    communityId: string,
+    userId: string,
+  ): Promise<void> {
+    const presidentRole = await this.getSystemRole(communityId, 'President');
+
+    if (!presidentRole) {
+      return;
+    }
+
+    const holding = await this.prisma.userRole.findFirst({
+      where: {
+        userId,
+        roleId: presidentRole.id,
+      },
+    });
+
+    if (!holding) {
+      return;
+    }
+
+    const otherHolders = await this.prisma.userRole.count({
+      where: {
+        roleId: presidentRole.id,
+        userId: { not: userId },
+        user: {
+          deletedAt: null,
+          status: UserStatus.ACTIVE,
+        },
+      },
+    });
+
+    if (otherHolders === 0) {
+      throw new ConflictException(
+        'This community needs at least one active President. Assign the President role to another user first.',
+      );
+    }
   }
 
   // ==========================================
@@ -915,7 +975,12 @@ export class UsersService {
     ]);
   }
 
-  async update(communityId: string, id: string, dto: UpdateUserDto) {
+  async update(
+    communityId: string,
+    id: string,
+    dto: UpdateUserDto,
+    actorId?: string,
+  ) {
     // ==========================================
     // Check if User Exists
     // ==========================================
@@ -928,6 +993,11 @@ export class UsersService {
       },
       include: {
         account: true,
+        roles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
 
@@ -972,6 +1042,8 @@ export class UsersService {
     // Validate Role
     // ==========================================
 
+    let nextRole: { id: string; name: string } | undefined;
+
     if (dto.roleId) {
       const role = await this.prisma.role.findFirst({
         where: {
@@ -984,6 +1056,39 @@ export class UsersService {
       if (!role) {
         throw new NotFoundException('Role not found.');
       }
+
+      nextRole = { id: role.id, name: role.name };
+
+      const currentRoles = user.roles.map((userRole) => userRole.role);
+      const isCurrentlyPresident = currentRoles.some(
+        (currentRole) =>
+          currentRole.name === 'President' && currentRole.isSystem,
+      );
+      const keepsPresidency = currentRoles.some(
+        (currentRole) => currentRole.id === dto.roleId,
+      );
+
+      if (isCurrentlyPresident && !keepsPresidency) {
+        await this.ensureNotLastActivePresident(communityId, id);
+      }
+    }
+
+    // ==========================================
+    // Last-President guard on deactivation
+    // ==========================================
+
+    const deactivating =
+      dto.status !== undefined && dto.status !== UserStatus.ACTIVE;
+
+    if (
+      user.status === UserStatus.ACTIVE &&
+      deactivating &&
+      user.roles.some(
+        (userRole) =>
+          userRole.role.isSystem && userRole.role.name === 'President',
+      )
+    ) {
+      await this.ensureNotLastActivePresident(communityId, id);
     }
 
     // ==========================================
@@ -1049,6 +1154,20 @@ export class UsersService {
       }
     });
 
+    if (nextRole) {
+      this.auditLogsService
+        .log({
+          communityId,
+          actorId: actorId ?? user.id,
+          action: 'USER_ROLE_CHANGED',
+          entity: 'user',
+          entityId: id,
+          before: { roles: user.roles.map((userRole) => userRole.role.name) },
+          after: { roles: [nextRole.name] },
+        })
+        .catch(() => undefined);
+    }
+
     if (dto.status === UserStatus.ACTIVE) {
       await this.prisma.account.update({
         where: {
@@ -1071,7 +1190,7 @@ export class UsersService {
     };
   }
 
-  async remove(communityId: string, id: string) {
+  async remove(communityId: string, id: string, actorId?: string) {
     // ==========================================
     // Check if User Exists
     // ==========================================
@@ -1084,11 +1203,30 @@ export class UsersService {
       },
       include: {
         account: true,
+        roles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
 
     if (!user) {
       throw new NotFoundException('User not found.');
+    }
+
+    // ==========================================
+    // Last-President guard
+    // ==========================================
+
+    if (
+      user.status === UserStatus.ACTIVE &&
+      user.roles.some(
+        (userRole) =>
+          userRole.role.isSystem && userRole.role.name === 'President',
+      )
+    ) {
+      await this.ensureNotLastActivePresident(communityId, id);
     }
 
     // ==========================================
@@ -1115,6 +1253,17 @@ export class UsersService {
         },
       });
     });
+
+    this.auditLogsService
+      .log({
+        communityId,
+        actorId: actorId ?? user.id,
+        action: 'USER_DELETED',
+        entity: 'user',
+        entityId: id,
+        before: { roles: user.roles.map((userRole) => userRole.role.name) },
+      })
+      .catch(() => undefined);
 
     await this.revokeUserSessions(user.accountId);
 

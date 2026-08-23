@@ -63,5 +63,6 @@ export interface UpdateUserInput {
   firstName?: string
   lastName?: string
   phoneNumber?: string
+  roleId?: string
   status?: UserListItem['status']
 }
