@@ -13,6 +13,7 @@ import type {
   DuesTracker,
   Expense,
   ExportFormat,
+  FinanceOverview,
   FinanceTransaction,
   FinanceTransactionSummary,
   GenerateAssessmentsInput,
@@ -30,6 +31,10 @@ import type {
   UpdateChargeTypeInput,
   UpdateExpenseInput,
   UpdatePaymentInput,
+  UtilityBillingConfig,
+  UtilityBillingConfigInput,
+  UtilityBillingResult,
+  UtilityReading,
 } from '@/features/finance/types/finance'
 
 export interface ListResult<T> {
@@ -379,6 +384,93 @@ export const utilityExpensesService = {
 
   async remove(id: string) {
     const { data } = await api.delete<ApiEnvelope<null>>(`/utility-expenses/${id}`)
+    return data.data
+  },
+}
+
+// ==============================================
+// Finance overview
+// ==============================================
+
+export const financeOverviewService = {
+  async get() {
+    const { data } = await api.get<ApiEnvelope<FinanceOverview>>('/finance/overview')
+    return data.data
+  },
+}
+
+// ==============================================
+// Utility billing (metered / fixed per household)
+// ==============================================
+
+export const utilityBillingService = {
+  async listConfigs(params: ListQuery = {}) {
+    const { data } = await api.get<ApiEnvelope<UtilityBillingConfig[]>>(
+      '/utility-billing/configs',
+      { params },
+    )
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async createConfig(input: UtilityBillingConfigInput) {
+    const { data } = await api.post<ApiEnvelope<UtilityBillingConfig>>(
+      '/utility-billing/configs',
+      input,
+    )
+    return data.data
+  },
+
+  async updateConfig(id: string, input: Partial<UtilityBillingConfigInput>) {
+    const { data } = await api.patch<ApiEnvelope<UtilityBillingConfig>>(
+      `/utility-billing/configs/${id}`,
+      input,
+    )
+    return data.data
+  },
+
+  async deleteConfig(id: string) {
+    await api.delete(`/utility-billing/configs/${id}`)
+  },
+
+  async listReadings(params: ListQuery & { periodKey?: string; utilityType?: string } = {}) {
+    const { data } = await api.get<ApiEnvelope<UtilityReading[]>>('/utility-billing/readings', {
+      params,
+    })
+    return { items: data.data, pagination: data.pagination }
+  },
+
+  async createReading(input: {
+    utilityConfigId: string
+    householdId: string
+    periodKey: string
+    currentReading: number
+    readingDate?: string
+    notes?: string
+  }) {
+    const { data } = await api.post<ApiEnvelope<UtilityReading>>('/utility-billing/readings', input)
+    return data.data
+  },
+
+  async updateReading(
+    id: string,
+    input: { currentReading?: number; readingDate?: string; notes?: string },
+  ) {
+    const { data } = await api.patch<ApiEnvelope<UtilityReading>>(
+      `/utility-billing/readings/${id}`,
+      input,
+    )
+    return data.data
+  },
+
+  async deleteReading(id: string) {
+    await api.delete(`/utility-billing/readings/${id}`)
+  },
+
+  async generateBills(input: { periodKey: string }) {
+    const { data } = await api.post<ApiEnvelope<UtilityBillingResult>>(
+      '/utility-billing/generate',
+      input,
+    )
     return data.data
   },
 }

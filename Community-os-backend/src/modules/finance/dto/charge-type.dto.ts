@@ -13,7 +13,7 @@ import {
 
 import { Type } from 'class-transformer';
 
-import { ChargeRecurrence, FinanceCategory } from '@prisma/client';
+import { ChargeRecurrence, FinanceCategory, LateFeeType } from '@prisma/client';
 
 export class CreateChargeTypeDto {
   @IsString()
@@ -58,6 +58,27 @@ export class CreateChargeTypeDto {
   @IsOptional()
   @IsBoolean()
   advanceAppliesToOneTime?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  gracePeriodDays?: number;
+
+  @IsOptional()
+  @IsEnum(LateFeeType)
+  lateFeeType?: LateFeeType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  lateFeeValue?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoGenerate?: boolean;
 
   @IsOptional()
   @IsBoolean()

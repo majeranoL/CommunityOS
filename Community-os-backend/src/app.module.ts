@@ -38,6 +38,7 @@ import { PublicModule } from './modules/public/public.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { ImportExportModule } from './modules/import-export/import-export.module';
+import { UtilityBillingModule } from './modules/utility-billing/utility-billing.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -84,6 +85,7 @@ import { ImportExportModule } from './modules/import-export/import-export.module
     AdminModule,
     HealthModule,
     ImportExportModule,
+    UtilityBillingModule,
   ],
   providers: [
     {

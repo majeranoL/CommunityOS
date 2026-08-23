@@ -1,5 +1,24 @@
-import { useState } from 'react'
-import { MoreHorizontal, Plus, Search, Send, Check, XCircle, RotateCcw, Pencil, Wallet, Receipt, BadgeDollarSign, Landmark } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  FileDown,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Send,
+  Check,
+  XCircle,
+  RotateCcw,
+  Pencil,
+  Wallet,
+  Receipt,
+  BadgeDollarSign,
+  Landmark,
+  Settings2,
+  Gauge,
+} from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -20,6 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
+import { toast } from '@/components/ui/sonner'
 import {
   useAssessments,
   usePayments,
@@ -32,7 +52,6 @@ import {
   useWaiveAssessment,
   useChargeTypes,
   useBillingPeriods,
-  useFinanceTransactions,
   useDeleteChargeType,
   useDeleteBillingPeriod,
   useCancelPayment,
@@ -43,6 +62,12 @@ import {
   useUtilityExpenses,
   useUtilityExpenseSummary,
   useDeleteUtilityExpense,
+  useFinanceOverview,
+  useUtilityConfigs,
+  useDeleteUtilityConfig,
+  useUtilityReadings,
+  useDeleteUtilityReading,
+  useGenerateUtilityBills,
 } from '@/features/finance/hooks/use-finance'
 import { AssessmentFormDialog } from '@/features/finance/components/assessment-form-dialog'
 import { AssessmentDetailDialog } from '@/features/finance/components/assessment-detail-dialog'
@@ -55,6 +80,10 @@ import { RejectPaymentDialog } from '@/features/finance/components/reject-paymen
 import { ChargeTypeFormDialog } from '@/features/finance/components/charge-type-form-dialog'
 import { BillingPeriodDialog } from '@/features/finance/components/billing-period-dialog'
 import { ImportExportPanel } from '@/features/finance/components/import-export-panel'
+import { ImportExportDialog } from '@/features/finance/components/import-export-dialog'
+import { DuesSettingsDialog } from '@/features/finance/components/dues-settings-dialog'
+import { UtilityRateDialog } from '@/features/finance/components/utility-rate-dialog'
+import { UtilityReadingDialog } from '@/features/finance/components/utility-reading-dialog'
 import { ExpenseFormDialog } from '@/features/finance/components/expense-form-dialog'
 import { UtilityExpenseFormDialog } from '@/features/finance/components/utility-expense-form-dialog'
 import { householdLabel } from '@/features/finance/components/household-select'
@@ -65,13 +94,17 @@ import type {
   ChargeType,
   Expense,
   ExpenseCategory,
-  FinanceTransaction,
+  FinanceOverviewRecentIn,
+  FinanceOverviewRecentOut,
   IncomeStatement,
   PaymentListItem,
   PaymentStatus,
+  UtilityBillingConfig,
   UtilityExpense,
+  UtilityReading,
   UtilityType,
 } from '@/features/finance/types/finance'
+import type { ImportKind } from '@/features/finance/types/finance'
 import { EXPENSE_CATEGORIES, UTILITY_TYPES } from '@/features/finance/validation/finance'
 import { formatCurrency, formatDate, toTitleCase } from '@/lib/format'
 
@@ -107,34 +140,76 @@ export default function FinancePage() {
   const canViewIncomeStatement = useHasPermission(PERMISSIONS.financeIncomeStatementView)
 
   const isManager = canCreateAssessment || canCreatePayment || canManage
-  const showOverview = canViewOwn || canViewAll || canManage
-  const showAssessments = canCreateAssessment || canViewAll || canManage
+  const showOverview = canViewAll && canManage
+  const showMonthlyDues = canCreateAssessment || canViewAll || canManage
+  const showOtherCharges = showMonthlyDues
   const showPayments = canCreatePayment || canViewAll || canViewOwn || canManage
   const showChargeTypes = canViewAll || canManage
   const showBillingPeriods = canViewAll || canManage
   const showImportExport = canImport || canExport
   const showExpenses = canViewExpenses || canViewIncomeStatement || canManage
-  const showIncomeStatement = canViewIncomeStatement || canManage
+  const showUtilities = canViewExpenses || canViewIncomeStatement || canManage
+  const showReports = canViewIncomeStatement || canManage
+  const showSettingsMenu = (showChargeTypes || showBillingPeriods || showImportExport) && isManager
 
   const tabs: Array<{ value: string; label: string }> = []
   if (showOverview) tabs.push({ value: 'overview', label: 'Overview' })
-  if (showAssessments) tabs.push({ value: 'assessments', label: 'Assessments' })
+  if (showMonthlyDues) tabs.push({ value: 'monthly-dues', label: 'Monthly dues' })
+  if (showOtherCharges) tabs.push({ value: 'other-charges', label: 'Other charges' })
   if (showPayments) tabs.push({ value: 'payments', label: 'Payments' })
-  if (showIncomeStatement) tabs.push({ value: 'income-statement', label: 'Income statement' })
   if (showExpenses) tabs.push({ value: 'expenses', label: 'Expenses' })
-  if (showExpenses) tabs.push({ value: 'utilities', label: 'Utilities' })
-  if (showChargeTypes) tabs.push({ value: 'charge-types', label: 'Charge types' })
-  if (showBillingPeriods) tabs.push({ value: 'billing-periods', label: 'Billing periods' })
-  if (showImportExport) tabs.push({ value: 'import-export', label: 'Import / export' })
+  if (showUtilities) tabs.push({ value: 'utilities', label: 'Utilities' })
+  if (showReports) tabs.push({ value: 'reports', label: 'Reports' })
+
+  const [activeTab, setActiveTab] = useState<string | undefined>(undefined)
+  const currentTab = activeTab ?? tabs[0]?.value ?? 'payments'
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      if (typeof detail === 'string') setActiveTab(detail)
+    }
+    window.addEventListener('finance:navigate', handler)
+    return () => window.removeEventListener('finance:navigate', handler)
+  }, [])
 
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Finance"
-        description="Assessments, payments, billing periods, and the community ledger."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title="Finance"
+          description="Assessments, payments, utilities, and the community ledger."
+        />
+        {showSettingsMenu ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="mt-1 shrink-0">
+                <Settings2 className="h-4 w-4" />
+                Finance settings
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {showChargeTypes ? (
+                <DropdownMenuItem onClick={() => setActiveTab('charge-types')}>
+                  Charge types
+                </DropdownMenuItem>
+              ) : null}
+              {showBillingPeriods ? (
+                <DropdownMenuItem onClick={() => setActiveTab('billing-periods')}>
+                  Billing periods
+                </DropdownMenuItem>
+              ) : null}
+              {showImportExport ? (
+                <DropdownMenuItem onClick={() => setActiveTab('import-export')}>
+                  Import / export
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
       {!isManager ? <MyBalanceCard /> : null}
-      <Tabs defaultValue={tabs[0]?.value ?? 'overview'}>
+      <Tabs value={currentTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           {tabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
@@ -147,9 +222,14 @@ export default function FinancePage() {
             <OverviewTab />
           </TabsContent>
         ) : null}
-        {showAssessments ? (
-          <TabsContent value="assessments">
-            <AssessmentsTab />
+        {showMonthlyDues ? (
+          <TabsContent value="monthly-dues">
+            <AssessmentsTab variant="dues" />
+          </TabsContent>
+        ) : null}
+        {showOtherCharges ? (
+          <TabsContent value="other-charges">
+            <AssessmentsTab variant="other" />
           </TabsContent>
         ) : null}
         {showPayments ? (
@@ -157,19 +237,19 @@ export default function FinancePage() {
             <PaymentsTab />
           </TabsContent>
         ) : null}
-        {showIncomeStatement ? (
-          <TabsContent value="income-statement">
-            <IncomeStatementTab />
-          </TabsContent>
-        ) : null}
         {showExpenses ? (
           <TabsContent value="expenses">
             <ExpensesTab />
           </TabsContent>
         ) : null}
-        {showExpenses ? (
+        {showUtilities ? (
           <TabsContent value="utilities">
             <UtilitiesTab />
+          </TabsContent>
+        ) : null}
+        {showReports ? (
+          <TabsContent value="reports">
+            <IncomeStatementTab />
           </TabsContent>
         ) : null}
         {showChargeTypes ? (
@@ -192,139 +272,183 @@ export default function FinancePage() {
   )
 }
 
+function OverviewCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone?: 'success' | 'destructive'
+}) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p
+          className={`mt-1 text-xl font-semibold ${
+            tone === 'success' ? 'text-success' : tone === 'destructive' ? 'text-destructive' : ''
+          }`}
+        >
+          {value}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}
+
 function OverviewTab() {
-  const [search, setSearch] = useState('')
-  const [type, setType] = useState<'ALL' | 'payment' | 'charge'>('ALL')
-  const [page, setPage] = useState(1)
+  const { data, isLoading } = useFinanceOverview()
 
-  const { data, isLoading, isFetching } = useFinanceTransactions({
-    page,
-    limit: 15,
-    search: search || undefined,
-    type: type === 'ALL' ? undefined : type,
-  })
+  if (isLoading || !data) {
+    return <p className="text-sm text-muted-foreground">Loading finance overview…</p>
+  }
 
-  const summary = data?.summary
+  const { summary, recentMoneyIn, recentMoneyOut, needsAttention } = data
 
-  const columns: Column<FinanceTransaction>[] = [
-    {
-      key: 'date',
-      header: 'Date',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.date)}</span>,
-    },
-    {
-      key: 'description',
-      header: 'Description',
-      cell: (row) => (
-        <div>
-          <p className="font-medium">{row.description}</p>
-          <p className="text-xs text-muted-foreground">
-            {toTitleCase(row.category)}
-            {row.reference ? ` · ${row.reference}` : ''}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: 'household',
-      header: 'Household',
-      cell: (row) => (
-        <span className="text-muted-foreground">{row.household ? householdLabel(row.household) : '—'}</span>
-      ),
-      hideBelow: 'md',
-    },
-    {
-      key: 'type',
-      header: 'Type',
-      cell: (row) => <StatusBadge status={row.type} />,
-      hideBelow: 'lg',
-    },
-    {
-      key: 'amount',
-      header: 'Amount',
-      cell: (row) => (
-        <span className={`font-medium ${row.type === 'payment' ? 'text-success' : 'text-destructive'}`}>
-          {row.type === 'payment' ? '+' : '−'}
-          {formatCurrency(Math.abs(row.amount))}
-        </span>
-      ),
-      className: 'text-right',
-    },
-  ]
+  const attentionItems: Array<{ label: string; hint: string; tab: string }> = []
+  if (needsAttention.pendingVerificationPayments > 0) {
+    attentionItems.push({
+      label: `${needsAttention.pendingVerificationPayments} payment${needsAttention.pendingVerificationPayments === 1 ? '' : 's'} waiting for verification`,
+      hint: `${formatCurrency(needsAttention.pendingVerificationAmount)} to confirm`,
+      tab: 'payments',
+    })
+  }
+  if (needsAttention.householdsWithUnpaidDues > 0) {
+    attentionItems.push({
+      label: `${needsAttention.householdsWithUnpaidDues} household${needsAttention.householdsWithUnpaidDues === 1 ? '' : 's'} with unpaid dues`,
+      hint: 'See monthly dues',
+      tab: 'monthly-dues',
+    })
+  }
+  if (needsAttention.overdueAssessments > 0) {
+    attentionItems.push({
+      label: `${needsAttention.overdueAssessments} overdue charge${needsAttention.overdueAssessments === 1 ? '' : 's'}`,
+      hint: 'Follow up or add a late fee',
+      tab: 'other-charges',
+    })
+  }
+  if (needsAttention.missingMeterReadings > 0) {
+    attentionItems.push({
+      label: `${needsAttention.missingMeterReadings} meter reading${needsAttention.missingMeterReadings === 1 ? '' : 's'} still missing this month`,
+      hint: 'Record readings in Utilities',
+      tab: 'utilities',
+    })
+  }
+
+  const renderMoneyIn = (row: FinanceOverviewRecentIn) => (
+    <div key={row.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">
+          {row.payer ?? (row.household ? householdLabel(row.household) : 'Household')}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {toTitleCase(String(row.method)).replace('_', ' ')}
+          {row.reference ? ` · ${row.reference}` : ''}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-semibold text-success">+{formatCurrency(row.amount)}</p>
+        <p className="text-xs text-muted-foreground">{formatDate(row.date)}</p>
+      </div>
+    </div>
+  )
+
+  const renderMoneyOut = (row: FinanceOverviewRecentOut) => (
+    <div key={`${row.kind}-${row.id}`} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{row.payee ?? toTitleCase(String(row.category))}</p>
+        <p className="text-xs text-muted-foreground">{toTitleCase(String(row.category))}</p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm font-semibold text-destructive">−{formatCurrency(row.amount)}</p>
+        <p className="text-xs text-muted-foreground">{formatDate(row.date)}</p>
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-4">
-      {summary ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Collected</p>
-              <p className="mt-1 text-xl font-semibold text-success">{formatCurrency(summary.income)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Billed</p>
-              <p className="mt-1 text-xl font-semibold text-destructive">{formatCurrency(summary.expenses)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">Net receivable</p>
-              <p className="mt-1 text-xl font-semibold">{formatCurrency(summary.balance)}</p>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative sm:max-w-xs sm:flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search the ledger…"
-            className="pl-9"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setPage(1)
-            }}
-          />
-        </div>
-        <Select
-          value={type}
-          onValueChange={(value) => {
-            setType(value as typeof type)
-            setPage(1)
-          }}
-        >
-          <SelectTrigger className="sm:w-40">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">All entries</SelectItem>
-            <SelectItem value="payment">Payments</SelectItem>
-            <SelectItem value="charge">Charges</SelectItem>
-          </SelectContent>
-        </Select>
-        {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <OverviewCard label="Collected" value={formatCurrency(summary.collected)} tone="success" />
+        <OverviewCard label="Spent on expenses" value={formatCurrency(summary.expenses)} tone="destructive" />
+        <OverviewCard label="Available funds" value={formatCurrency(summary.availableFunds)} />
+        <OverviewCard label="Billed to households" value={formatCurrency(summary.billed)} />
+        <OverviewCard label="Still unpaid" value={formatCurrency(summary.unpaid)} />
       </div>
-      <DataTable
-        columns={columns}
-        rows={data?.items ?? []}
-        keyExtractor={(row) => row.id}
-        isLoading={isLoading}
-        emptyMessage="No ledger entries found."
-      />
-      <Pagination pagination={data?.pagination} onPageChange={setPage} />
+
+      {attentionItems.length > 0 ? (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              Needs your attention
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {attentionItems.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('finance:navigate', { detail: item.tab }))}
+                className="flex w-full items-center justify-between gap-3 rounded-lg border p-3 text-left hover:bg-accent"
+              >
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.hint}</p>
+                </div>
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowDownRight className="h-4 w-4 text-success" />
+              Recent money in
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {recentMoneyIn.length ? (
+              recentMoneyIn.map(renderMoneyIn)
+            ) : (
+              <p className="text-sm text-muted-foreground">No verified payments yet.</p>
+            )}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ArrowUpRight className="h-4 w-4 text-destructive" />
+              Recent money out
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {recentMoneyOut.length ? (
+              recentMoneyOut.map(renderMoneyOut)
+            ) : (
+              <p className="text-sm text-muted-foreground">No expenses recorded yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
 
-function AssessmentsTab() {
+function AssessmentsTab({ variant = 'dues' }: { variant?: 'dues' | 'other' }) {
+  const isDues = variant === 'dues'
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<AssessmentStatus | 'ALL'>('ALL')
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [importExportOpen, setImportExportOpen] = useState<ImportKind | null>(null)
   const [editing, setEditing] = useState<AssessmentListItem | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<AssessmentListItem | null>(null)
@@ -333,12 +457,14 @@ function AssessmentsTab() {
   const canUpdate = useHasPermission(PERMISSIONS.assessmentUpdate)
   const canDelete = useHasPermission(PERMISSIONS.assessmentDelete)
   const canWaive = useHasPermission(PERMISSIONS.financeWaive)
+  const canExport = useHasPermission(PERMISSIONS.financeExport)
 
   const { data, isLoading, isFetching } = useAssessments({
     page,
     limit: 10,
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
+    ...(isDues ? { category: 'DUES' as const } : { excludeCategory: 'DUES' as const }),
   })
 
   const issueAssessment = useIssueAssessment()
@@ -453,7 +579,7 @@ function AssessmentsTab() {
         <div className="relative sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search assessments…"
+            placeholder={isDues ? 'Search monthly dues…' : 'Search charges…'}
             className="pl-9"
             value={search}
             onChange={(event) => {
@@ -482,12 +608,30 @@ function AssessmentsTab() {
         </Select>
         {canCreate ? (
           <>
-            <Button variant="outline" onClick={() => setGenerateOpen(true)}>
-              Generate dues
-            </Button>
-            <Button className="sm:ml-auto" onClick={() => setFormOpen(true)}>
+            {isDues ? (
+              <>
+                <Button variant="outline" onClick={() => setGenerateOpen(true)}>
+                  Generate dues
+                </Button>
+                <Button variant="outline" onClick={() => setSettingsOpen(true)}>
+                  <Settings2 className="h-4 w-4" />
+                  Settings
+                </Button>
+              </>
+            ) : null}
+            {canExport ? (
+              <Button
+                variant="outline"
+                className={isDues ? undefined : 'sm:ml-auto'}
+                onClick={() => setImportExportOpen('assessments')}
+              >
+                <FileDown className="h-4 w-4" />
+                Import / export
+              </Button>
+            ) : null}
+            <Button className={isDues ? 'sm:ml-auto' : undefined} onClick={() => setFormOpen(true)}>
               <Plus className="h-4 w-4" />
-              New assessment
+              {isDues ? 'New assessment' : 'New charge'}
             </Button>
           </>
         ) : null}
@@ -499,7 +643,7 @@ function AssessmentsTab() {
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
         isLoading={isLoading}
-        emptyMessage="No assessments found."
+        emptyMessage={isDues ? 'No monthly dues found.' : 'No charges found.'}
       />
 
       <Pagination pagination={data?.pagination} onPageChange={setPage} />
@@ -513,6 +657,16 @@ function AssessmentsTab() {
         assessment={editing}
       />
       <GenerateDuesDialog open={generateOpen} onOpenChange={setGenerateOpen} />
+      {isDues && settingsOpen ? (
+        <DuesSettingsDialog onOpenChange={setSettingsOpen} />
+      ) : null}
+      <ImportExportDialog
+        open={importExportOpen !== null}
+        onOpenChange={(open) => {
+          if (!open) setImportExportOpen(null)
+        }}
+        initialKind={importExportOpen ?? 'assessments'}
+      />
       <AssessmentDetailDialog
         assessmentId={detailId}
         open={Boolean(detailId)}
@@ -543,6 +697,7 @@ function PaymentsTab() {
   const [status, setStatus] = useState<PaymentStatus | 'ALL'>('ALL')
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
+  const [importExportOpen, setImportExportOpen] = useState<ImportKind | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [receiptId, setReceiptId] = useState<string | null>(null)
@@ -553,6 +708,7 @@ function PaymentsTab() {
   const canCreate = useHasPermission(PERMISSIONS.paymentCreate)
   const canUpdate = useHasPermission(PERMISSIONS.paymentUpdate)
   const canDelete = useHasPermission(PERMISSIONS.paymentDelete)
+  const canExport = useHasPermission(PERMISSIONS.financeExport)
   const canVerify = useHasPermission(PERMISSIONS.financeVerify)
   const canReject = useHasPermission(PERMISSIONS.financeReject)
   const canRefund = useHasPermission(PERMISSIONS.financeRefund)
@@ -727,8 +883,14 @@ function PaymentsTab() {
             ))}
           </SelectContent>
         </Select>
+        {canExport ? (
+          <Button variant="outline" onClick={() => setImportExportOpen('payments')}>
+            <FileDown className="h-4 w-4" />
+            Import / export
+          </Button>
+        ) : null}
         {canCreate ? (
-          <Button className="sm:ml-auto" onClick={() => setFormOpen(true)}>
+          <Button className={canExport ? undefined : 'sm:ml-auto'} onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" />
             Record payment
           </Button>
@@ -774,6 +936,13 @@ function PaymentsTab() {
         onOpenChange={(open) => {
           if (!open) setRejecting(null)
         }}
+      />
+      <ImportExportDialog
+        open={importExportOpen !== null}
+        onOpenChange={(open) => {
+          if (!open) setImportExportOpen(null)
+        }}
+        initialKind={importExportOpen ?? 'payments'}
       />
       <ConfirmDialog
         open={Boolean(cancelling)}
@@ -1099,12 +1268,14 @@ function ExpensesTab() {
   const [category, setCategory] = useState<ExpenseCategory | 'ALL'>('ALL')
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
+  const [importExportOpen, setImportExportOpen] = useState<ImportKind | null>(null)
   const [editing, setEditing] = useState<Expense | null>(null)
   const [deleting, setDeleting] = useState<Expense | null>(null)
 
   const canCreate = useHasPermission(PERMISSIONS.financeExpenseCreate)
   const canUpdate = useHasPermission(PERMISSIONS.financeExpenseUpdate)
   const canDelete = useHasPermission(PERMISSIONS.financeExpenseDelete)
+  const canExport = useHasPermission(PERMISSIONS.financeExport)
 
   const { data, isLoading, isFetching } = useExpenses({
     page,
@@ -1219,8 +1390,14 @@ function ExpensesTab() {
             ))}
           </SelectContent>
         </Select>
+        {canExport ? (
+          <Button variant="outline" onClick={() => setImportExportOpen('expenses')}>
+            <FileDown className="h-4 w-4" />
+            Import / export
+          </Button>
+        ) : null}
         {canCreate ? (
-          <Button className="sm:ml-auto" onClick={() => setFormOpen(true)}>
+          <Button className={canExport ? undefined : 'sm:ml-auto'} onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" />
             Record expense
           </Button>
@@ -1245,6 +1422,13 @@ function ExpensesTab() {
           if (!open) setEditing(null)
         }}
         expense={editing}
+      />
+      <ImportExportDialog
+        open={importExportOpen !== null}
+        onOpenChange={(open) => {
+          if (!open) setImportExportOpen(null)
+        }}
+        initialKind={importExportOpen ?? 'expenses'}
       />
       <ConfirmDialog
         open={Boolean(deleting)}
@@ -1272,6 +1456,303 @@ function IncomeStatementTab() {
   }
 
   return <IncomeStatementView statement={data} />
+}
+
+function HouseholdUtilityBillingSection() {
+  const canManage = useHasPermission(PERMISSIONS.financeManage)
+  const canImport = useHasPermission(PERMISSIONS.financeImport)
+  const canExport = useHasPermission(PERMISSIONS.financeExport)
+
+  const [rateDialogOpen, setRateDialogOpen] = useState(false)
+  const [editingConfig, setEditingConfig] = useState<UtilityBillingConfig | null>(null)
+  const [deletingConfig, setDeletingConfig] = useState<UtilityBillingConfig | null>(null)
+  const [readingDialogOpen, setReadingDialogOpen] = useState(false)
+  const [editingReading, setEditingReading] = useState<UtilityReading | null>(null)
+  const [deletingReading, setDeletingReading] = useState<UtilityReading | null>(null)
+  const [importExportOpen, setImportExportOpen] = useState<ImportKind | null>(null)
+
+  const currentPeriodKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  const [readingsPeriod, setReadingsPeriod] = useState(currentPeriodKey)
+
+  const { data: configData, isLoading: configsLoading } = useUtilityConfigs({ limit: 50 })
+  const { data: readingData, isLoading: readingsLoading } = useUtilityReadings({
+    limit: 20,
+    periodKey: readingsPeriod || undefined,
+  })
+  const deleteConfig = useDeleteUtilityConfig()
+  const deleteReading = useDeleteUtilityReading()
+  const generateBills = useGenerateUtilityBills((result) => {
+    if (result.noReadings > 0) {
+      toast.info(`${result.noReadings} household(s) had no meter reading for ${result.periodKey}.`)
+    }
+  })
+
+  const configs = configData?.items ?? []
+  const configLabels = new Map(configs.map((config) => [config.id, toTitleCase(config.utilityType) + (config.name ? ` – ${config.name}` : '')]))
+  const readings = readingData?.items ?? []
+
+  const describeConfig = (config: UtilityBillingConfig) => {
+    if (config.rateMode === 'METERED') {
+      return config.unitRate != null
+        ? `${formatCurrency(Number(config.unitRate))} per unit used`
+        : 'Per usage'
+    }
+    return config.fixedRate != null
+      ? `${formatCurrency(Number(config.fixedRate))} per household`
+      : 'Fixed amount'
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <Gauge className="h-4 w-4" />
+            Household utility billing
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Bill each household for the utilities they actually use.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {canImport || canExport ? (
+            <Button variant="outline" size="sm" onClick={() => setImportExportOpen('utility-readings')}>
+              <FileDown className="h-4 w-4" />
+              Import / export
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditingReading(null)
+              setReadingDialogOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Record reading
+          </Button>
+          {canManage ? (
+            <>
+              <Button variant="outline" size="sm" onClick={() => generateBills.mutate({ periodKey: currentPeriodKey })}
+                disabled={generateBills.isPending}
+                title={`Create this month's utility charges (${currentPeriodKey})`}
+              >
+                Generate bills
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditingConfig(null)
+                  setRateDialogOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4" />
+                Add rate
+              </Button>
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Rates</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {configsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : configs.length ? (
+            <div className="space-y-2">
+              {configs.map((config) => (
+                <div
+                  key={config.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {toTitleCase(config.utilityType)}
+                      {config.name ? ` – ${config.name}` : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{describeConfig(config)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!config.isActive ? <StatusBadge status="INACTIVE" /> : null}
+                    {canManage ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            setEditingConfig(config)
+                            setRateDialogOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => setDeletingConfig(config)}
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No utility rates yet. Add one to start billing water, electricity, and more per household.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="w-full sm:w-48">
+          <Input
+            type="month"
+            value={readingsPeriod}
+            onChange={(event) => setReadingsPeriod(event.target.value)}
+            aria-label="Filter readings by billing month"
+          />
+        </div>
+        <span className="text-xs text-muted-foreground">Meter readings for the selected month</span>
+      </div>
+
+      <DataTable
+        columns={[
+          {
+            key: 'period',
+            header: 'Month',
+            cell: (row) => <span className="text-muted-foreground">{row.periodKey}</span>,
+          },
+          {
+            key: 'household',
+            header: 'Household',
+            cell: (row) => householdLabel(row.household),
+          },
+          {
+            key: 'utility',
+            header: 'Utility',
+            hideBelow: 'md',
+            cell: (row) => (
+              <span className="text-muted-foreground">{configLabels.get(row.utilityConfigId) ?? '—'}</span>
+            ),
+          },
+          {
+            key: 'usage',
+            header: 'Previous → Current / Usage',
+            cell: (row) => (
+              <div className="text-right">
+                <p className="font-medium">{Number(row.usage)} units</p>
+                <p className="text-xs text-muted-foreground">
+                  {row.previousReading != null ? Number(row.previousReading) : '—'} →{' '}
+                  {row.currentReading != null ? Number(row.currentReading) : '—'}
+                </p>
+              </div>
+            ),
+            className: 'text-right',
+          },
+          {
+            key: 'actions',
+            header: <span className="sr-only">Actions</span>,
+            cell: (row) =>
+              canManage ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon-sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setEditingReading(row)
+                        setReadingDialogOpen(true)
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDeletingReading(row)}
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null,
+          },
+        ]}
+        rows={readings}
+        keyExtractor={(row) => row.id}
+        isLoading={readingsLoading}
+        emptyMessage={
+          readingsPeriod
+            ? `No meter readings recorded for ${readingsPeriod}.`
+            : 'No meter readings recorded yet.'
+        }
+      />
+
+      {rateDialogOpen ? (
+        <UtilityRateDialog
+          onOpenChange={setRateDialogOpen}
+          config={editingConfig}
+        />
+      ) : null}
+      {readingDialogOpen ? (
+        <UtilityReadingDialog
+          onOpenChange={setReadingDialogOpen}
+          reading={editingReading}
+          defaultPeriodKey={currentPeriodKey}
+        />
+      ) : null}
+      <ImportExportDialog
+        open={importExportOpen !== null}
+        onOpenChange={(open) => {
+          if (!open) setImportExportOpen(null)
+        }}
+        initialKind={importExportOpen ?? 'utility-readings'}
+      />
+      <ConfirmDialog
+        open={Boolean(deletingConfig)}
+        onOpenChange={(open) => {
+          if (!open) setDeletingConfig(null)
+        }}
+        title="Remove utility rate?"
+        description={`${deletingConfig ? toTitleCase(deletingConfig.utilityType) : 'This rate'} will stop being offered for new billing.`}
+        confirmLabel="Remove"
+        destructive
+        loading={deleteConfig.isPending}
+        onConfirm={() => {
+          if (deletingConfig) deleteConfig.mutate(deletingConfig.id, { onSuccess: () => setDeletingConfig(null) })
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(deletingReading)}
+        onOpenChange={(open) => {
+          if (!open) setDeletingReading(null)
+        }}
+        title="Delete meter reading?"
+        description="Any bill already generated from this reading stays in place."
+        confirmLabel="Delete"
+        destructive
+        loading={deleteReading.isPending}
+        onConfirm={() => {
+          if (deletingReading) deleteReading.mutate(deletingReading.id, { onSuccess: () => setDeletingReading(null) })
+        }}
+      />
+    </div>
+  )
 }
 
 function UtilitiesTab() {
@@ -1369,6 +1850,15 @@ function UtilitiesTab() {
 
   return (
     <div className="space-y-4">
+      <HouseholdUtilityBillingSection />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold">Provider bills (what the community pays)</h3>
+          <p className="text-xs text-muted-foreground">
+            Bills received from utility providers, recorded as community expenses.
+          </p>
+        </div>
+      </div>
       {summary ? (
         <div className="grid gap-3 sm:grid-cols-3">
           <Card>

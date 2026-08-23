@@ -52,6 +52,10 @@ export class AssessmentQueryDto {
   category?: FinanceCategory;
 
   @IsOptional()
+  @IsEnum(FinanceCategory)
+  excludeCategory?: FinanceCategory;
+
+  @IsOptional()
   @IsIn(['assessmentNumber', 'title', 'dueDate', 'amount', 'createdAt'])
   sortBy: string = 'createdAt';
 

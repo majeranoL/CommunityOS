@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { AssessmentStatus, PaymentStatus } from '@prisma/client';
+import {
+  AssessmentStatus,
+  HouseholdStatus,
+  PaymentStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -213,7 +217,8 @@ export class FinanceTransactionsService {
   // ==========================================
   // HOA income statement (fund transparency):
   // income = verified payments, expenses =
-  // recorded expenses, fund balance = net.
+  // recorded expenses + utility provider
+  // expenses, fund balance = net.
   // ==========================================
 
   async incomeStatement(communityId: string, from?: string, to?: string) {
@@ -225,7 +230,7 @@ export class FinanceTransactionsService {
           }
         : undefined;
 
-    const [payments, expenses, billed] = await Promise.all([
+    const [payments, expenses, utilityExpenses, billed] = await Promise.all([
       this.prisma.payment.findMany({
         where: {
           communityId,
@@ -256,6 +261,26 @@ export class FinanceTransactionsService {
         },
         orderBy: { expenseDate: 'desc' },
       }),
+      this.prisma.utilityExpense.findMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          ...(dateFilter ? { expenseDate: dateFilter } : {}),
+        },
+        select: {
+          id: true,
+          utilityNumber: true,
+          providerName: true,
+          utilityType: true,
+          amount: true,
+          expenseDate: true,
+          paymentMethod: true,
+          billingPeriod: true,
+          invoiceNumber: true,
+          description: true,
+        },
+        orderBy: { expenseDate: 'desc' },
+      }),
       this.prisma.assessment.aggregate({
         where: {
           communityId,
@@ -278,10 +303,12 @@ export class FinanceTransactionsService {
       (sum, payment) => sum + payment.amount.toNumber(),
       0,
     );
-    const expenseTotal = expenses.reduce(
-      (sum, expense) => sum + expense.amount.toNumber(),
-      0,
-    );
+    const expenseTotal =
+      expenses.reduce((sum, expense) => sum + expense.amount.toNumber(), 0) +
+      utilityExpenses.reduce(
+        (sum, utility) => sum + utility.amount.toNumber(),
+        0,
+      );
     const fundBalance = income - expenseTotal;
 
     const categoryMap = new Map<string, { amount: number; count: number }>();
@@ -293,6 +320,15 @@ export class FinanceTransactionsService {
       current.amount += expense.amount.toNumber();
       current.count += 1;
       categoryMap.set(expense.category, current);
+    }
+    for (const utility of utilityExpenses) {
+      const current = categoryMap.get(utility.utilityType) ?? {
+        amount: 0,
+        count: 0,
+      };
+      current.amount += utility.amount.toNumber();
+      current.count += 1;
+      categoryMap.set(utility.utilityType, current);
     }
 
     const categories = [...categoryMap.entries()]
@@ -321,9 +357,35 @@ export class FinanceTransactionsService {
       monthlyMap.set(key, current);
     }
 
+    for (const utility of utilityExpenses) {
+      const key = monthKey(utility.expenseDate);
+      const current = monthlyMap.get(key) ?? { income: 0, expenses: 0 };
+      current.expenses += utility.amount.toNumber();
+      monthlyMap.set(key, current);
+    }
+
     const monthly = [...monthlyMap.entries()]
       .map(([month, value]) => ({ month, ...value }))
       .sort((a, b) => a.month.localeCompare(b.month));
+
+    // Utility provider expenses embedded as read-only rows so the
+    // statement stays a single transparency view
+    const utilityExpenseRows = utilityExpenses.map((utility) => ({
+      id: utility.id,
+      expenseNumber: utility.utilityNumber,
+      title: `${utility.providerName} (${utility.utilityType})`,
+      description: utility.description,
+      category: utility.utilityType,
+      amount: utility.amount,
+      expenseDate: utility.expenseDate,
+      paymentMethod: utility.paymentMethod,
+      payee: utility.providerName,
+      referenceNumber: utility.invoiceNumber,
+      notes: utility.billingPeriod
+        ? `Billing period: ${utility.billingPeriod}`
+        : null,
+      isUtility: true,
+    }));
 
     return {
       success: true,
@@ -339,8 +401,312 @@ export class FinanceTransactionsService {
         },
         categories,
         monthly,
-        expenses,
+        expenses: [
+          ...expenses.map((expense) => ({ ...expense, isUtility: false })),
+          ...utilityExpenseRows,
+        ],
       },
     };
+  }
+
+  // ==========================================
+  // Finance overview: the officer-facing
+  // financial dashboard. Collected = verified
+  // payments; Expenses = recorded HOA spending
+  // (expenses + utility provider bills);
+  // Available Funds = collected - expenses;
+  // Billed/Unpaid = assessment receivables.
+  // ==========================================
+
+  async overview(communityId: string, scopeHouseholdId?: string) {
+    const activeStatuses = [
+      AssessmentStatus.ISSUED,
+      AssessmentStatus.PARTIALLY_PAID,
+      AssessmentStatus.OVERDUE,
+      AssessmentStatus.PAID,
+    ];
+
+    const unpaidStatuses = [
+      AssessmentStatus.ISSUED,
+      AssessmentStatus.PARTIALLY_PAID,
+      AssessmentStatus.OVERDUE,
+    ];
+
+    const paymentWhere: any = {
+      communityId,
+      deletedAt: null,
+      status: PaymentStatus.VERIFIED,
+      ...(scopeHouseholdId
+        ? { resident: { householdId: scopeHouseholdId } }
+        : {}),
+    };
+
+    const assessmentWhere: any = {
+      communityId,
+      deletedAt: null,
+      status: { in: activeStatuses },
+      ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
+    };
+
+    const expenseWhere: any = { communityId, deletedAt: null };
+
+    const [
+      collectedAgg,
+      expensesAgg,
+      utilityExpensesAgg,
+      billedAgg,
+      paidAgg,
+      recentPayments,
+      recentExpenses,
+      recentUtilityExpenses,
+      pendingVerificationAgg,
+      unpaidHouseholds,
+      overdueCount,
+    ] = await Promise.all([
+      this.prisma.payment.aggregate({
+        where: paymentWhere,
+        _sum: { amount: true },
+      }),
+      this.prisma.expense.aggregate({
+        where: expenseWhere,
+        _sum: { amount: true },
+      }),
+      this.prisma.utilityExpense.aggregate({
+        where: expenseWhere,
+        _sum: { amount: true },
+      }),
+      this.prisma.assessment.aggregate({
+        where: assessmentWhere,
+        _sum: { amount: true },
+      }),
+      this.prisma.assessment.aggregate({
+        where: assessmentWhere,
+        _sum: { paidAmount: true },
+      }),
+      this.prisma.payment.findMany({
+        where: paymentWhere,
+        include: {
+          chargeType: { select: { name: true, category: true } },
+          allocations: {
+            take: 1,
+            include: {
+              assessment: {
+                select: {
+                  title: true,
+                  chargeType: { select: { category: true } },
+                },
+              },
+            },
+          },
+          resident: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              household: {
+                select: { id: true, block: true, lot: true, unit: true },
+              },
+            },
+          },
+        },
+        orderBy: { paymentDate: 'desc' },
+        take: 8,
+      }),
+      this.prisma.expense.findMany({
+        where: expenseWhere,
+        select: {
+          id: true,
+          title: true,
+          category: true,
+          amount: true,
+          expenseDate: true,
+          paymentMethod: true,
+          payee: true,
+          expenseNumber: true,
+        },
+        orderBy: { expenseDate: 'desc' },
+        take: 8,
+      }),
+      this.prisma.utilityExpense.findMany({
+        where: expenseWhere,
+        select: {
+          id: true,
+          providerName: true,
+          utilityType: true,
+          amount: true,
+          expenseDate: true,
+          paymentMethod: true,
+          utilityNumber: true,
+        },
+        orderBy: { expenseDate: 'desc' },
+        take: 8,
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: PaymentStatus.PENDING_VERIFICATION,
+          ...(scopeHouseholdId
+            ? { resident: { householdId: scopeHouseholdId } }
+            : {}),
+        },
+        _count: true,
+        _sum: { amount: true },
+      }),
+      this.prisma.assessment.groupBy({
+        by: ['householdId'],
+        where: {
+          communityId,
+          deletedAt: null,
+          status: { in: unpaidStatuses },
+          ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
+        },
+      }),
+      this.prisma.assessment.count({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: AssessmentStatus.OVERDUE,
+          ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
+        },
+      }),
+    ]);
+
+    const collected = collectedAgg._sum.amount?.toNumber() ?? 0;
+    const expenses =
+      (expensesAgg._sum.amount?.toNumber() ?? 0) +
+      (utilityExpensesAgg._sum.amount?.toNumber() ?? 0);
+    const billed = billedAgg._sum.amount?.toNumber() ?? 0;
+    const paid = paidAgg._sum.paidAmount?.toNumber() ?? 0;
+
+    const recentMoneyIn = recentPayments.map((payment) => ({
+      id: payment.id,
+      date: payment.paymentDate,
+      description:
+        payment.chargeType?.name ??
+        payment.allocations[0]?.assessment?.title ??
+        'Payment',
+      category:
+        payment.chargeType?.category ??
+        payment.allocations[0]?.assessment?.chargeType?.category ??
+        'OTHER',
+      method: payment.method,
+      amount: payment.amount.toNumber(),
+      payer: `${payment.resident.firstName} ${payment.resident.lastName}`,
+      household: payment.resident.household,
+      reference: payment.paymentNumber,
+    }));
+
+    const recentMoneyOut = [
+      ...recentExpenses.map((expense) => ({
+        id: expense.id,
+        kind: 'expense' as const,
+        date: expense.expenseDate,
+        description: expense.title,
+        category: expense.category,
+        method: expense.paymentMethod,
+        amount: expense.amount.toNumber(),
+        payee: expense.payee,
+        reference: expense.expenseNumber,
+      })),
+      ...recentUtilityExpenses.map((utility) => ({
+        id: utility.id,
+        kind: 'utility' as const,
+        date: utility.expenseDate,
+        description: `${utility.providerName} (${utility.utilityType})`,
+        category: utility.utilityType,
+        method: utility.paymentMethod,
+        amount: utility.amount.toNumber(),
+        payee: utility.providerName,
+        reference: utility.utilityNumber,
+      })),
+    ]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 8);
+
+    const missingMeterReadings = await this.countMissingMeterReadings(
+      communityId,
+      scopeHouseholdId,
+    );
+
+    return {
+      success: true,
+      message: 'Finance overview retrieved successfully.',
+      data: {
+        summary: {
+          collected,
+          expenses,
+          availableFunds: collected - expenses,
+          billed,
+          unpaid: Math.max(billed - paid, 0),
+        },
+        recentMoneyIn,
+        recentMoneyOut,
+        needsAttention: {
+          pendingVerificationPayments: pendingVerificationAgg._count,
+          pendingVerificationAmount:
+            pendingVerificationAgg._sum.amount?.toNumber() ?? 0,
+          householdsWithUnpaidDues: unpaidHouseholds.length,
+          overdueAssessments: overdueCount,
+          missingMeterReadings,
+        },
+      },
+    };
+  }
+
+  // ==========================================
+  // Households without a meter reading for the
+  // current period across all active METERED
+  // utility configs.
+  // ==========================================
+
+  private async countMissingMeterReadings(
+    communityId: string,
+    scopeHouseholdId?: string,
+  ): Promise<number> {
+    const now = new Date();
+    const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    const configs = await this.prisma.utilityConfig.findMany({
+      where: {
+        communityId,
+        deletedAt: null,
+        isActive: true,
+        rateMode: 'METERED',
+      },
+      select: { id: true },
+    });
+
+    if (configs.length === 0) return 0;
+
+    const households = await this.prisma.household.findMany({
+      where: {
+        communityId,
+        deletedAt: null,
+        status: HouseholdStatus.ACTIVE,
+        ...(scopeHouseholdId ? { id: scopeHouseholdId } : {}),
+      },
+      select: { id: true },
+    });
+
+    if (households.length === 0) return 0;
+
+    const readings = await this.prisma.utilityReading.findMany({
+      where: {
+        communityId,
+        periodKey,
+        utilityConfigId: { in: configs.map((config) => config.id) },
+        householdId: { in: households.map((household) => household.id) },
+      },
+      select: { utilityConfigId: true, householdId: true },
+    });
+
+    const readPairs = new Set(
+      readings.map(
+        (reading) => `${reading.utilityConfigId}:${reading.householdId}`,
+      ),
+    );
+
+    return configs.length * households.length - readPairs.size;
   }
 }

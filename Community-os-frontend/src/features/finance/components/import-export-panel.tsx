@@ -11,10 +11,17 @@ import { useCancelImport, useConfirmImport, useExportFinance, useImportBatches, 
 import { toTitleCase } from '@/lib/format'
 import type { ImportKind } from '@/features/finance/types/finance'
 
-export function ImportExportPanel() {
-  const [kind, setKind] = useState<ImportKind>('payments')
+const IMPORT_KIND_OPTIONS: Array<{ value: ImportKind; label: string }> = [
+  { value: 'payments', label: 'Payments' },
+  { value: 'assessments', label: 'Assessments / charges' },
+  { value: 'expenses', label: 'Expenses' },
+  { value: 'utility-readings', label: 'Utility meter readings' },
+]
+
+export function ImportExportPanel({ initialKind }: { initialKind?: ImportKind }) {
+  const [kind, setKind] = useState<ImportKind>(initialKind ?? 'payments')
   const [format, setFormat] = useState<'csv' | 'xlsx'>('csv')
-  const [importKind, setImportKind] = useState<ImportKind>('payments')
+  const [importKind, setImportKind] = useState<ImportKind>(initialKind ?? 'payments')
 
   const exportFinance = useExportFinance()
   const preview = useImportPreview()
@@ -45,9 +52,11 @@ export function ImportExportPanel() {
                     <SelectValue placeholder="Select data" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="payments">Payments</SelectItem>
-                    <SelectItem value="assessments">Assessments</SelectItem>
-                    <SelectItem value="expenses">Expenses</SelectItem>
+                    {IMPORT_KIND_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -71,7 +80,14 @@ export function ImportExportPanel() {
               disabled={exportFinance.isPending}
             >
               {exportFinance.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Export {kind === 'payments' ? 'payments' : kind === 'expenses' ? 'expenses' : 'assessments'}
+              Export{' '}
+              {kind === 'payments'
+                ? 'payments'
+                : kind === 'expenses'
+                  ? 'expenses'
+                  : kind === 'utility-readings'
+                    ? 'utility readings'
+                    : 'assessments'}
             </Button>
           </CardContent>
         </Card>
@@ -88,9 +104,11 @@ export function ImportExportPanel() {
                   <SelectValue placeholder="Select data" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="payments">Payments</SelectItem>
-                  <SelectItem value="assessments">Assessments</SelectItem>
-                  <SelectItem value="expenses">Expenses</SelectItem>
+                  {IMPORT_KIND_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

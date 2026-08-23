@@ -9,10 +9,12 @@ import {
   expensesService,
   financeHouseholdsService,
   financeImportExportService,
+  financeOverviewService,
   financeResidentsService,
   financeTransactionsService,
   incomeStatementService,
   paymentsService,
+  utilityBillingService,
 } from '@/features/finance/services/finance'
 import type {
   CreateAssessmentInput,
@@ -48,6 +50,9 @@ export const financeKeys = {
   expenses: ['finance', 'expenses'] as const,
   expenseList: (params: ListQuery) => ['finance', 'expenses', 'list', params] as const,
   incomeStatement: ['finance', 'income-statement'] as const,
+  overview: ['finance', 'overview'] as const,
+  utilityConfigs: ['finance', 'utility-configs'] as const,
+  utilityReadings: ['finance', 'utility-readings'] as const,
 }
 
 // ==============================================
@@ -563,6 +568,7 @@ export function useConfirmImport() {
       queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
       queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
       queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      queryClient.invalidateQueries({ queryKey: financeKeys.overview })
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to import.')),
   })
@@ -642,6 +648,7 @@ export function useCreateUtilityExpense(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: utilityExpenseKeys.all })
       queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
       queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      queryClient.invalidateQueries({ queryKey: financeKeys.overview })
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to record utility expense.')),
@@ -658,6 +665,7 @@ export function useUpdateUtilityExpense(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: utilityExpenseKeys.all })
       queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
       queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      queryClient.invalidateQueries({ queryKey: financeKeys.overview })
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update utility expense.')),
@@ -673,8 +681,162 @@ export function useDeleteUtilityExpense(onSuccess?: () => void) {
       queryClient.invalidateQueries({ queryKey: utilityExpenseKeys.all })
       queryClient.invalidateQueries({ queryKey: financeKeys.expenses })
       queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+      queryClient.invalidateQueries({ queryKey: financeKeys.overview })
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete utility expense.')),
+  })
+}
+
+// ==============================================
+// Finance overview
+// ==============================================
+
+export function useFinanceOverview() {
+  return useQuery({
+    queryKey: financeKeys.overview,
+    queryFn: () => financeOverviewService.get(),
+    placeholderData: (previous) => previous,
+  })
+}
+
+// ==============================================
+// Utility billing (metered / fixed per household)
+// ==============================================
+
+export function useUtilityConfigs(params: ListQuery = {}) {
+  return useQuery({
+    queryKey: [...financeKeys.utilityConfigs, params] as const,
+    queryFn: () => utilityBillingService.listConfigs(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useCreateUtilityConfig(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof utilityBillingService.createConfig>[0]) =>
+      utilityBillingService.createConfig(input),
+    onSuccess: () => {
+      toast.success('Utility rate saved.')
+      queryClient.invalidateQueries({ queryKey: financeKeys.utilityConfigs })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to save utility rate.')),
+  })
+}
+
+export function useUpdateUtilityConfig(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string
+      input: Partial<Parameters<typeof utilityBillingService.createConfig>[0]>
+    }) => utilityBillingService.updateConfig(id, input),
+    onSuccess: () => {
+      toast.success('Utility rate updated.')
+      queryClient.invalidateQueries({ queryKey: financeKeys.utilityConfigs })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update utility rate.')),
+  })
+}
+
+export function useDeleteUtilityConfig(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => utilityBillingService.deleteConfig(id),
+    onSuccess: () => {
+      toast.success('Utility rate removed.')
+      queryClient.invalidateQueries({ queryKey: financeKeys.utilityConfigs })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to remove utility rate.')),
+  })
+}
+
+export function useUtilityReadings(params: ListQuery & { periodKey?: string; utilityType?: string } = {}) {
+  return useQuery({
+    queryKey: [...financeKeys.utilityReadings, params] as const,
+    queryFn: () => utilityBillingService.listReadings(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+function invalidateUtilityReadings(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: financeKeys.utilityReadings })
+  queryClient.invalidateQueries({ queryKey: financeKeys.assessments })
+  queryClient.invalidateQueries({ queryKey: financeKeys.billingPeriods })
+  queryClient.invalidateQueries({ queryKey: financeKeys.transactions })
+  queryClient.invalidateQueries({ queryKey: financeKeys.incomeStatement })
+  queryClient.invalidateQueries({ queryKey: financeKeys.overview })
+}
+
+export function useCreateUtilityReading(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: Parameters<typeof utilityBillingService.createReading>[0]) =>
+      utilityBillingService.createReading(input),
+    onSuccess: () => {
+      toast.success('Reading recorded.')
+      invalidateUtilityReadings(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to record reading.')),
+  })
+}
+
+export function useUpdateUtilityReading(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: string
+      input: { currentReading?: number; readingDate?: string; notes?: string }
+    }) => utilityBillingService.updateReading(id, input),
+    onSuccess: () => {
+      toast.success('Reading updated.')
+      invalidateUtilityReadings(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update reading.')),
+  })
+}
+
+export function useDeleteUtilityReading(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => utilityBillingService.deleteReading(id),
+    onSuccess: () => {
+      toast.success('Reading deleted.')
+      invalidateUtilityReadings(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to delete reading.')),
+  })
+}
+
+export function useGenerateUtilityBills(onSuccess?: (result: {
+  periodKey: string
+  createdCount: number
+  skippedExisting: number
+  noReadings: number
+}) => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { periodKey: string }) => utilityBillingService.generateBills(input),
+    onSuccess: (result) => {
+      toast.success(
+        `Created ${result.createdCount} bill${result.createdCount === 1 ? '' : 's'} for ${result.periodKey}.`,
+      )
+      invalidateUtilityReadings(queryClient)
+      onSuccess?.(result)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to generate bills.')),
   })
 }

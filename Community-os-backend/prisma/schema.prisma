@@ -435,6 +435,8 @@ model Community {
   paymentAllocations PaymentAllocation[]
   expenses          Expense[]
   utilityExpenses   UtilityExpense[]
+  utilityConfigs    UtilityConfig[]
+  utilityReadings   UtilityReading[]
   chargeTypes       ChargeType[]
   billingPeriods    BillingPeriod[]
   importBatches     ImportBatch[]
@@ -654,6 +656,7 @@ model User {
   verifiedStickers        VehicleSticker[]  @relation("StickerVerifiedBy")
   createdStickers         VehicleSticker[]  @relation("StickerCreatedBy")
   createdUtilityExpenses  UtilityExpense[]  @relation("UtilityExpenseCreatedBy")
+  recordedUtilityReadings UtilityReading[]  @relation("UtilityReadingRecordedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1086,6 +1089,7 @@ model Household {
   residents   Resident[]
   assessments Assessment[]
   pets        Pet[]
+  utilityReadings UtilityReading[]
 
   isImported    Boolean       @default(false)
   importBatchId String?       @db.Uuid
@@ -1542,9 +1546,15 @@ model ChargeType {
   isActive              Boolean @default(true)
   sortOrder             Int     @default(0)
 
+  gracePeriodDays      Int             @default(0)
+  lateFeeType          LateFeeType     @default(NONE)
+  lateFeeValue         Decimal?        @db.Decimal(10, 2)
+  autoGenerate         Boolean         @default(false)
+
   billingPeriods BillingPeriod[]
   assessments    Assessment[]
   payments       Payment[]
+  utilityConfigs UtilityConfig[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1647,6 +1657,7 @@ model ImportBatch {
   assessments Assessment[]
   expenses     Expense[]
   utilityExpenses UtilityExpense[]
+  utilityReadings UtilityReading[]
   households  Household[] @relation("HouseholdImportBatch")
   residents   Resident[]  @relation("ResidentImportBatch")
   vehicles    Vehicle[]   @relation("VehicleImportBatch")
@@ -2064,6 +2075,83 @@ model Upload {
 /////////////////////////////////////////////////////
 // UTILITY EXPENSES
 /////////////////////////////////////////////////////
+
+enum LateFeeType {
+  NONE
+  FIXED_AMOUNT
+  PERCENT
+}
+
+enum UtilityRateMode {
+  METERED
+  FIXED
+}
+
+model UtilityConfig {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  utilityType UtilityType
+  name        String      @db.VarChar(100)
+
+  rateMode  UtilityRateMode @default(METERED)
+  unitRate   Decimal? @db.Decimal(10, 4)
+  fixedRate  Decimal? @db.Decimal(10, 2)
+  tieredRates Json?
+
+  chargeTypeId String     @db.Uuid
+  chargeType   ChargeType @relation(fields: [chargeTypeId], references: [id], onDelete: Cascade)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  readings UtilityReading[]
+
+  @@unique([communityId, utilityType])
+  @@index([communityId])
+  @@index([chargeTypeId])
+}
+
+model UtilityReading {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  utilityConfigId String       @db.Uuid
+  utilityConfig   UtilityConfig @relation(fields: [utilityConfigId], references: [id], onDelete: Cascade)
+
+  householdId String    @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  periodKey       String   @db.VarChar(10)
+  previousReading Decimal? @db.Decimal(12, 2)
+  currentReading  Decimal? @db.Decimal(12, 2)
+  usage           Decimal? @db.Decimal(12, 2)
+
+  readingDate DateTime
+  recordedById String @db.Uuid
+  recordedBy   User   @relation("UtilityReadingRecordedBy", fields: [recordedById], references: [id], onDelete: Cascade)
+
+  notes String? @db.VarChar(500)
+
+  isImported    Boolean      @default(false)
+  importBatchId String?      @db.Uuid
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([utilityConfigId, householdId, periodKey])
+  @@index([communityId])
+  @@index([householdId])
+  @@index([periodKey])
+}
 
 model UtilityExpense {
   id String @id @default(uuid()) @db.Uuid

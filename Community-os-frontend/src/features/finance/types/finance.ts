@@ -257,6 +257,10 @@ export interface ChargeType {
   description: string | null
   allowAdvancePayment: boolean
   advanceAppliesToOneTime: boolean
+  gracePeriodDays: number
+  lateFeeType: 'NONE' | 'FIXED_AMOUNT' | 'PERCENT'
+  lateFeeValue: string | number | null
+  autoGenerate: boolean
   isActive: boolean
   sortOrder: number
   createdAt: string
@@ -277,6 +281,10 @@ export interface CreateChargeTypeInput {
   description?: string
   allowAdvancePayment?: boolean
   advanceAppliesToOneTime?: boolean
+  gracePeriodDays?: number
+  lateFeeType?: 'NONE' | 'FIXED_AMOUNT' | 'PERCENT'
+  lateFeeValue?: number | null
+  autoGenerate?: boolean
   isActive?: boolean
   sortOrder?: number
 }
@@ -350,7 +358,7 @@ export interface FinanceTransactionSummary {
 // Import / export
 // ==============================================
 
-export type ImportKind = 'payments' | 'assessments' | 'expenses'
+export type ImportKind = 'payments' | 'assessments' | 'expenses' | 'utility-readings'
 export type ExportFormat = 'csv' | 'xlsx'
 
 export interface ImportBatch {
@@ -577,3 +585,109 @@ export interface UtilityExpenseSummary {
   byType: { type: UtilityType; total: number; count: number }[]
   byProvider: { provider: string; total: number; count: number }[]
 }
+
+// ==============================================
+// Finance overview (plain-language dashboard)
+// ==============================================
+
+export interface FinanceOverviewSummary {
+  collected: number
+  expenses: number
+  availableFunds: number
+  billed: number
+  unpaid: number
+}
+
+export interface FinanceOverviewRecentIn {
+  id: string
+  date: string
+  description: string
+  category: FinanceCategory | string
+  method: PaymentMethod | string
+  amount: number
+  payer: string | null
+  household: HouseholdRef | null
+  reference: string | null
+}
+
+export interface FinanceOverviewRecentOut {
+  id: string
+  kind: 'expense' | 'utility'
+  date: string
+  description: string
+  category: ExpenseCategory | string
+  method: PaymentMethod | string
+  amount: number
+  payee: string | null
+  reference: string | null
+}
+
+export interface FinanceOverviewNeedsAttention {
+  pendingVerificationPayments: number
+  pendingVerificationAmount: number
+  householdsWithUnpaidDues: number
+  overdueAssessments: number
+  missingMeterReadings: number
+}
+
+export interface FinanceOverview {
+  summary: FinanceOverviewSummary
+  recentMoneyIn: FinanceOverviewRecentIn[]
+  recentMoneyOut: FinanceOverviewRecentOut[]
+  needsAttention: FinanceOverviewNeedsAttention
+}
+
+// ==============================================
+// Utility billing (per-household metered/fixed)
+// ==============================================
+
+export type UtilityRateMode = 'METERED' | 'FIXED'
+
+export interface TieredRate {
+  upTo: number | null
+  rate: number
+}
+
+export interface UtilityBillingConfig {
+  id: string
+  utilityType: UtilityType
+  name: string
+  rateMode: UtilityRateMode
+  unitRate: string | number | null
+  fixedRate: string | number | null
+  tieredRates: TieredRate[] | null
+  isActive: boolean
+  chargeType: ChargeTypeRef | null
+}
+
+export interface UtilityBillingConfigInput {
+  utilityType: UtilityType
+  name?: string
+  rateMode: UtilityRateMode
+  unitRate?: number | null
+  fixedRate?: number | null
+  tieredRates?: TieredRate[] | null
+  isActive?: boolean
+}
+
+export interface UtilityReading {
+  id: string
+  periodKey: string
+  previousReading: string | number | null
+  currentReading: string | number | null
+  usage: string | number
+  readingDate: string
+  notes: string | null
+  isImported: boolean
+  importBatchId: string | null
+  household: HouseholdRef & { id: string }
+  utilityConfigId: string
+}
+
+export interface UtilityBillingResult {
+  periodKey: string
+  createdCount: number
+  skippedExisting: number
+  noReadings: number
+}
+

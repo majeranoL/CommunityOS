@@ -7,11 +7,13 @@ const amount = (value: number) => ({ toNumber: () => value }) as any;
 describe('FinanceTransactionsService.incomeStatement', () => {
   const payment = { findMany: jest.fn() };
   const expense = { findMany: jest.fn() };
+  const utilityExpense = { findMany: jest.fn() };
   const assessment = { aggregate: jest.fn() };
 
   const prismaMock = {
     payment,
     expense,
+    utilityExpense,
     assessment,
   };
 
@@ -19,6 +21,7 @@ describe('FinanceTransactionsService.incomeStatement', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    utilityExpense.findMany.mockResolvedValue([]);
   });
 
   it('computes income, expenses, fund balance, breakdowns and billed totals', async () => {
@@ -75,6 +78,41 @@ describe('FinanceTransactionsService.incomeStatement', () => {
       billed: 15000,
     });
 
+    // Utility provider expenses are part of HOA spending
+    utilityExpense.findMany.mockResolvedValue([
+      {
+        id: 'utl-1',
+        utilityNumber: 'UTL-000001',
+        providerName: 'PowerCo',
+        utilityType: 'ELECTRICITY',
+        amount: amount(1500),
+        expenseDate: new Date('2026-08-15T00:00:00.000Z'),
+        paymentMethod: 'BANK_TRANSFER',
+        billingPeriod: '2026-08',
+        invoiceNumber: 'PWR-9',
+        description: null,
+      },
+    ]);
+
+    const withUtilities = await service.incomeStatement(
+      'community-1',
+      '2026-07-01',
+      '2026-08-31',
+    );
+
+    expect(withUtilities.data.summary).toEqual({
+      income: 13000,
+      expenses: 6500,
+      fundBalance: 6500,
+      billed: 15000,
+    });
+    expect(withUtilities.data.expenses).toHaveLength(3);
+    expect(
+      withUtilities.data.categories.find(
+        (entry: any) => entry.category === 'ELECTRICITY',
+      ),
+    ).toEqual({ category: 'ELECTRICITY', amount: 1500, count: 1 });
+
     expect(result.data.categories).toEqual([
       { category: 'UTILITIES', amount: 3000, count: 1 },
       { category: 'SECURITY', amount: 2000, count: 1 },
@@ -108,6 +146,17 @@ describe('FinanceTransactionsService.incomeStatement', () => {
       }),
     );
     expect(expense.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          communityId: 'community-1',
+          expenseDate: {
+            gte: new Date('2026-08-01'),
+            lte: new Date('2026-08-31'),
+          },
+        }),
+      }),
+    );
+    expect(utilityExpense.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           communityId: 'community-1',

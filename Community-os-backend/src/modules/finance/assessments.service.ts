@@ -378,6 +378,7 @@ export class AssessmentsService {
       chargeTypeId,
       billingPeriodId,
       category,
+      excludeCategory,
       sortBy,
       order,
     } = query;
@@ -432,6 +433,13 @@ export class AssessmentsService {
           category,
         },
       });
+    }
+
+    if (excludeCategory) {
+      where.chargeType = {
+        ...where.chargeType,
+        category: { not: excludeCategory },
+      };
     }
 
     // Household scoping: a forced scope (member sees only their own

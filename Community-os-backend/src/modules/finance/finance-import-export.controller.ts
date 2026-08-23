@@ -59,7 +59,8 @@ export class FinanceImportExportController {
   @Permissions('finance.export')
   async export(
     @Request() req: any,
-    @Param('kind') kind: 'payments' | 'assessments' | 'expenses',
+    @Param('kind')
+    kind: 'payments' | 'assessments' | 'expenses' | 'utility-readings',
     @Query() query: FinanceExportQueryDto,
     @Res() res: Response,
   ) {
@@ -97,7 +98,8 @@ export class FinanceImportExportController {
   )
   preview(
     @Request() req: any,
-    @Query('kind') kind: 'payments' | 'assessments' | 'expenses',
+    @Query('kind')
+    kind: 'payments' | 'assessments' | 'expenses' | 'utility-readings',
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {

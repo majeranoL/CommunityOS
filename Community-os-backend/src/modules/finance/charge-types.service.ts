@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { ChargeRecurrence, FinanceCategory } from '@prisma/client';
+import { ChargeRecurrence, FinanceCategory, LateFeeType } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -51,6 +51,10 @@ export class ChargeTypesService {
         description: dto.description,
         allowAdvancePayment: dto.allowAdvancePayment ?? false,
         advanceAppliesToOneTime: dto.advanceAppliesToOneTime ?? false,
+        gracePeriodDays: dto.gracePeriodDays ?? 0,
+        lateFeeType: dto.lateFeeType ?? LateFeeType.NONE,
+        lateFeeValue: dto.lateFeeValue,
+        autoGenerate: dto.autoGenerate ?? false,
         isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 0,
       },
@@ -218,6 +222,16 @@ export class ChargeTypesService {
         }),
         ...(dto.advanceAppliesToOneTime !== undefined && {
           advanceAppliesToOneTime: dto.advanceAppliesToOneTime,
+        }),
+        ...(dto.gracePeriodDays !== undefined && {
+          gracePeriodDays: dto.gracePeriodDays,
+        }),
+        ...(dto.lateFeeType !== undefined && { lateFeeType: dto.lateFeeType }),
+        ...(dto.lateFeeValue !== undefined && {
+          lateFeeValue: dto.lateFeeValue,
+        }),
+        ...(dto.autoGenerate !== undefined && {
+          autoGenerate: dto.autoGenerate,
         }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),

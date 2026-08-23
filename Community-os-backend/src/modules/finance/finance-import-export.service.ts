@@ -12,6 +12,7 @@ import {
   ImportBatchStatus,
   PaymentMethod,
   PaymentStatus,
+  UtilityType,
 } from '@prisma/client';
 
 import * as ExcelJS from 'exceljs';
@@ -20,7 +21,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { FinanceSyncService } from './finance-sync.service';
 
-export type ImportKind = 'payments' | 'assessments' | 'expenses';
+export type ImportKind =
+  'payments' | 'assessments' | 'expenses' | 'utility-readings';
 export type ExportFormat = 'csv' | 'xlsx';
 
 @Injectable()
@@ -36,11 +38,51 @@ export class FinanceImportExportService {
 
   async export(
     communityId: string,
-    kind: 'payments' | 'assessments' | 'expenses',
+    kind: ImportKind,
     format: ExportFormat,
     filters: { category?: string; from?: string; to?: string } = {},
     scopeHouseholdId?: string,
   ) {
+    if (kind === 'utility-readings') {
+      const readings = await this.prisma.utilityReading.findMany({
+        where: {
+          communityId,
+          ...(scopeHouseholdId ? { householdId: scopeHouseholdId } : {}),
+          ...(filters.from || filters.to
+            ? {
+                readingDate: {
+                  ...(filters.from ? { gte: new Date(filters.from) } : {}),
+                  ...(filters.to ? { lte: new Date(filters.to) } : {}),
+                },
+              }
+            : {}),
+        },
+        include: {
+          household: { select: { block: true, lot: true, unit: true } },
+          utilityConfig: { select: { utilityType: true, name: true } },
+        },
+        orderBy: [{ periodKey: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      const rows = readings.map((reading) => ({
+        UtilityType: reading.utilityConfig.utilityType,
+        Block: reading.household.block ?? '',
+        Lot: reading.household.lot ?? '',
+        Unit: reading.household.unit ?? '',
+        Period: reading.periodKey,
+        PreviousReading:
+          reading.previousReading != null
+            ? Number(reading.previousReading)
+            : '',
+        CurrentReading:
+          reading.currentReading != null ? Number(reading.currentReading) : '',
+        ReadingDate: reading.readingDate.toISOString().slice(0, 10),
+        Notes: reading.notes ?? '',
+      }));
+
+      return this.buildFile(rows, format, 'utility-readings');
+    }
+
     if (kind === 'expenses') {
       const expenses = await this.prisma.expense.findMany({
         where: {
@@ -278,7 +320,9 @@ export class FinanceImportExportService {
             ? 'finance-payments'
             : kind === 'assessments'
               ? 'finance-assessments'
-              : 'finance-expenses',
+              : kind === 'utility-readings'
+                ? 'finance-utility-readings'
+                : 'finance-expenses',
         fileName: file.originalname,
         importedById: userId,
         status: ImportBatchStatus.PROCESSING,
@@ -334,12 +378,21 @@ export class FinanceImportExportService {
         ? 'assessments'
         : batch.module === 'finance-expenses'
           ? 'expenses'
-          : 'payments';
+          : batch.module === 'finance-utility-readings'
+            ? 'utility-readings'
+            : 'payments';
 
     if (kind === 'payments') {
       created = await this.applyPayments(communityId, batch.id, valid);
     } else if (kind === 'expenses') {
       created = await this.applyExpenses(
+        communityId,
+        batch.id,
+        valid,
+        batch.importedById,
+      );
+    } else if (kind === 'utility-readings') {
+      created = await this.applyUtilityReadings(
         communityId,
         batch.id,
         valid,
@@ -539,6 +592,25 @@ export class FinanceImportExportService {
         if (!data.paymentdate) errors.push('paymentDate is required');
         if (data.paymentdate && Number.isNaN(Date.parse(data.paymentdate))) {
           errors.push('paymentDate must be a valid date');
+        }
+      } else if (kind === 'utility-readings') {
+        if (!data.utilitytype) errors.push('utilityType is required');
+        if (!data.block && !data.lot) {
+          errors.push('block/lot is required');
+        }
+        if (!data.period) errors.push('period (YYYY-MM) is required');
+        if (
+          data.period &&
+          !/^\d{4}-(0[1-9]|1[0-2])$/.test(String(data.period))
+        ) {
+          errors.push('period must be in YYYY-MM format');
+        }
+        if (
+          data.currentreading !== undefined &&
+          data.currentreading !== '' &&
+          Number.isNaN(Number(data.currentreading))
+        ) {
+          errors.push('currentReading must be a number');
         }
       } else if (kind === 'expenses') {
         if (!data.title) errors.push('title is required');
@@ -841,6 +913,105 @@ export class FinanceImportExportService {
           referenceNumber: row.reference ?? undefined,
           notes: row.notes ?? undefined,
           createdById,
+          isImported: true,
+          importBatchId: batchId,
+        },
+      });
+
+      created += 1;
+    }
+
+    return created;
+  }
+
+  private async applyUtilityReadings(
+    communityId: string,
+    batchId: string,
+    rows: any[],
+    recordedById: string,
+  ): Promise<number> {
+    let created = 0;
+
+    const utilityTypes = Object.values(UtilityType);
+
+    for (const row of rows) {
+      const utilityType = utilityTypes.includes(row.utilitytype?.toUpperCase())
+        ? (row.utilitytype.toUpperCase() as UtilityType)
+        : undefined;
+
+      if (!utilityType) continue;
+
+      const config = await this.prisma.utilityConfig.findFirst({
+        where: {
+          communityId,
+          utilityType,
+          deletedAt: null,
+        },
+      });
+      if (!config) continue;
+
+      const household = await this.prisma.household.findFirst({
+        where: {
+          communityId,
+          deletedAt: null,
+          ...(row.block ? { block: String(row.block) } : {}),
+          ...(row.lot ? { lot: String(row.lot) } : {}),
+        },
+      });
+      if (!household) continue;
+
+      const periodKey = String(row.period).trim();
+
+      const duplicate = await this.prisma.utilityReading.findUnique({
+        where: {
+          utilityConfigId_householdId_periodKey: {
+            utilityConfigId: config.id,
+            householdId: household.id,
+            periodKey,
+          },
+        },
+      });
+      if (duplicate) continue;
+
+      const previous =
+        row.previousreading !== undefined && row.previousreading !== ''
+          ? Number(row.previousreading)
+          : (
+              await this.prisma.utilityReading.findFirst({
+                where: {
+                  utilityConfigId: config.id,
+                  householdId: household.id,
+                  periodKey: { lt: periodKey },
+                  currentReading: { not: null },
+                },
+                orderBy: { periodKey: 'desc' },
+                select: { currentReading: true },
+              })
+            )?.currentReading?.toNumber();
+      const current =
+        row.currentreading !== undefined && row.currentreading !== ''
+          ? Number(row.currentreading)
+          : undefined;
+      const usage =
+        previous !== undefined &&
+        previous !== null &&
+        current !== undefined &&
+        current !== null
+          ? Math.round((current - previous) * 100) / 100
+          : null;
+
+      await this.prisma.utilityReading.create({
+        data: {
+          communityId,
+          utilityConfigId: config.id,
+          householdId: household.id,
+          periodKey,
+          previousReading: previous ?? null,
+          currentReading: current ?? null,
+          usage: usage !== null && usage >= 0 ? usage : null,
+          readingDate: new Date(),
+          recordedById,
+          notes: row.notes ?? undefined,
           isImported: true,
           importBatchId: batchId,
         },
