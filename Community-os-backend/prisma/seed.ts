@@ -1023,7 +1023,7 @@ async function main() {
     { plateNumber: 'ABC-1234', make: 'Toyota', model: 'Vios', color: 'White', type: VehicleType.CAR, residentIndex: 0 },
     { plateNumber: 'XYZ-5678', make: 'Honda', model: 'Civic', color: 'Black', type: VehicleType.CAR, residentIndex: 1 },
     { plateNumber: 'MNO-9012', make: 'Yamaha', model: 'Mio', color: 'Red', type: VehicleType.MOTORCYCLE, residentIndex: 2 },
-    { plateNumber: 'QRS-3456', make: 'Toyota', model: 'Fortuner', color: 'Silver', type: VehicleType.SUV, residentIndex: 4 },
+    { plateNumber: 'QRS-3456', make: 'Toyota', model: 'Fortuner', color: 'Silver', type: VehicleType.CAR, residentIndex: 4 },
   ];
 
   const vehicles: { id: string }[] = [];
