@@ -14,11 +14,18 @@ vi.mock('@/features/settings/services/settings', () => ({
   },
 }))
 
+vi.mock('@/features/auth/services/auth', () => ({
+  authService: {
+    me: vi.fn(),
+  },
+}))
+
 vi.mock('@/components/ui/sonner', () => ({
   toast: toastMock,
 }))
 
 import { settingsService } from '@/features/settings/services/settings'
+import { authService } from '@/features/auth/services/auth'
 import { useUpdateSettings } from '@/features/settings/hooks/use-settings'
 import type { UpdateSettingEntry } from '@/features/settings/types/setting'
 
@@ -36,6 +43,7 @@ function createWrapper() {
 
 beforeEach(() => {
   vi.mocked(settingsService.updateMany).mockReset()
+  vi.mocked(authService.me).mockReset()
   toastMock.success.mockClear()
   toastMock.error.mockClear()
 })
@@ -43,6 +51,15 @@ beforeEach(() => {
 describe('useUpdateSettings (settings save)', () => {
   it('persists the settings and confirms with a toast', async () => {
     vi.mocked(settingsService.updateMany).mockResolvedValue([])
+    vi.mocked(authService.me).mockResolvedValue({
+      id: 'user-1',
+      email: 'admin@example.com',
+      firstName: 'Admin',
+      lastName: 'User',
+      roles: [],
+      permissions: [],
+      community: { id: 'community-1', name: 'Sunrise Estates' },
+    } as never)
     const onSuccess = vi.fn()
     const wrapper = createWrapper()
 
@@ -63,8 +80,10 @@ describe('useUpdateSettings (settings save)', () => {
       expect(settingsService.updateMany).toHaveBeenCalledWith(entries)
     })
 
-    expect(toastMock.success).toHaveBeenCalledWith('Community settings saved.')
-    expect(onSuccess).toHaveBeenCalled()
+    await waitFor(() => {
+      expect(toastMock.success).toHaveBeenCalledWith('Community settings saved.')
+      expect(onSuccess).toHaveBeenCalled()
+    })
   })
 
   it('shows an error toast when saving fails', async () => {
