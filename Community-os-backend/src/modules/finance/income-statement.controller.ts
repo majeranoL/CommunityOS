@@ -6,6 +6,7 @@ import { IncomeStatementQueryDto } from './dto/income-statement-query.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { FinanceTransparencyGuard } from '../../common/guards/finance-transparency.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
@@ -21,6 +22,7 @@ export class IncomeStatementController {
   // ==========================================
 
   @Get()
+  @UseGuards(FinanceTransparencyGuard)
   @Permissions('finance.income_statement_view')
   statement(@Request() req: any, @Query() query: IncomeStatementQueryDto) {
     return this.financeTransactionsService.incomeStatement(

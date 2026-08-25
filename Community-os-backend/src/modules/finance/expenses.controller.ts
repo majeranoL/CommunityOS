@@ -20,6 +20,7 @@ import { ExpenseQueryDto } from './dto/expense-query.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { FinanceTransparencyGuard } from '../../common/guards/finance-transparency.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
@@ -43,6 +44,7 @@ export class ExpensesController {
   // ==========================================
 
   @Get()
+  @UseGuards(FinanceTransparencyGuard)
   @Permissions('finance.expense_view')
   findAll(@Request() req: any, @Query() query: ExpenseQueryDto) {
     return this.expensesService.findAll(req.user.community.id, query);
@@ -53,6 +55,7 @@ export class ExpensesController {
   // ==========================================
 
   @Get(':id')
+  @UseGuards(FinanceTransparencyGuard)
   @Permissions('finance.expense_view')
   findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.expensesService.findOne(req.user.community.id, id);

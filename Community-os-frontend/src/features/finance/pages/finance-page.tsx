@@ -84,6 +84,7 @@ import { ImportExportPanel } from '@/features/finance/components/import-export-p
 import { ImportExportDialog } from '@/features/finance/components/import-export-dialog'
 import { DuesSettingsDialog } from '@/features/finance/components/dues-settings-dialog'
 import { MyDuesTab } from '@/features/finance/components/my-dues-tab'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { UtilityRateDialog } from '@/features/finance/components/utility-rate-dialog'
 import { UtilityReadingDialog } from '@/features/finance/components/utility-reading-dialog'
 import { ExpenseFormDialog } from '@/features/finance/components/expense-form-dialog'
@@ -142,6 +143,7 @@ export default function FinancePage() {
   const canViewIncomeStatement = useHasPermission(PERMISSIONS.financeIncomeStatementView)
 
   const isManager = canCreateAssessment || canCreatePayment || canManage
+  const financeTransparencyEnabled = useIsFeatureEnabled('finance-transparency')
   const showOverview = canViewAll && canManage
   const showMonthlyDues = canCreateAssessment || canViewAll || canManage
   const showOtherCharges = showMonthlyDues
@@ -149,9 +151,9 @@ export default function FinancePage() {
   const showChargeTypes = canViewAll || canManage
   const showBillingPeriods = canViewAll || canManage
   const showImportExport = canImport || canExport
-  const showExpenses = canViewExpenses || canViewIncomeStatement || canManage
-  const showUtilities = canViewExpenses || canViewIncomeStatement || canManage
-  const showReports = canViewIncomeStatement || canManage
+  const showExpenses = isManager || (financeTransparencyEnabled && (canViewExpenses || canViewIncomeStatement))
+  const showUtilities = isManager || (financeTransparencyEnabled && (canViewExpenses || canViewIncomeStatement))
+  const showReports = isManager || (financeTransparencyEnabled && canViewIncomeStatement)
   const showSettingsMenu =
     (showChargeTypes || showBillingPeriods || showImportExport || showMonthlyDues) &&
     isManager

@@ -33,6 +33,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 import { FeaturesModule } from '../features/features.module';
 
+import { FinanceTransparencyGuard } from '../../common/guards/finance-transparency.guard';
+
 @Module({
   imports: [PrismaModule, NotificationsModule, FeaturesModule],
   controllers: [
@@ -63,6 +65,7 @@ import { FeaturesModule } from '../features/features.module';
     FinanceImportExportService,
     ExpensesService,
     UtilityExpensesService,
+    FinanceTransparencyGuard,
   ],
   exports: [
     AssessmentsService,

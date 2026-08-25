@@ -1404,6 +1404,14 @@ async function main() {
       dependencies: [] as string[],
     },
     {
+      code: 'finance-transparency',
+      name: 'Finance Transparency',
+      description:
+        'Expose expense reports, utility bills, and income statements to non-admin members when enabled for a community.',
+      type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
+    },
+    {
       code: 'vehicle-stickers',
       name: 'Vehicle Sticker Management',
       description:
