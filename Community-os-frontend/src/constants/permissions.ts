@@ -55,22 +55,6 @@ export const PERMISSIONS = {
   visitorCheckOut: 'visitor.check-out',
   visitorCancel: 'visitor.cancel',
 
-  staffCreate: 'staff.create',
-  staffView: 'staff.view',
-  staffUpdate: 'staff.update',
-  staffDelete: 'staff.delete',
-  staffImport: 'staff.import',
-  staffExport: 'staff.export',
-
-  maintenanceCreate: 'maintenance.create',
-  maintenanceView: 'maintenance.view',
-  maintenanceUpdate: 'maintenance.update',
-  maintenanceDelete: 'maintenance.delete',
-  maintenanceAssign: 'maintenance.assign',
-  maintenanceStart: 'maintenance.start',
-  maintenanceResolve: 'maintenance.resolve',
-  maintenanceCancel: 'maintenance.cancel',
-
   announcementCreate: 'announcement.create',
   announcementView: 'announcement.view',
   announcementUpdate: 'announcement.update',
