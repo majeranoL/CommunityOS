@@ -224,6 +224,16 @@ export const permissions = [
     module: 'Facilities',
     description: 'View facilities',
   },
+  {
+    code: 'facility.item.manage',
+    module: 'Facilities',
+    description: 'Manage borrowable items (create, update, delete, approve loans)',
+  },
+  {
+    code: 'facility.item.borrow',
+    module: 'Facilities',
+    description: 'Request to borrow facility items and manage own requests',
+  },
 
   // =====================================================
   // RESERVATIONS
@@ -926,10 +936,13 @@ export const MEMBER_PERMISSIONS: string[] = [
   'payment.view',
   'payment.create',
   'finance.view_own',
+  'finance.expense_view',
+  'finance.income_statement_view',
   'announcement.view',
   'complaint.create',
   'complaint.view',
   'facility.view',
+  'facility.item.borrow',
   'reservation.create',
   'reservation.view',
   'notification.view',

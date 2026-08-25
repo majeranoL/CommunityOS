@@ -114,6 +114,14 @@ enum FacilityStatus {
   CLOSED
 }
 
+enum FacilityItemLoanStatus {
+  PENDING
+  APPROVED
+  RETURNED
+  REJECTED
+  CANCELLED
+}
+
 enum ReservationStatus {
   PENDING
   APPROVED
@@ -423,6 +431,8 @@ model Community {
   complaints         Complaint[]
   facilities         Facility[]
   reservations       Reservation[]
+  facilityItems      FacilityItem[]
+  facilityItemLoans  FacilityItemLoan[]
   households         Household[]
   visitors           Visitor[]
   vehicles           Vehicle[]
@@ -656,6 +666,8 @@ model User {
   verifiedStickers        VehicleSticker[]   @relation("StickerVerifiedBy")
   createdStickers         VehicleSticker[]   @relation("StickerCreatedBy")
   createdUtilityExpenses  UtilityExpense[]   @relation("UtilityExpenseCreatedBy")
+  approvedItemLoans       FacilityItemLoan[] @relation("ItemLoanApprovedBy")
+  rejectedItemLoans       FacilityItemLoan[] @relation("ItemLoanRejectedBy")
   recordedUtilityReadings UtilityReading[]   @relation("UtilityReadingRecordedBy")
 
   createdAt DateTime  @default(now())
@@ -810,6 +822,7 @@ model Resident {
 
   complaints   Complaint[]
   reservations Reservation[]
+  itemLoans    FacilityItemLoan[]
 
   hostedVisitors Visitor[] @relation("VisitorHostResident")
   vehicles       Vehicle[]
@@ -1034,6 +1047,86 @@ model Facility {
 
   @@index([communityId])
   @@index([type])
+  @@index([status])
+}
+
+///////////////////////////////////////////////////
+// FACILITY ITEM (borrowable inventory)
+///////////////////////////////////////////////////
+
+model FacilityItem {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(100)
+  category    String? @db.VarChar(50)
+  description String?
+  imageUrl    String? @db.VarChar(500)
+
+  quantityTotal     Int      @default(0)
+  quantityAvailable Int      @default(0)
+  borrowFee         Decimal? @db.Decimal(10, 2)
+
+  isActive Boolean @default(true)
+
+  loans FacilityItemLoan[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([isActive])
+}
+
+model FacilityItemLoan {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  itemId String       @db.Uuid
+  item   FacilityItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  residentId String   @db.Uuid
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  loanNumber  String   @db.VarChar(30)
+  quantity    Int
+  purpose     String?  @db.VarChar(300)
+  neededFrom  DateTime
+  neededUntil DateTime
+
+  feePerUnit Decimal @default(0) @db.Decimal(10, 2)
+  totalFee   Decimal @default(0) @db.Decimal(10, 2)
+
+  assessmentId String?     @db.Uuid
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  status FacilityItemLoanStatus @default(PENDING)
+
+  approvedById String?   @db.Uuid
+  approvedBy   User?     @relation("ItemLoanApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+
+  rejectedById    String?   @db.Uuid
+  rejectedBy      User?     @relation("ItemLoanRejectedBy", fields: [rejectedById], references: [id], onDelete: SetNull)
+  rejectedAt      DateTime?
+  rejectionReason String?   @db.VarChar(500)
+
+  returnedAt DateTime?
+  remarks    String?   @db.VarChar(500)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, loanNumber])
+  @@index([communityId])
+  @@index([itemId])
+  @@index([residentId])
   @@index([status])
 }
 
@@ -1406,6 +1499,7 @@ model Assessment {
 
   payments    Payment[]
   allocations PaymentAllocation[]
+  itemLoans   FacilityItemLoan[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

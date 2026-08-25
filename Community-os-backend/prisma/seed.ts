@@ -1016,6 +1016,31 @@ async function main() {
   console.log('✅ Facilities & reservation created');
 
   // =====================================================
+  // BORROWABLE ITEMS
+  // =====================================================
+
+  const itemData = [
+    { name: 'Monobloc Chair', category: 'CHAIRS', description: 'White monobloc chair.', quantityTotal: 100, borrowFee: null },
+    { name: 'Long Table', category: 'TABLES', description: '6-ft plastic long table.', quantityTotal: 20, borrowFee: null },
+    { name: 'Canopy Tent (3x3m)', category: 'TENTS', description: 'Foldable canopy tent with frame.', quantityTotal: 6, borrowFee: 150 },
+    { name: 'Portable Sound System', category: 'SOUND_SYSTEM', description: 'Speaker with wireless mic; handle with care.', quantityTotal: 2, borrowFee: 300 },
+    { name: 'Folding Table (Round)', category: 'TABLES', description: '5-ft round folding table.', quantityTotal: 10, borrowFee: 50 },
+  ];
+
+  for (const data of itemData) {
+    await prisma.facilityItem.create({
+      data: {
+        communityId: community.id,
+        isActive: true,
+        quantityAvailable: data.quantityTotal,
+        ...data,
+      },
+    });
+  }
+
+  console.log('✅ Borrowable items created');
+
+  // =====================================================
   // VEHICLES & STICKERS
   // =====================================================
 
