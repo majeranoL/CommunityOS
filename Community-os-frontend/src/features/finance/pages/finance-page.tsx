@@ -83,6 +83,7 @@ import { BillingPeriodDialog } from '@/features/finance/components/billing-perio
 import { ImportExportPanel } from '@/features/finance/components/import-export-panel'
 import { ImportExportDialog } from '@/features/finance/components/import-export-dialog'
 import { DuesSettingsDialog } from '@/features/finance/components/dues-settings-dialog'
+import { MyDuesTab } from '@/features/finance/components/my-dues-tab'
 import { UtilityRateDialog } from '@/features/finance/components/utility-rate-dialog'
 import { UtilityReadingDialog } from '@/features/finance/components/utility-reading-dialog'
 import { ExpenseFormDialog } from '@/features/finance/components/expense-form-dialog'
@@ -156,6 +157,7 @@ export default function FinancePage() {
     isManager
 
   const tabs: Array<{ value: string; label: string }> = []
+  if (!isManager) tabs.push({ value: 'my-dues', label: 'My dues' })
   if (showOverview) tabs.push({ value: 'overview', label: 'Overview' })
   if (showMonthlyDues) tabs.push({ value: 'monthly-dues', label: 'Monthly dues' })
   if (showOtherCharges) tabs.push({ value: 'other-charges', label: 'Other charges' })
@@ -225,6 +227,11 @@ export default function FinancePage() {
             </TabsTrigger>
           ))}
         </TabsList>
+        {!isManager ? (
+          <TabsContent value="my-dues">
+            <MyDuesTab />
+          </TabsContent>
+        ) : null}
         {showOverview ? (
           <TabsContent value="overview">
             <OverviewTab />
