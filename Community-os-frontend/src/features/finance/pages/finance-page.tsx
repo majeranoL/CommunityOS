@@ -134,8 +134,6 @@ const PAYMENT_STATUSES: Array<{ value: PaymentStatus | 'ALL'; label: string }> =
 
 export default function FinancePage() {
   const canCreateAssessment = useHasPermission(PERMISSIONS.assessmentCreate)
-  const canCreatePayment = useHasPermission(PERMISSIONS.paymentCreate)
-  const canViewOwn = useHasPermission(PERMISSIONS.financeViewOwn)
   const canViewAll = useHasPermission(PERMISSIONS.financeViewAll)
   const canManage = useHasPermission(PERMISSIONS.financeManage)
   const canImport = useHasPermission(PERMISSIONS.financeImport)
@@ -143,12 +141,12 @@ export default function FinancePage() {
   const canViewExpenses = useHasPermission(PERMISSIONS.financeExpenseView)
   const canViewIncomeStatement = useHasPermission(PERMISSIONS.financeIncomeStatementView)
 
-  const isManager = canCreateAssessment || canCreatePayment || canManage
+  const isManager = canCreateAssessment || canManage
   const financeTransparencyEnabled = useIsFeatureEnabled('finance-transparency')
   const showOverview = canViewAll && canManage
   const showMonthlyDues = canCreateAssessment || canViewAll || canManage
   const showOtherCharges = showMonthlyDues
-  const showPayments = canCreatePayment || canViewAll || canViewOwn || canManage
+  const showPayments = isManager
   const showChargeTypes = canViewAll || canManage
   const showBillingPeriods = canViewAll || canManage
   const showImportExport = canImport || canExport
