@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuthStore, useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
+import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { useTheme } from '@/components/theme-provider'
 import { CommunitySettings } from '@/features/settings/components/community-settings'
 import { ChangePasswordForm } from '@/features/settings/components/change-password-form'
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   const canBrand = useHasPermission(PERMISSIONS.communityBranding)
   const { data: branding, isLoading: brandingLoading } = useBranding()
+  const avatarUrl = useSecureImageUrl(user?.avatarUrl)
 
   return (
     <div className="space-y-6">
@@ -53,7 +55,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center gap-4">
               <Avatar className="h-14 w-14">
-                <AvatarImage src={user?.avatarUrl ?? undefined} />
+                <AvatarImage src={avatarUrl} />
                 <AvatarFallback className="text-base">
                   {initials(user?.firstName, user?.lastName)}
                 </AvatarFallback>

@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth-store'
+import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { authService } from '@/features/auth/services/auth'
 import { initials } from '@/lib/format'
 
@@ -87,6 +88,7 @@ function AdminTopbar({ onMenuClick }: { onMenuClick: () => void }) {
   const user = useAuthStore((state) => state.user)
   const clear = useAuthStore((state) => state.clear)
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const avatarUrl = useSecureImageUrl(user?.avatarUrl)
 
   const handleLogout = async () => {
     setDropdownOpen(false)
@@ -135,7 +137,7 @@ function AdminTopbar({ onMenuClick }: { onMenuClick: () => void }) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.avatarUrl ?? undefined} alt={user?.firstName} />
+                <AvatarImage src={avatarUrl} alt={user?.firstName} />
                 <AvatarFallback>{initials(user?.firstName, user?.lastName)}</AvatarFallback>
               </Avatar>
               <span className="hidden text-left sm:block">

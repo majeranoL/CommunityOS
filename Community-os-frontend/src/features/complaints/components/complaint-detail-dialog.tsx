@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { documentsService } from '@/features/documents/services/documents'
+import { SecureImage } from '@/components/shared/secure-image'
 import {
   useAssignComplaint,
   useCloseComplaint,
@@ -130,13 +131,10 @@ export function ComplaintDetailDialog({ complaintId, open, onOpenChange }: Compl
                       >
                         {isImg ? (
                           <div className="relative aspect-video w-full overflow-hidden rounded bg-muted flex items-center justify-center">
-                            <img
+                            <SecureImage
                               src={att.url}
                               alt={att.originalName}
                               className="h-full w-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                              }}
                             />
                             <ImageIcon className="h-5 w-5 text-muted-foreground absolute" />
                           </div>

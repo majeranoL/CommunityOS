@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useTheme } from '@/components/theme-provider'
 import { useAuthStore } from '@/store/auth-store'
+import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { authService } from '@/features/auth/services/auth'
 import { useUnreadCount } from '@/features/notifications/hooks/use-notifications'
 import { initials } from '@/lib/format'
@@ -39,6 +40,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const { data: unreadCount } = useUnreadCount()
+  const avatarUrl = useSecureImageUrl(user?.avatarUrl)
 
   const logoutMutation = useMutation({
     mutationFn: () => authService.logout(),
@@ -94,7 +96,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="gap-2 px-2">
               <Avatar className="h-7 w-7">
-                <AvatarImage src={user?.avatarUrl ?? undefined} />
+                <AvatarImage src={avatarUrl} />
                 <AvatarFallback>
                   {initials(user?.firstName, user?.lastName)}
                 </AvatarFallback>

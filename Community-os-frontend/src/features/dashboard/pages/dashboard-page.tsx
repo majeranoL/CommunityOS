@@ -30,6 +30,7 @@ import { useDashboardOverview } from '@/features/dashboard/hooks/use-dashboard'
 import { useAuthStore, useHasAnyPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { SecureImage } from '@/components/shared/secure-image'
 import { formatDate, formatDateTime, formatCurrency, relativeTime, toTitleCase } from '@/lib/format'
 import { useFacilities } from '@/features/facilities/hooks/use-facilities'
 import { AnnouncementDetailDialog } from '@/features/announcements/components/announcement-detail-dialog'
@@ -327,10 +328,9 @@ function AnnouncementsCarousel({
               className="block w-full rounded-xl border bg-card p-5 text-left transition-colors hover:bg-accent"
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                {active.coverImageUrl?.startsWith('http') ? (
-                  <img
+                {active.coverImageUrl ? (
+                  <SecureImage
                     src={active.coverImageUrl}
-                    alt=""
                     className="h-24 w-full rounded-lg object-cover sm:h-28 sm:w-44"
                   />
                 ) : null}

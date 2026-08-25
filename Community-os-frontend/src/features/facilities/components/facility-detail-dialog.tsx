@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { SecureImage } from '@/components/shared/secure-image'
 import { useFacility } from '@/features/facilities/hooks/use-facilities'
 import { facilityTypes } from '@/features/facilities/validation/facility'
 import { formatCurrency, formatNumber, toTitleCase } from '@/lib/format'
@@ -45,7 +46,7 @@ export function FacilityDetailDialog({ facilityId, open, onOpenChange }: Facilit
         ) : facility ? (
           <div className="space-y-4">
             {facility.imageUrl ? (
-              <img
+              <SecureImage
                 src={facility.imageUrl}
                 alt={facility.name}
                 className="h-40 w-full rounded-md border object-cover"

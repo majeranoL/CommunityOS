@@ -3,6 +3,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { NAV_SECTIONS } from '@/components/layout/nav-items'
 import { useEnabledFeatures } from '@/features/features/hooks/use-enabled-features'
 import { useBranding } from '@/features/branding/hooks/use-branding'
+import { SecureImage } from '@/components/shared/secure-image'
 import { useNavBadges } from '@/features/dashboard/hooks/use-dashboard'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -71,7 +72,7 @@ function SidebarContent({ onNavigate }: SidebarProps) {
       <div className="flex h-14 shrink-0 items-center gap-2 border-b px-5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground overflow-hidden">
           {branding?.logoUrl ? (
-            <img src={branding.logoUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
+            <SecureImage src={branding.logoUrl} className="h-8 w-8 rounded-lg object-cover" />
           ) : (
             'C'
           )}

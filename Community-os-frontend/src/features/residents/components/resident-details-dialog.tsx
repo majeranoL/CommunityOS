@@ -13,6 +13,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
+import { useSecureImageUrl } from '@/components/shared/secure-image'
 import {
   useDeleteResident,
   useMoveOutResident,
@@ -52,6 +53,7 @@ export function ResidentDetailsDialog({
   const updateResident = useUpdateResident()
   const deleteResident = useDeleteResident(() => onOpenChange(false))
   const moveOutResident = useMoveOutResident(() => onOpenChange(false))
+  const avatarUrl = useSecureImageUrl(resident?.profilePhotoUrl)
   const [confirmingMoveOut, setConfirmingMoveOut] = useState(false)
 
   const changeStatus = (status: 'ACTIVE' | 'INACTIVE') => {
@@ -86,7 +88,7 @@ export function ResidentDetailsDialog({
             <div className="space-y-5">
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={resident.profilePhotoUrl ?? undefined} />
+                  <AvatarImage src={avatarUrl} />
                   <AvatarFallback>
                     {initials(resident.firstName, resident.lastName)}
                   </AvatarFallback>

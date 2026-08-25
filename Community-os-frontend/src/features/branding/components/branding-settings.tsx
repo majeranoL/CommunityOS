@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/sonner'
 import { brandingService } from '@/features/branding/services/branding'
 import { brandingKeys } from '@/features/branding/hooks/use-branding'
+import { SecureImage } from '@/components/shared/secure-image'
 import type { BrandingData } from '@/features/branding/types/branding'
 
 const PRESETS = [
@@ -228,7 +229,7 @@ export function BrandingSettings({ data }: BrandingSettingsProps) {
                       style={{ backgroundColor: previewPrimary }}
                     >
                       {colors.logoUrl ? (
-                        <img src={colors.logoUrl} alt="" className="h-7 w-7 rounded-md object-cover" />
+                        <SecureImage src={colors.logoUrl} className="h-7 w-7 rounded-md object-cover" />
                       ) : (
                         'C'
                       )}

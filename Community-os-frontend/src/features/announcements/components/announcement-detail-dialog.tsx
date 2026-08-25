@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { SecureImage } from '@/components/shared/secure-image'
 import { useAnnouncement } from '@/features/announcements/hooks/use-announcements'
 import { formatDate } from '@/lib/format'
 
@@ -33,7 +34,7 @@ export function AnnouncementDetailDialog({ announcementId, open, onOpenChange }:
         ) : (
           <div className="space-y-4">
             {announcement.coverImageUrl ? (
-              <img
+              <SecureImage
                 src={announcement.coverImageUrl}
                 alt={announcement.title}
                 className="h-40 w-full rounded-md object-cover"

@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useRoles, useUpdateUser, useUser } from '@/features/users/hooks/use-users'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useHasPermission } from '@/store/auth-store'
+import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { formatDate, initials } from '@/lib/format'
 
 interface UserDetailsDialogProps {
@@ -51,6 +52,7 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: UserDetailsDia
   }
 
   const roleChanged = Boolean(selectedRoleId) && selectedRoleId !== currentRoleId
+  const avatarUrl = useSecureImageUrl(user?.avatarUrl)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,7 +78,7 @@ export function UserDetailsDialog({ userId, open, onOpenChange }: UserDetailsDia
           <div className="space-y-5">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={user.avatarUrl ?? undefined} />
+                <AvatarImage src={avatarUrl} />
                 <AvatarFallback>{initials(user.firstName, user.lastName)}</AvatarFallback>
               </Avatar>
               <div>

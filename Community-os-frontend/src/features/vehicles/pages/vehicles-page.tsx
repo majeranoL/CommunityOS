@@ -32,6 +32,7 @@ import {
 import { useHasPermission, useAuthStore } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { documentsService } from '@/features/documents/services/documents'
+import { SecureImage } from '@/components/shared/secure-image'
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
 import { useDeleteVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
@@ -100,13 +101,10 @@ export default function VehiclesPage() {
               onClick={() => documentsService.openFile({ fileUrl: row.photoUrl })}
               title="View vehicle photo"
             >
-              <img
+              <SecureImage
                 src={row.photoUrl}
                 alt={row.plateNumber}
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
               />
             </button>
           ) : (

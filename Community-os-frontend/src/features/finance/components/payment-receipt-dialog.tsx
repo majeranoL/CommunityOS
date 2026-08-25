@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { SecureImage } from '@/components/shared/secure-image'
 import { usePaymentReceipt } from '@/features/finance/hooks/use-finance'
 import { householdLabel } from '@/features/finance/components/household-select'
 import { formatCurrency, formatDate, formatDateTime, toTitleCase } from '@/lib/format'
@@ -57,7 +58,7 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
             <div className="flex items-start justify-between gap-4 border-b pb-4">
               <div className="flex items-start gap-3">
                 {community?.logoUrl ? (
-                  <img
+                  <SecureImage
                     src={community.logoUrl}
                     alt={community.displayName}
                     className="h-12 w-12 rounded-lg object-cover"

@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { CalendarDays, MapPin, UserRound, Users, Check } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { SecureImage } from '@/components/shared/secure-image'
 import { useEvent, useRsvpEvent, useCancelRsvpEvent } from '@/features/events/hooks/use-events'
 import { useAuthStore } from '@/store/auth-store'
 import { formatDateTime } from '@/lib/format'
@@ -53,7 +54,7 @@ export function EventDetailDialog({ eventId, open, onOpenChange }: EventDetailDi
         ) : (
           <div className="space-y-4">
             {event.coverImageUrl ? (
-              <img src={event.coverImageUrl} alt={event.title} className="h-40 w-full rounded-md object-cover" />
+              <SecureImage src={event.coverImageUrl} alt={event.title} className="h-40 w-full rounded-md object-cover" />
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={event.status} />

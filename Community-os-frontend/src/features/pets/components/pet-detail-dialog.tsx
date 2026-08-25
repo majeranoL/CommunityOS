@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { documentsService } from '@/features/documents/services/documents'
+import { SecureImage } from '@/components/shared/secure-image'
 import { usePet } from '@/features/pets/hooks/use-pets'
 import { formatDate, toTitleCase } from '@/lib/format'
 
@@ -82,13 +83,10 @@ export function PetDetailDialog({ open, onOpenChange, petId }: PetDetailDialogPr
                   aria-label="Open pet photo"
                   title="Click to view full photo"
                 >
-                  <img
+                  <SecureImage
                     src={pet.photoUrl}
                     alt={pet.name}
                     className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                    }}
                   />
                 </button>
               ) : null}

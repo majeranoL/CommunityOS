@@ -3,6 +3,7 @@ import { Upload, X, FileText, Image as ImageIcon, Loader2, ExternalLink } from '
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
 import { documentsService } from '@/features/documents/services/documents'
+import { SecureImage } from '@/components/shared/secure-image'
 import type { UploadFileResult } from '@/features/documents/types/document'
 import { cn } from '@/lib/utils'
 
@@ -218,15 +219,10 @@ export function FileUpload({
               >
                 {isImage ? (
                   <div className="relative w-full aspect-video max-h-36 overflow-hidden rounded bg-muted flex items-center justify-center">
-                    <img
+                    <SecureImage
                       src={fileUrl}
                       alt={fileName}
                       className="h-full w-full object-cover rounded"
-                      onError={(e) => {
-                        // Fallback icon if image fails direct load
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.parentElement?.classList.add('p-4')
-                      }}
                     />
                     <ImageIcon className="h-6 w-6 text-muted-foreground absolute" />
                   </div>
