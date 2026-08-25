@@ -13,7 +13,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { VehicleQueryDto } from './dto/vehicle-query.dto';
-import { TransferVehicleDto } from './dto/transfer-vehicle.dto';
 
 @Injectable()
 export class VehiclesService {
@@ -33,17 +32,29 @@ export class VehiclesService {
     }
   }
 
-  private async getVerificationMode(communityId: string) {
-    const setting = await this.prisma.setting.findUnique({
+  // ==========================================
+  // Sticker Uniqueness (first come, first served)
+  // ==========================================
+
+  private async assertStickerAvailable(
+    communityId: string,
+    stickerNumber: string,
+    excludeVehicleId?: string,
+  ) {
+    const existing = await this.prisma.vehicle.findFirst({
       where: {
-        communityId_key: {
-          communityId,
-          key: 'vehicleVerification',
-        },
+        communityId,
+        parkingStickerNumber: stickerNumber,
+        deletedAt: null,
+        NOT: excludeVehicleId ? { id: excludeVehicleId } : undefined,
       },
     });
 
-    return (setting?.value as string | undefined) ?? 'auto';
+    if (existing) {
+      throw new ConflictException(
+        'Sticker number is already registered to another vehicle.',
+      );
+    }
   }
 
   // ==========================================
@@ -59,7 +70,12 @@ export class VehiclesService {
     dto.make = dto.make?.trim();
     dto.model = dto.model?.trim();
     dto.color = dto.color?.trim();
-    dto.parkingStickerNumber = dto.parkingStickerNumber?.trim();
+
+    const hasSticker = dto.hasSticker ?? false;
+    const parkingStickerNumber =
+      hasSticker && dto.parkingStickerNumber
+        ? dto.parkingStickerNumber.trim().toUpperCase()
+        : null;
 
     // ==========================================
     // Duplicate Plate Number
@@ -77,6 +93,10 @@ export class VehiclesService {
       throw new ConflictException('Vehicle already exists.');
     }
 
+    if (parkingStickerNumber) {
+      await this.assertStickerAvailable(communityId, parkingStickerNumber);
+    }
+
     // ==========================================
     // Self-Service Scope
     // ==========================================
@@ -92,14 +112,6 @@ export class VehiclesService {
     }
 
     dto.residentId = ownResidentId;
-
-    const verificationMode = await this.getVerificationMode(communityId);
-
-    let vehicleStatus = dto.status ?? VehicleStatus.ACTIVE;
-
-    if (verificationMode === 'approval') {
-      vehicleStatus = VehicleStatus.PENDING;
-    }
 
     // ==========================================
     // Validate Resident
@@ -132,12 +144,13 @@ export class VehiclesService {
         model: dto.model,
         color: dto.color,
         type: dto.type ?? 'CAR',
-        parkingStickerNumber: dto.parkingStickerNumber,
+        hasSticker,
+        parkingStickerNumber,
         photoUrl: dto.photoUrl,
 
         residentId: dto.residentId,
 
-        status: vehicleStatus,
+        status: VehicleStatus.ACTIVE,
       },
 
       include: {
@@ -351,7 +364,28 @@ export class VehiclesService {
     if (dto.color) dto.color = dto.color.trim();
 
     if (dto.parkingStickerNumber)
-      dto.parkingStickerNumber = dto.parkingStickerNumber.trim();
+      dto.parkingStickerNumber = dto.parkingStickerNumber.trim().toUpperCase();
+
+    // Sticker handling:
+    // - hasSticker=true  + new number  -> set/replace number
+    // - hasSticker=true  + no number   -> keep existing number
+    // - hasSticker=false               -> clear number
+    // - neither field sent             -> leave untouched
+    let hasSticker: boolean | undefined = undefined;
+    let parkingStickerNumber: string | null | undefined = undefined;
+
+    if (dto.hasSticker !== undefined) {
+      hasSticker = dto.hasSticker;
+
+      if (dto.hasSticker) {
+        parkingStickerNumber =
+          dto.parkingStickerNumber !== undefined
+            ? dto.parkingStickerNumber || null
+            : vehicle.parkingStickerNumber;
+      } else {
+        parkingStickerNumber = null;
+      }
+    }
 
     // ==========================================
     // Duplicate Plate Number
@@ -372,6 +406,10 @@ export class VehiclesService {
       if (existing) {
         throw new ConflictException('Vehicle already exists.');
       }
+    }
+
+    if (parkingStickerNumber) {
+      await this.assertStickerAvailable(communityId, parkingStickerNumber, id);
     }
 
     // ==========================================
@@ -420,15 +458,15 @@ export class VehiclesService {
 
         ...(dto.type && { type: dto.type }),
 
-        ...(dto.parkingStickerNumber !== undefined && {
-          parkingStickerNumber: dto.parkingStickerNumber,
+        ...(hasSticker !== undefined && { hasSticker }),
+
+        ...(parkingStickerNumber !== undefined && {
+          parkingStickerNumber,
         }),
 
         ...(dto.photoUrl !== undefined && {
           photoUrl: dto.photoUrl,
         }),
-
-        ...(dto.status && { status: dto.status }),
       },
 
       include: {
@@ -445,83 +483,6 @@ export class VehiclesService {
     return {
       success: true,
       message: 'Vehicle updated successfully.',
-      data: updatedVehicle,
-    };
-  }
-
-  // ==========================================
-  // Transfer Vehicle
-  // ==========================================
-
-  async transfer(
-    communityId: string,
-    user: any,
-    id: string,
-    dto: TransferVehicleDto,
-  ) {
-    const vehicle = await this.prisma.vehicle.findFirst({
-      where: {
-        id,
-        communityId,
-        deletedAt: null,
-      },
-    });
-
-    if (!vehicle) {
-      throw new NotFoundException('Vehicle not found.');
-    }
-
-    // ==========================================
-    // Ownership Check
-    // ==========================================
-
-    this.assertVehicleOwner(user, vehicle);
-
-    const activeStatuses: VehicleStatus[] = [
-      VehicleStatus.ACTIVE,
-      VehicleStatus.APPROVED,
-    ];
-
-    if (!activeStatuses.includes(vehicle.status)) {
-      throw new BadRequestException('Only active vehicles can be transferred.');
-    }
-
-    const resident = await this.prisma.resident.findFirst({
-      where: {
-        id: dto.newResidentId,
-        communityId,
-        deletedAt: null,
-      },
-    });
-
-    if (!resident) {
-      throw new NotFoundException('Resident not found.');
-    }
-
-    const updatedVehicle = await this.prisma.vehicle.update({
-      where: {
-        id,
-      },
-      data: {
-        residentId: resident.id,
-        status: VehicleStatus.TRANSFERRED,
-        verifiedById: null,
-        verifiedAt: null,
-      },
-      include: {
-        resident: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-      },
-    });
-
-    return {
-      success: true,
-      message: `Vehicle transferred to ${resident.firstName} ${resident.lastName}.`,
       data: updatedVehicle,
     };
   }

@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -7,7 +8,7 @@ import {
   MaxLength,
 } from 'class-validator';
 
-import { VehicleStatus, VehicleType } from '@prisma/client';
+import { VehicleType } from '@prisma/client';
 
 export class CreateVehicleDto {
   @IsString()
@@ -39,6 +40,10 @@ export class CreateVehicleDto {
   residentId?: string;
 
   @IsOptional()
+  @IsBoolean()
+  hasSticker?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(30)
   parkingStickerNumber?: string;
@@ -47,8 +52,4 @@ export class CreateVehicleDto {
   @IsString()
   @MaxLength(500)
   photoUrl?: string;
-
-  @IsOptional()
-  @IsEnum(VehicleStatus)
-  status?: VehicleStatus;
 }

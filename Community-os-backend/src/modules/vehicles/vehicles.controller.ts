@@ -17,7 +17,6 @@ import { VehiclesService } from './vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { VehicleQueryDto } from './dto/vehicle-query.dto';
-import { TransferVehicleDto } from './dto/transfer-vehicle.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -54,20 +53,6 @@ export class VehiclesController {
     @Body() dto: UpdateVehicleDto,
   ) {
     return this.vehiclesService.update(
-      req.user.community.id,
-      req.user,
-      id,
-      dto,
-    );
-  }
-
-  @Post(':id/transfer')
-  transfer(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: TransferVehicleDto,
-  ) {
-    return this.vehiclesService.transfer(
       req.user.community.id,
       req.user,
       id,
