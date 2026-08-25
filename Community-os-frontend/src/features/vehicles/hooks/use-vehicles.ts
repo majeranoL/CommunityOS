@@ -5,7 +5,6 @@ import { vehiclesService } from '@/features/vehicles/services/vehicles'
 import type {
   CreateVehicleInput,
   UpdateVehicleInput,
-  VerifyVehicleInput,
 } from '@/features/vehicles/types/vehicle'
 import type { ListQuery } from '@/types/api'
 
@@ -68,34 +67,6 @@ export function useDeleteVehicle(onSuccess?: () => void) {
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to remove vehicle.')),
-  })
-}
-
-export function useVerifyVehicle(onSuccess?: () => void) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: VerifyVehicleInput }) =>
-      vehiclesService.verify(id, input),
-    onSuccess: () => {
-      toast.success('Vehicle verification updated.')
-      queryClient.invalidateQueries({ queryKey: vehicleKeys.all })
-      onSuccess?.()
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to verify vehicle.')),
-  })
-}
-
-export function useTransferVehicle(onSuccess?: () => void) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, newResidentId }: { id: string; newResidentId: string }) =>
-      vehiclesService.transfer(id, newResidentId),
-    onSuccess: () => {
-      toast.success('Vehicle transferred.')
-      queryClient.invalidateQueries({ queryKey: vehicleKeys.all })
-      onSuccess?.()
-    },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to transfer vehicle.')),
   })
 }
 

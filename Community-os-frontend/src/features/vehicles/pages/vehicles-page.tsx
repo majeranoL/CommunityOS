@@ -7,6 +7,16 @@ import { DataTable, type Column } from '@/components/shared/data-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -19,15 +29,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useHasPermission } from '@/store/auth-store'
+import { useHasPermission, useAuthStore } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { documentsService } from '@/features/documents/services/documents'
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
-import { useVerifyVehicle } from '@/features/vehicles/hooks/use-vehicles'
+import { useDeleteVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useRevalidateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
-import { VehicleTransferDialog } from '@/features/vehicles/components/vehicle-transfer-dialog'
 import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
 import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { VehicleListItem } from '@/features/vehicles/types/vehicle'
@@ -35,10 +44,7 @@ import { formatDate, toTitleCase } from '@/lib/format'
 
 const STATUS_FILTERS = [
   'ALL',
-  'PENDING',
-  'APPROVED',
   'ACTIVE',
-  'REJECTED',
   'DEACTIVATED',
   'TRANSFERRED',
   'INACTIVE',
@@ -52,19 +58,23 @@ export default function VehiclesPage() {
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editVehicle, setEditVehicle] = useState<VehicleListItem | null>(null)
-  const [transferVehicle, setTransferVehicle] = useState<VehicleListItem | null>(null)
+  const [deleteVehicle, setDeleteVehicle] = useState<VehicleListItem | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
 
+  const user = useAuthStore((state) => state.user)
+  const myResidentId = user?.resident?.id
+
   const canCreate = useHasPermission(PERMISSIONS.vehicleCreate)
-  const canUpdate = useHasPermission(PERMISSIONS.vehicleUpdate)
-  const canVerify = useHasPermission(PERMISSIONS.vehicleVerify)
   const canImport = useHasPermission(PERMISSIONS.vehicleImport)
   const canExport = useHasPermission(PERMISSIONS.vehicleExport)
 
-  const verifyVehicle = useVerifyVehicle()
+  const deleteVehicleMutation = useDeleteVehicle()
   const deactivateVehicle = useDeactivateVehicle()
   const revalidateVehicle = useRevalidateVehicle()
+
+  const isOwnRow = (row: VehicleListItem) =>
+    Boolean(myResidentId) && row.residentId === myResidentId
 
   const { data, isLoading, isFetching } = useVehicles({
     page,
@@ -131,7 +141,9 @@ export default function VehiclesPage() {
       key: 'sticker',
       header: 'Sticker',
       cell: (row) => (
-        <span className="text-muted-foreground">{row.parkingStickerNumber || '—'}</span>
+        <span className="text-muted-foreground">
+          {row.parkingStickerNumber || (row.hasSticker ? 'Yes' : '—')}
+        </span>
       ),
       hideBelow: 'lg',
     },
@@ -149,9 +161,9 @@ export default function VehiclesPage() {
     {
       key: 'actions',
       header: '',
-      cell: (row) => (
-        <div className="flex justify-end gap-1">
-          {canUpdate ? (
+      cell: (row) =>
+        isOwnRow(row) ? (
+          <div className="flex justify-end gap-1">
             <Button
               type="button"
               variant="ghost"
@@ -160,69 +172,39 @@ export default function VehiclesPage() {
             >
               Edit
             </Button>
-          ) : null}
-          {canVerify && row.status === 'PENDING' ? (
-            <>
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                onClick={() =>
-                  verifyVehicle.mutate({
-                    id: row.id,
-                    input: { approved: true },
-                  })
-                }
-              >
-                Approve
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  verifyVehicle.mutate({
-                    id: row.id,
-                    input: { approved: false },
-                  })
-                }
-              >
-                Reject
-              </Button>
-            </>
-          ) : null}
-          {canUpdate && ['ACTIVE', 'APPROVED'].includes(row.status) ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setTransferVehicle(row)}
-              >
-                Transfer
-              </Button>
+            {['ACTIVE'].includes(row.status) ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => deactivateVehicle.mutate(row.id)}
               >
-                Deactivate
+                Unregister
               </Button>
-            </>
-          ) : null}
-          {canUpdate && ['DEACTIVATED', 'TRANSFERRED'].includes(row.status) ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => revalidateVehicle.mutate(row.id)}
-            >
-              Revalidate
-            </Button>
-          ) : null}
-        </div>
-      ),
+            ) : null}
+            {['DEACTIVATED', 'TRANSFERRED'].includes(row.status) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => revalidateVehicle.mutate(row.id)}
+              >
+                Reactivate
+              </Button>
+            ) : null}
+            {row.status !== 'INACTIVE' ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeleteVehicle(row)}
+              >
+                Delete
+              </Button>
+            ) : null}
+          </div>
+        ) : null,
     },
   ]
 
@@ -334,11 +316,35 @@ export default function VehiclesPage() {
         onOpenChange={(open) => !open && setEditVehicle(null)}
         vehicle={editVehicle}
       />
-      <VehicleTransferDialog
-        open={Boolean(transferVehicle)}
-        onOpenChange={(open) => !open && setTransferVehicle(null)}
-        vehicle={transferVehicle}
-      />
+      <AlertDialog open={Boolean(deleteVehicle)} onOpenChange={(open) => !open && setDeleteVehicle(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete vehicle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently unregister the vehicle with plate{' '}
+              <span className="font-mono uppercase">{deleteVehicle?.plateNumber}</span> from
+              your profile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteVehicleMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                if (deleteVehicle) {
+                  deleteVehicleMutation.mutate(deleteVehicle.id, {
+                    onSuccess: () => setDeleteVehicle(null),
+                  })
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="vehicles" entityLabel="Vehicle" />
       <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="vehicles" entityLabel="Vehicle" />
     </div>

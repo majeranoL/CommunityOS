@@ -126,7 +126,6 @@ export function MyBalanceCard() {
       <VehicleFormDialog
         open={vehicleOpen}
         onOpenChange={setVehicleOpen}
-        selfService
       />
     </Card>
   )

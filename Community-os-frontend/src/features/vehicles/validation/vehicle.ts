@@ -11,7 +11,7 @@ export const vehicleFormSchema = z.object({
   model: z.string().trim().max(50).optional().or(z.literal('')),
   color: z.string().trim().max(30).optional().or(z.literal('')),
   type: z.string().optional().or(z.literal('')),
-  residentId: z.string().optional().or(z.literal('')),
+  hasSticker: z.boolean(),
   parkingStickerNumber: z.string().trim().max(30).optional().or(z.literal('')),
   photoUrl: z.string().optional().or(z.literal('')),
 })

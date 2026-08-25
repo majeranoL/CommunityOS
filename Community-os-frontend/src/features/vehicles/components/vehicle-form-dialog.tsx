@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,7 +21,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ResidentSelect } from '@/features/facilities/components/resident-select'
+import { Switch } from '@/components/ui/switch'
 import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateVehicle, useUpdateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { vehicleFormSchema, type VehicleFormValues } from '@/features/vehicles/validation/vehicle'
@@ -31,7 +32,6 @@ interface VehicleFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   vehicle?: VehicleListItem | null
-  selfService?: boolean
 }
 
 const VEHICLE_TYPES: VehicleType[] = ['CAR', 'MOTORCYCLE', 'TRUCK', 'VAN', 'BICYCLE', 'OTHER']
@@ -43,7 +43,7 @@ function toFormValues(vehicle?: VehicleListItem | null): VehicleFormValues {
     model: vehicle?.model ?? '',
     color: vehicle?.color ?? '',
     type: vehicle?.type ?? '',
-    residentId: vehicle?.residentId ?? '',
+    hasSticker: vehicle?.hasSticker ?? Boolean(vehicle?.parkingStickerNumber),
     parkingStickerNumber: vehicle?.parkingStickerNumber ?? '',
     photoUrl: vehicle?.photoUrl ?? '',
   }
@@ -53,7 +53,6 @@ export function VehicleFormDialog({
   open,
   onOpenChange,
   vehicle,
-  selfService = false,
 }: VehicleFormDialogProps) {
   const isEditing = Boolean(vehicle)
   const createVehicle = useCreateVehicle(() => onOpenChange(false))
@@ -68,6 +67,8 @@ export function VehicleFormDialog({
     if (open) form.reset(toFormValues(vehicle))
   }, [open, vehicle, form])
 
+  const hasSticker = form.watch('hasSticker')
+
   const handleSubmit = (values: VehicleFormValues) => {
     const input = {
       plateNumber: values.plateNumber,
@@ -75,8 +76,11 @@ export function VehicleFormDialog({
       model: values.model || undefined,
       color: values.color || undefined,
       type: (values.type || undefined) as VehicleType | undefined,
-      residentId: values.residentId || undefined,
-      parkingStickerNumber: values.parkingStickerNumber || undefined,
+      hasSticker: values.hasSticker,
+      parkingStickerNumber:
+        values.hasSticker && values.parkingStickerNumber
+          ? values.parkingStickerNumber
+          : undefined,
       photoUrl: values.photoUrl || undefined,
     }
 
@@ -95,7 +99,7 @@ export function VehicleFormDialog({
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit vehicle' : 'Add vehicle'}</DialogTitle>
           <DialogDescription>
-            Register a vehicle owned by a resident.
+            Register a vehicle under your resident profile.
           </DialogDescription>
         </DialogHeader>
 
@@ -186,38 +190,49 @@ export function VehicleFormDialog({
                 )}
               />
             </div>
-            {selfService ? (
-              <p className="text-sm text-muted-foreground">
-                This vehicle will be registered under your resident profile.
-              </p>
-            ) : (
+            <p className="text-sm text-muted-foreground">
+              This vehicle will be registered under your resident profile.
+            </p>
+            <FormField
+              control={form.control}
+              name="hasSticker"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel>Does this vehicle have a sticker?</FormLabel>
+                    <FormDescription>
+                      Sticker numbers are first come, first served.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            {hasSticker ? (
               <FormField
                 control={form.control}
-                name="residentId"
+                name="parkingStickerNumber"
                 render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel>Owner</FormLabel>
+                  <FormItem>
+                    <FormLabel>Sticker number</FormLabel>
                     <FormControl>
-                      <ResidentSelect value={field.value ?? ''} onChange={field.onChange} />
+                      <Input
+                        placeholder="e.g. STK-0001"
+                        className="uppercase"
+                        onChange={(event) => field.onChange(event.target.value.toUpperCase())}
+                        value={field.value}
+                      />
                     </FormControl>
+                    <FormDescription>
+                      Optional. Leave blank if you have not received it yet.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            )}
-            <FormField
-              control={form.control}
-              name="parkingStickerNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Parking sticker</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Optional" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            ) : null}
             <FormField
               control={form.control}
               name="photoUrl"

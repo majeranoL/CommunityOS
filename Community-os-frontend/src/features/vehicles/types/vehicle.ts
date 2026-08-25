@@ -22,6 +22,7 @@ export interface VehicleListItem {
   model: string | null
   color: string | null
   type: VehicleType | null
+  hasSticker?: boolean
   parkingStickerNumber: string | null
   photoUrl?: string | null
   status: VehicleStatus
@@ -40,14 +41,9 @@ export interface CreateVehicleInput {
   color?: string
   type?: VehicleType
   residentId?: string
+  hasSticker?: boolean
   parkingStickerNumber?: string
   photoUrl?: string
-  status?: VehicleStatus
 }
 
 export type UpdateVehicleInput = Partial<CreateVehicleInput>
-
-export interface VerifyVehicleInput {
-  approved: boolean
-  remarks?: string
-}
