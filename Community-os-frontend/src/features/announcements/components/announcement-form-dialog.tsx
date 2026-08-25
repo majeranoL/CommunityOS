@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateAnnouncement, useUpdateAnnouncement } from '@/features/announcements/hooks/use-announcements'
 import { announcementSchema, type AnnouncementFormValues } from '@/features/announcements/validation/announcement'
 import type { Announcement } from '@/features/announcements/types/announcement'
@@ -102,9 +103,16 @@ export function AnnouncementFormDialog({ open, onOpenChange, announcement }: Ann
               name="coverImageUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cover image URL</FormLabel>
+                  <FormLabel>Cover image</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://… (optional)" {...field} />
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      accept="image/*"
+                      maxFiles={1}
+                      label="Upload cover image"
+                      description="PNG, JPG, WEBP up to 10MB"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

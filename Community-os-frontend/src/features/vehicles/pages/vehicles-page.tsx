@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
+import { documentsService } from '@/features/documents/services/documents'
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
 import { useVerifyVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
@@ -82,9 +83,27 @@ export default function VehiclesPage() {
       header: 'Vehicle',
       cell: (row) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
-            <Car className="h-4 w-4 text-muted-foreground" />
-          </div>
+          {row.photoUrl ? (
+            <button
+              type="button"
+              className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border bg-muted hover:opacity-80 transition-opacity cursor-pointer"
+              onClick={() => documentsService.openFile({ fileUrl: row.photoUrl })}
+              title="View vehicle photo"
+            >
+              <img
+                src={row.photoUrl}
+                alt={row.plateNumber}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            </button>
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+              <Car className="h-4 w-4 text-muted-foreground" />
+            </div>
+          )}
           <div className="leading-tight">
             <p className="font-mono font-medium uppercase">{row.plateNumber}</p>
             <p className="text-xs text-muted-foreground">

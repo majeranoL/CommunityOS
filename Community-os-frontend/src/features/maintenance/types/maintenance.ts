@@ -29,6 +29,15 @@ export interface StaffRef {
   lastName: string
 }
 
+export interface MaintenanceAttachment {
+  id: string
+  url: string
+  filename: string
+  originalName: string
+  mimetype: string
+  size: number
+}
+
 export interface MaintenanceListItem {
   id: string
   maintenanceNumber: string
@@ -44,6 +53,8 @@ export interface MaintenanceListItem {
   scheduledAt: string | null
   completedAt: string | null
   remarks: string | null
+  attachmentFileIds?: string[]
+  attachments?: MaintenanceAttachment[]
   status: MaintenanceStatus
   createdAt: string
 }
@@ -59,6 +70,7 @@ export interface CreateMaintenanceInput {
   cost?: number
   scheduledAt?: string
   remarks?: string
+  attachmentFileIds?: string[]
   status?: MaintenanceStatus
 }
 
@@ -73,5 +85,6 @@ export interface UpdateMaintenanceInput {
   cost?: number | null
   scheduledAt?: string
   remarks?: string | null
+  attachmentFileIds?: string[]
   status?: MaintenanceStatus
 }

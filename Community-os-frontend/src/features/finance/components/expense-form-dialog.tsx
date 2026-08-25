@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DateTimePicker } from '@/components/shared/date-time-picker'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateExpense, useUpdateExpense } from '@/features/finance/hooks/use-finance'
 import { expenseSchema, EXPENSE_CATEGORIES, PAYMENT_METHODS, type ExpenseFormValues } from '@/features/finance/validation/finance'
 import { toTitleCase } from '@/lib/format'
@@ -34,6 +35,8 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
       payee: '',
       referenceNumber: '',
       notes: '',
+      receiptFileId: '',
+      receiptUrl: '',
     },
   })
 
@@ -49,6 +52,8 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
         payee: expense?.payee ?? '',
         referenceNumber: expense?.referenceNumber ?? '',
         notes: expense?.notes ?? '',
+        receiptFileId: expense?.receiptFileId ?? '',
+        receiptUrl: expense?.receiptUrl ?? '',
       })
     }
   }, [open, expense, form])
@@ -64,6 +69,8 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
       payee: values.payee || undefined,
       referenceNumber: values.referenceNumber || undefined,
       notes: values.notes || undefined,
+      receiptFileId: values.receiptFileId || undefined,
+      receiptUrl: values.receiptUrl || undefined,
     }
 
     if (isEdit && expense) {
@@ -237,6 +244,37 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
                     <Input placeholder="Optional notes" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="receiptUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Receipt / Proof</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      value={field.value}
+                      onChange={(url) => {
+                        field.onChange(url)
+                        if (!url) {
+                          form.setValue('receiptFileId', '')
+                        }
+                      }}
+                      onUploadComplete={(results) => {
+                        if (results[0]) {
+                          form.setValue('receiptFileId', results[0].id)
+                          form.setValue('receiptUrl', results[0].url)
+                        }
+                      }}
+                      maxFiles={1}
+                      accept="image/*,application/pdf"
+                      label="Upload receipt or official invoice"
+                      description="PNG, JPG, or PDF up to 10MB"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

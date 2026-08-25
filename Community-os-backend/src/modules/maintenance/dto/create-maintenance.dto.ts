@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsDateString,
   IsEnum,
   IsNotEmpty,
@@ -61,6 +62,11 @@ export class CreateMaintenanceDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  attachmentFileIds?: string[];
 
   @IsOptional()
   @IsEnum(MaintenanceStatus)

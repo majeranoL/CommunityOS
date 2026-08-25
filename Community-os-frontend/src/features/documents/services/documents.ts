@@ -51,7 +51,9 @@ export const documentsService = {
   async upload(file: File) {
     const form = new FormData()
     form.append('file', file)
-    const { data } = await api.post<ApiEnvelope<UploadFileResult>>('/uploads', form)
+    const { data } = await api.post<ApiEnvelope<UploadFileResult>>('/uploads', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
     return data.data
   },
 

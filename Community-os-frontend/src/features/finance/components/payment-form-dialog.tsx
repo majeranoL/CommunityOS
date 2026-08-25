@@ -177,7 +177,7 @@ function PaymentFormDialogContent({
     setUploading(true)
     try {
       const result = await documentsService.upload(file)
-      const next = { fileId: result.filename, url: result.url, name: result.originalName }
+      const next = { fileId: result.id, url: result.url, name: result.originalName }
       setProof(next)
       form.setValue('proofFileId', next.fileId, { shouldValidate: true })
       form.setValue('proofUrl', next.url, { shouldValidate: true })

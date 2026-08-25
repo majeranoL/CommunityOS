@@ -44,6 +44,11 @@ export class CreateVehicleDto {
   parkingStickerNumber?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  photoUrl?: string;
+
+  @IsOptional()
   @IsEnum(VehicleStatus)
   status?: VehicleStatus;
 }

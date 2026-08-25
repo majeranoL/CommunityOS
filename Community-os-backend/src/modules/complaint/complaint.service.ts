@@ -86,6 +86,8 @@ export class ComplaintService {
         priority: dto.priority ?? 'MEDIUM',
 
         remarks: dto.remarks,
+
+        attachmentFileIds: dto.attachmentFileIds ?? [],
       },
 
       include: {
@@ -331,6 +333,31 @@ export class ComplaintService {
       throw new NotFoundException('Complaint not found.');
     }
 
+    let attachments: any[] = [];
+    if (complaint.attachmentFileIds && complaint.attachmentFileIds.length > 0) {
+      const uploads = await this.prisma.upload.findMany({
+        where: {
+          id: { in: complaint.attachmentFileIds },
+          communityId,
+        },
+        select: {
+          id: true,
+          filename: true,
+          originalName: true,
+          mimetype: true,
+          size: true,
+        },
+      });
+      attachments = uploads.map((u) => ({
+        id: u.id,
+        url: `/api/uploads/${u.id}`,
+        filename: u.filename,
+        originalName: u.originalName,
+        mimetype: u.mimetype,
+        size: u.size,
+      }));
+    }
+
     // ==========================================
     // Return Response
     // ==========================================
@@ -351,6 +378,8 @@ export class ComplaintService {
         status: complaint.status,
 
         remarks: complaint.remarks,
+        attachmentFileIds: complaint.attachmentFileIds ?? [],
+        attachments,
 
         resident: {
           id: complaint.resident.id,
@@ -464,6 +493,10 @@ export class ComplaintService {
 
         ...(dto.remarks !== undefined && {
           remarks: dto.remarks,
+        }),
+
+        ...(dto.attachmentFileIds !== undefined && {
+          attachmentFileIds: dto.attachmentFileIds,
         }),
       },
 

@@ -11,6 +11,7 @@ export const maintenanceFormSchema = z.object({
   cost: z.string().optional().or(z.literal('')),
   scheduledAt: z.string().optional().or(z.literal('')),
   remarks: z.string().trim().max(1000).optional().or(z.literal('')),
+  attachmentFileIds: z.array(z.string()).optional(),
 })
 
 export type MaintenanceFormValues = z.infer<typeof maintenanceFormSchema>

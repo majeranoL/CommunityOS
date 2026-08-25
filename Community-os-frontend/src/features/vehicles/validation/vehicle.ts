@@ -13,6 +13,7 @@ export const vehicleFormSchema = z.object({
   type: z.string().optional().or(z.literal('')),
   residentId: z.string().optional().or(z.literal('')),
   parkingStickerNumber: z.string().trim().max(30).optional().or(z.literal('')),
+  photoUrl: z.string().optional().or(z.literal('')),
 })
 
 export type VehicleFormValues = z.infer<typeof vehicleFormSchema>

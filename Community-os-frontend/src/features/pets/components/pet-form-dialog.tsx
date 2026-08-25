@@ -1,7 +1,6 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Upload } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -22,9 +21,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { toast } from '@/components/ui/sonner'
 import { ResidentSelect } from '@/features/facilities/components/resident-select'
-import { documentsService } from '@/features/documents/services/documents'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreatePet, useUpdatePet } from '@/features/pets/hooks/use-pets'
 import { petFormSchema, type PetFormValues } from '@/features/pets/validation/pet'
 import type { PetListItem, PetSpecies } from '@/features/pets/types/pet'
@@ -55,63 +53,6 @@ function toFormValues(pet?: PetListItem | null): PetFormValues {
     rabiesCertificateUrl: pet?.rabiesCertificateUrl ?? '',
     veterinaryCertificateUrl: pet?.veterinaryCertificateUrl ?? '',
   }
-}
-
-function FileUploadField({
-  label,
-  value,
-  onChange,
-  accept,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  accept: string
-}) {
-  const [uploading, setUploading] = useState(false)
-
-  const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const result = await documentsService.upload(file)
-      onChange(result.url)
-    } catch {
-      toast.error('Upload failed. Try again.')
-    } finally {
-      setUploading(false)
-      event.target.value = ''
-    }
-  }
-
-  const fileName = value ? value.split('/').pop() : null
-
-  return (
-    <>
-      <FormLabel>{label}</FormLabel>
-      <FormControl>
-        <div className="space-y-1.5">
-          <Input
-            type="file"
-            accept={accept}
-            onChange={handleFile}
-            disabled={uploading}
-            className="h-9 py-0"
-          />
-          {uploading ? (
-            <p className="text-xs text-muted-foreground">Uploading…</p>
-          ) : fileName ? (
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Upload className="h-3 w-3" />
-              {fileName}
-            </p>
-          ) : null}
-        </div>
-      </FormControl>
-      <FormMessage />
-    </>
-  )
 }
 
 export function PetFormDialog({
@@ -322,12 +263,18 @@ export function PetFormDialog({
                 name="photoUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FileUploadField
-                      label="Photo"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      accept="image/*"
-                    />
+                    <FormLabel>Photo</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        value={field.value}
+                        onChange={field.onChange}
+                        maxFiles={1}
+                        accept="image/*"
+                        label="Upload pet photo"
+                        description="PNG, JPG, or WEBP"
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -336,12 +283,18 @@ export function PetFormDialog({
                 name="vaccinationCertificateUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FileUploadField
-                      label="Vaccination certificate"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      accept="image/*,.pdf"
-                    />
+                    <FormLabel>Vaccination certificate</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        value={field.value}
+                        onChange={field.onChange}
+                        maxFiles={1}
+                        accept="image/*,application/pdf"
+                        label="Upload certificate"
+                        description="Image or PDF"
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -350,12 +303,18 @@ export function PetFormDialog({
                 name="rabiesCertificateUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FileUploadField
-                      label="Rabies certificate"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      accept="image/*,.pdf"
-                    />
+                    <FormLabel>Rabies certificate</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        value={field.value}
+                        onChange={field.onChange}
+                        maxFiles={1}
+                        accept="image/*,application/pdf"
+                        label="Upload certificate"
+                        description="Image or PDF"
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -364,12 +323,18 @@ export function PetFormDialog({
                 name="veterinaryCertificateUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FileUploadField
-                      label="Veterinary certificate"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      accept="image/*,.pdf"
-                    />
+                    <FormLabel>Veterinary certificate</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        value={field.value}
+                        onChange={field.onChange}
+                        maxFiles={1}
+                        accept="image/*,application/pdf"
+                        label="Upload certificate"
+                        description="Image or PDF"
+                      />
+                    </FormControl>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

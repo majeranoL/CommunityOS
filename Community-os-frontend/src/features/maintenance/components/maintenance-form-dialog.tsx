@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FacilitySelect } from '@/features/maintenance/components/facility-select'
 import { StaffSelect } from '@/features/maintenance/components/staff-select'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateMaintenance, useUpdateMaintenance } from '@/features/maintenance/hooks/use-maintenance'
 import { maintenanceFormSchema, type MaintenanceFormValues } from '@/features/maintenance/validation/maintenance'
 import type { MaintenanceCategory, MaintenanceListItem, MaintenancePriority } from '@/features/maintenance/types/maintenance'
@@ -58,6 +59,7 @@ function toFormValues(maintenance?: MaintenanceListItem | null): MaintenanceForm
     cost: maintenance?.cost !== null && maintenance?.cost !== undefined ? String(maintenance.cost) : '',
     scheduledAt: maintenance?.scheduledAt ? maintenance.scheduledAt.slice(0, 10) : '',
     remarks: maintenance?.remarks ?? '',
+    attachmentFileIds: maintenance?.attachmentFileIds ?? [],
   }
 }
 
@@ -76,6 +78,10 @@ export function MaintenanceFormDialog({ open, onOpenChange, maintenance }: Maint
   }, [open, maintenance, form])
 
   const handleSubmit = (values: MaintenanceFormValues) => {
+    const attachmentFileIds = values.attachmentFileIds
+      ?.map((urlOrId) => urlOrId.split('/').pop() || urlOrId)
+      .filter(Boolean)
+
     const input = {
       maintenanceNumber: values.maintenanceNumber,
       title: values.title,
@@ -87,6 +93,7 @@ export function MaintenanceFormDialog({ open, onOpenChange, maintenance }: Maint
       cost: values.cost !== '' ? Number(values.cost) : undefined,
       scheduledAt: values.scheduledAt || undefined,
       remarks: values.remarks || undefined,
+      attachmentFileIds: attachmentFileIds && attachmentFileIds.length > 0 ? attachmentFileIds : undefined,
     }
 
     if (isEditing && maintenance) {
@@ -261,6 +268,26 @@ export function MaintenanceFormDialog({ open, onOpenChange, maintenance }: Maint
                   <FormLabel>Remarks</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Optional notes" rows={2} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="attachmentFileIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Attachments / Photos</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      maxFiles={5}
+                      accept="image/*,application/pdf"
+                      label="Upload photos or service reports"
+                      description="Up to 5 images or PDFs (max 10MB each)"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

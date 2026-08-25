@@ -173,6 +173,8 @@ export const expenseSchema = z.object({
   payee: z.string().max(200).optional().or(z.literal('')),
   referenceNumber: z.string().max(100).optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
+  receiptFileId: z.string().optional().or(z.literal('')),
+  receiptUrl: z.string().optional().or(z.literal('')),
 })
 
 export type ExpenseFormValues = z.infer<typeof expenseSchema>
@@ -200,6 +202,8 @@ export const utilityExpenseSchema = z.object({
   referenceNumber: z.string().max(100).optional().or(z.literal('')),
   invoiceNumber: z.string().max(100).optional().or(z.literal('')),
   description: z.string().max(500).optional().or(z.literal('')),
+  receiptFileId: z.string().optional().or(z.literal('')),
+  receiptUrl: z.string().optional().or(z.literal('')),
 })
 
 export type UtilityExpenseFormValues = z.infer<typeof utilityExpenseSchema>

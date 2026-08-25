@@ -35,9 +35,20 @@ export interface ComplaintListItem {
   updatedAt: string
 }
 
+export interface ComplaintAttachment {
+  id: string
+  url: string
+  filename: string
+  originalName: string
+  mimetype: string
+  size: number
+}
+
 export interface Complaint extends ComplaintListItem {
   description: string
   remarks: string | null
+  attachmentFileIds?: string[]
+  attachments?: ComplaintAttachment[]
 }
 
 export interface CreateComplaintInput {
@@ -47,6 +58,7 @@ export interface CreateComplaintInput {
   category: ComplaintCategory
   priority?: ComplaintPriority
   remarks?: string
+  attachmentFileIds?: string[]
 }
 
 export interface UpdateComplaintInput {
@@ -56,4 +68,5 @@ export interface UpdateComplaintInput {
   category?: ComplaintCategory
   priority?: ComplaintPriority
   remarks?: string
+  attachmentFileIds?: string[]
 }

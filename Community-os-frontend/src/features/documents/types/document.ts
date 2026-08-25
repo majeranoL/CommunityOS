@@ -46,6 +46,7 @@ export interface UpdateDocumentInput {
 }
 
 export interface UploadFileResult {
+  id: string
   url: string
   filename: string
   originalName: string

@@ -6,6 +6,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useAuthStore } from '@/store/auth-store'
 import { useCreateComplaint } from '@/features/complaints/hooks/use-complaints'
 import { CATEGORY_OPTIONS, PRIORITY_OPTIONS, complaintSchema, type ComplaintFormValues } from '@/features/complaints/validation/complaint'
@@ -28,11 +29,16 @@ export function ComplaintFormDialog({ open, onOpenChange }: ComplaintFormDialogP
       category: 'OTHER',
       priority: 'MEDIUM',
       remarks: '',
+      attachmentFileIds: [],
     },
   })
 
   const handleSubmit = (values: ComplaintFormValues) => {
     if (!residentId) return
+    const attachmentFileIds = values.attachmentFileIds
+      ?.map((urlOrId) => urlOrId.split('/').pop() || urlOrId)
+      .filter(Boolean)
+
     createComplaint.mutate(
       {
         residentId,
@@ -41,6 +47,7 @@ export function ComplaintFormDialog({ open, onOpenChange }: ComplaintFormDialogP
         category: values.category,
         priority: values.priority,
         remarks: values.remarks || undefined,
+        attachmentFileIds: attachmentFileIds && attachmentFileIds.length > 0 ? attachmentFileIds : undefined,
       },
       {
         onSuccess: () => {
@@ -162,6 +169,26 @@ export function ComplaintFormDialog({ open, onOpenChange }: ComplaintFormDialogP
                   <FormLabel>Additional remarks</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Optional notes for the team…" rows={2} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="attachmentFileIds"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Attachments / Photos</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      maxFiles={5}
+                      accept="image/*,application/pdf"
+                      label="Upload photos or supporting documents"
+                      description="Up to 5 images or PDFs (max 10MB each)"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

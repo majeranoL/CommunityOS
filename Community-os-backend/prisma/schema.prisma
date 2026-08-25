@@ -975,6 +975,8 @@ model Complaint {
 
   remarks String?
 
+  attachmentFileIds String[] @default([])
+
   resolutionRemarks String?
 
   resolvedAt DateTime?
@@ -1167,6 +1169,7 @@ model Vehicle {
   color                String?     @db.VarChar(30)
   type                 VehicleType @default(CAR)
   parkingStickerNumber String?     @db.VarChar(30)
+  photoUrl             String?     @db.VarChar(500)
 
   status VehicleStatus @default(ACTIVE)
 
@@ -1352,6 +1355,7 @@ model Maintenance {
   scheduledAt DateTime?
   completedAt DateTime?
   remarks     String?
+  attachmentFileIds String[] @default([])
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

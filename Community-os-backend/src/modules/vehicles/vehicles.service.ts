@@ -133,6 +133,7 @@ export class VehiclesService {
         color: dto.color,
         type: dto.type ?? 'CAR',
         parkingStickerNumber: dto.parkingStickerNumber,
+        photoUrl: dto.photoUrl,
 
         residentId: dto.residentId,
 
@@ -421,6 +422,10 @@ export class VehiclesService {
 
         ...(dto.parkingStickerNumber !== undefined && {
           parkingStickerNumber: dto.parkingStickerNumber,
+        }),
+
+        ...(dto.photoUrl !== undefined && {
+          photoUrl: dto.photoUrl,
         }),
 
         ...(dto.status && { status: dto.status }),

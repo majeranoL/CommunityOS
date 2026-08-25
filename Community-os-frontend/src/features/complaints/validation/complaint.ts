@@ -25,6 +25,7 @@ export const complaintSchema = z.object({
   category: z.enum(['SECURITY', 'NOISE', 'SANITATION', 'PARKING', 'PETS', 'FACILITY', 'UTILITIES', 'NEIGHBOR', 'OTHER']),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']),
   remarks: z.string().optional().or(z.literal('')),
+  attachmentFileIds: z.array(z.string()).optional(),
 })
 
 export type ComplaintFormValues = z.infer<typeof complaintSchema>

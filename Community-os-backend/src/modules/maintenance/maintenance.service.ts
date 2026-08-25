@@ -109,6 +109,7 @@ export class MaintenanceService {
         cost: dto.cost,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
         remarks: dto.remarks,
+        attachmentFileIds: dto.attachmentFileIds ?? [],
 
         status: dto.status ?? MaintenanceStatus.OPEN,
       },
@@ -306,10 +307,38 @@ export class MaintenanceService {
       throw new NotFoundException('Maintenance request not found.');
     }
 
+    let attachments: any[] = [];
+    if (maintenance.attachmentFileIds && maintenance.attachmentFileIds.length > 0) {
+      const uploads = await this.prisma.upload.findMany({
+        where: {
+          id: { in: maintenance.attachmentFileIds },
+          communityId,
+        },
+        select: {
+          id: true,
+          filename: true,
+          originalName: true,
+          mimetype: true,
+          size: true,
+        },
+      });
+      attachments = uploads.map((u) => ({
+        id: u.id,
+        url: `/api/uploads/${u.id}`,
+        filename: u.filename,
+        originalName: u.originalName,
+        mimetype: u.mimetype,
+        size: u.size,
+      }));
+    }
+
     return {
       success: true,
       message: 'Maintenance request retrieved successfully.',
-      data: maintenance,
+      data: {
+        ...maintenance,
+        attachments,
+      },
     };
   }
 
@@ -440,6 +469,10 @@ export class MaintenanceService {
 
         ...(dto.remarks !== undefined && {
           remarks: dto.remarks,
+        }),
+
+        ...(dto.attachmentFileIds !== undefined && {
+          attachmentFileIds: dto.attachmentFileIds,
         }),
 
         ...(dto.status && { status: dto.status }),

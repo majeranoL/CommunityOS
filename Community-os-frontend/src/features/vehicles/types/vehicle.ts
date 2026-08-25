@@ -23,6 +23,7 @@ export interface VehicleListItem {
   color: string | null
   type: VehicleType | null
   parkingStickerNumber: string | null
+  photoUrl?: string | null
   status: VehicleStatus
   resident: VehicleResidentRef | null
   residentId: string | null
@@ -40,6 +41,7 @@ export interface CreateVehicleInput {
   type?: VehicleType
   residentId?: string
   parkingStickerNumber?: string
+  photoUrl?: string
   status?: VehicleStatus
 }
 

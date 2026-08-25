@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { UserRound, CheckCircle2, XCircle } from 'lucide-react'
+import { UserRound, CheckCircle2, XCircle, Paperclip, FileText, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { documentsService } from '@/features/documents/services/documents'
 import {
   useAssignComplaint,
   useCloseComplaint,
@@ -110,6 +111,57 @@ export function ComplaintDetailDialog({ complaintId, open, onOpenChange }: Compl
               <div className="rounded-md border bg-muted/40 p-3">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Remarks</p>
                 <p className="mt-1 text-sm">{complaint.remarks}</p>
+              </div>
+            ) : null}
+
+            {complaint.attachments && complaint.attachments.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Attachments ({complaint.attachments.length})
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {complaint.attachments.map((att) => {
+                    const isImg = att.mimetype?.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(att.originalName || att.filename)
+                    return (
+                      <div
+                        key={att.id}
+                        className="group relative flex flex-col items-center overflow-hidden rounded-md border bg-card p-2 text-xs transition-all hover:border-primary/50"
+                      >
+                        {isImg ? (
+                          <div className="relative aspect-video w-full overflow-hidden rounded bg-muted flex items-center justify-center">
+                            <img
+                              src={att.url}
+                              alt={att.originalName}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                              }}
+                            />
+                            <ImageIcon className="h-5 w-5 text-muted-foreground absolute" />
+                          </div>
+                        ) : (
+                          <div className="flex h-12 w-full items-center justify-center rounded bg-primary/10 text-primary">
+                            <FileText className="h-6 w-6" />
+                          </div>
+                        )}
+                        <p className="mt-1.5 w-full truncate font-medium text-center" title={att.originalName}>
+                          {att.originalName}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 h-7 w-full gap-1 text-[11px]"
+                          onClick={() => documentsService.openFile({ fileUrl: att.url })}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             ) : null}
 

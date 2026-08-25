@@ -14,6 +14,8 @@ const ALLOWED_MIMETYPES = new Set([
   'application/csv',
   'image/png',
   'image/jpeg',
+  'image/webp',
+  'image/gif',
   'text/plain',
   'text/csv',
 ]);
@@ -35,7 +37,7 @@ const BLOCKED_EXTENSIONS = new Set([
   '.php',
 ]);
 
-type MagicFamily = 'pdf' | 'png' | 'jpeg' | 'zip' | 'ole' | 'text' | 'json';
+type MagicFamily = 'pdf' | 'png' | 'jpeg' | 'webp' | 'gif' | 'zip' | 'ole' | 'text' | 'json';
 
 function detectFamily(buffer: Buffer): MagicFamily | undefined {
   if (buffer.length >= 4 && buffer.slice(0, 4).toString('latin1') === '%PDF') {
@@ -59,6 +61,22 @@ function detectFamily(buffer: Buffer): MagicFamily | undefined {
     buffer[2] === 0xff
   ) {
     return 'jpeg';
+  }
+
+  if (
+    buffer.length >= 12 &&
+    buffer.slice(0, 4).toString('latin1') === 'RIFF' &&
+    buffer.slice(8, 12).toString('latin1') === 'WEBP'
+  ) {
+    return 'webp';
+  }
+
+  if (
+    buffer.length >= 6 &&
+    (buffer.slice(0, 6).toString('latin1') === 'GIF87a' ||
+      buffer.slice(0, 6).toString('latin1') === 'GIF89a')
+  ) {
+    return 'gif';
   }
 
   if (
@@ -88,6 +106,8 @@ function mimeToFamily(mimetype: string): MagicFamily | undefined {
   if (mimetype === 'application/pdf') return 'pdf';
   if (mimetype === 'image/png') return 'png';
   if (mimetype === 'image/jpeg') return 'jpeg';
+  if (mimetype === 'image/webp') return 'webp';
+  if (mimetype === 'image/gif') return 'gif';
   if (
     mimetype.includes('wordprocessingml') ||
     mimetype.includes('spreadsheetml') ||

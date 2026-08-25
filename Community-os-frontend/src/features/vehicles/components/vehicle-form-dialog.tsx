@@ -21,6 +21,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ResidentSelect } from '@/features/facilities/components/resident-select'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateVehicle, useUpdateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { vehicleFormSchema, type VehicleFormValues } from '@/features/vehicles/validation/vehicle'
 import type { VehicleListItem } from '@/features/vehicles/types/vehicle'
@@ -44,6 +45,7 @@ function toFormValues(vehicle?: VehicleListItem | null): VehicleFormValues {
     type: vehicle?.type ?? '',
     residentId: vehicle?.residentId ?? '',
     parkingStickerNumber: vehicle?.parkingStickerNumber ?? '',
+    photoUrl: vehicle?.photoUrl ?? '',
   }
 }
 
@@ -75,6 +77,7 @@ export function VehicleFormDialog({
       type: (values.type || undefined) as VehicleType | undefined,
       residentId: values.residentId || undefined,
       parkingStickerNumber: values.parkingStickerNumber || undefined,
+      photoUrl: values.photoUrl || undefined,
     }
 
     if (isEditing && vehicle) {
@@ -210,6 +213,26 @@ export function VehicleFormDialog({
                   <FormLabel>Parking sticker</FormLabel>
                   <FormControl>
                     <Input placeholder="Optional" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="photoUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Vehicle photo</FormLabel>
+                  <FormControl>
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      maxFiles={1}
+                      accept="image/*"
+                      label="Upload vehicle photo"
+                      description="PNG, JPG, or WEBP up to 10MB"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

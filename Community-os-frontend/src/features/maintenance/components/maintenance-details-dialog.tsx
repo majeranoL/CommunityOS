@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, Pencil, PlayCircle, Trash2, UserRoundCheck, Wrench, XCircle } from 'lucide-react'
+import { CheckCircle2, Pencil, PlayCircle, Trash2, UserRoundCheck, Wrench, XCircle, Paperclip, FileText, ExternalLink, Image as ImageIcon } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { StaffSelect } from '@/features/maintenance/components/staff-select'
+import { documentsService } from '@/features/documents/services/documents'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import {
@@ -116,6 +117,59 @@ export function MaintenanceDetailsDialog({
               </div>
             ) : null}
           </dl>
+
+          {maintenance.attachments && maintenance.attachments.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                <Paperclip className="h-3.5 w-3.5" />
+                Attachments ({maintenance.attachments.length})
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {maintenance.attachments.map((att) => {
+                  const isImg =
+                    att.mimetype?.startsWith('image/') ||
+                    /\.(png|jpe?g|webp|gif)$/i.test(att.originalName || att.filename)
+                  return (
+                    <div
+                      key={att.id}
+                      className="group relative flex flex-col items-center overflow-hidden rounded-md border bg-card p-2 text-xs transition-all hover:border-primary/50"
+                    >
+                      {isImg ? (
+                        <div className="relative aspect-video w-full overflow-hidden rounded bg-muted flex items-center justify-center">
+                          <img
+                            src={att.url}
+                            alt={att.originalName}
+                            className="h-full w-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
+                          <ImageIcon className="h-5 w-5 text-muted-foreground absolute" />
+                        </div>
+                      ) : (
+                        <div className="flex h-12 w-full items-center justify-center rounded bg-primary/10 text-primary">
+                          <FileText className="h-6 w-6" />
+                        </div>
+                      )}
+                      <p className="mt-1.5 w-full truncate font-medium text-center" title={att.originalName}>
+                        {att.originalName}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="mt-1 h-7 w-full gap-1 text-[11px]"
+                        onClick={() => documentsService.openFile({ fileUrl: att.url })}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        View
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
 
           {assignOpen ? (
             <div className="space-y-2 rounded-lg border p-3">

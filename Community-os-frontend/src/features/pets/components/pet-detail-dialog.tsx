@@ -75,16 +75,22 @@ export function PetDetailDialog({ open, onOpenChange, petId }: PetDetailDialogPr
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               {pet.photoUrl ? (
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-14 w-14 rounded-full p-0"
+                  className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-primary/20 bg-muted hover:opacity-90 transition-opacity shadow-sm"
                   onClick={() => documentsService.openFile({ fileUrl: pet.photoUrl })}
                   aria-label="Open pet photo"
+                  title="Click to view full photo"
                 >
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
+                  <img
+                    src={pet.photoUrl}
+                    alt={pet.name}
+                    className="h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                    }}
+                  />
+                </button>
               ) : null}
               <div>
                 <p className="text-lg font-semibold">{pet.name}</p>
