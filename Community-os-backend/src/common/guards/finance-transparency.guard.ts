@@ -23,9 +23,7 @@ export class FinanceTransparencyGuard implements CanActivate {
 
     if (!user) return false;
 
-    if (
-      hasAnyPermission(user, ['finance.view_all', 'finance.manage'])
-    ) {
+    if (hasAnyPermission(user, ['finance.view_all', 'finance.manage'])) {
       return true;
     }
 

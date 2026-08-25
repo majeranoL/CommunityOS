@@ -37,7 +37,8 @@ const BLOCKED_EXTENSIONS = new Set([
   '.php',
 ]);
 
-type MagicFamily = 'pdf' | 'png' | 'jpeg' | 'webp' | 'gif' | 'zip' | 'ole' | 'text' | 'json';
+type MagicFamily =
+  'pdf' | 'png' | 'jpeg' | 'webp' | 'gif' | 'zip' | 'ole' | 'text' | 'json';
 
 function detectFamily(buffer: Buffer): MagicFamily | undefined {
   if (buffer.length >= 4 && buffer.slice(0, 4).toString('latin1') === '%PDF') {

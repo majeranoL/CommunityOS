@@ -31,7 +31,12 @@ const LOAN_INCLUDE = {
     },
   },
   assessment: {
-    select: { id: true, assessmentNumber: true, amount: true, paidAmount: true },
+    select: {
+      id: true,
+      assessmentNumber: true,
+      amount: true,
+      paidAmount: true,
+    },
   },
 } satisfies Prisma.FacilityItemLoanInclude;
 
@@ -82,7 +87,10 @@ export class FacilityItemsService {
 
     let quantityAvailable: number | undefined = undefined;
 
-    if (dto.quantityTotal !== undefined && dto.quantityTotal !== item.quantityTotal) {
+    if (
+      dto.quantityTotal !== undefined &&
+      dto.quantityTotal !== item.quantityTotal
+    ) {
       const outstanding = await this.outstandingQuantity(id);
       quantityAvailable = Math.max(
         0,
@@ -95,9 +103,13 @@ export class FacilityItemsService {
       data: {
         ...(dto.name !== undefined && { name: dto.name.trim() }),
         ...(dto.category !== undefined && { category: dto.category }),
-        ...(dto.description !== undefined && { description: dto.description?.trim() }),
+        ...(dto.description !== undefined && {
+          description: dto.description?.trim(),
+        }),
         ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
-        ...(dto.quantityTotal !== undefined && { quantityTotal: dto.quantityTotal }),
+        ...(dto.quantityTotal !== undefined && {
+          quantityTotal: dto.quantityTotal,
+        }),
         ...(quantityAvailable !== undefined && { quantityAvailable }),
         ...(dto.borrowFee !== undefined && { borrowFee: dto.borrowFee }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
@@ -160,7 +172,10 @@ export class FacilityItemsService {
     const neededFrom = new Date(dto.neededFrom);
     const neededUntil = new Date(dto.neededUntil);
 
-    if (Number.isNaN(neededFrom.getTime()) || Number.isNaN(neededUntil.getTime())) {
+    if (
+      Number.isNaN(neededFrom.getTime()) ||
+      Number.isNaN(neededUntil.getTime())
+    ) {
       throw new BadRequestException('Invalid borrowing dates.');
     }
 
@@ -249,7 +264,9 @@ export class FacilityItemsService {
       throw new ConflictException('Only pending requests can be approved.');
     }
 
-    const item = await this.prisma.facilityItem.findUnique({ where: { id: loan.itemId } });
+    const item = await this.prisma.facilityItem.findUnique({
+      where: { id: loan.itemId },
+    });
 
     if (!item || item.quantityAvailable < loan.quantity) {
       throw new ConflictException(
@@ -317,7 +334,9 @@ export class FacilityItemsService {
     const loan = await this.getLoanOrThrow(communityId, loanId);
 
     if (loan.status !== FacilityItemLoanStatus.APPROVED) {
-      throw new ConflictException('Only approved borrows can be marked returned.');
+      throw new ConflictException(
+        'Only approved borrows can be marked returned.',
+      );
     }
 
     const returned = await this.prisma.$transaction(async (tx) => {
@@ -348,7 +367,9 @@ export class FacilityItemsService {
     const loan = await this.getLoanOrThrow(communityId, loanId);
 
     if (!user.resident?.id || loan.residentId !== user.resident.id) {
-      throw new ForbiddenException('You can only cancel your own borrow requests.');
+      throw new ForbiddenException(
+        'You can only cancel your own borrow requests.',
+      );
     }
 
     if (loan.status !== FacilityItemLoanStatus.PENDING) {

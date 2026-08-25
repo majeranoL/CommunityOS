@@ -308,7 +308,10 @@ export class MaintenanceService {
     }
 
     let attachments: any[] = [];
-    if (maintenance.attachmentFileIds && maintenance.attachmentFileIds.length > 0) {
+    if (
+      maintenance.attachmentFileIds &&
+      maintenance.attachmentFileIds.length > 0
+    ) {
       const uploads = await this.prisma.upload.findMany({
         where: {
           id: { in: maintenance.attachmentFileIds },

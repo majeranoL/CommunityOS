@@ -12,17 +12,10 @@ export function useSecureImageUrl(src?: string | null) {
   const [resolved, setResolved] = useState<string | undefined>(undefined)
 
   useEffect(() => {
-    if (!src || !src.startsWith('/')) {
-      // Empty, absolute HTTP(S), or local object/data URLs resolve as-is.
-      setResolved(src || undefined)
-      return
-    }
+    if (!src || !src.startsWith('/')) return
 
     const uploadId = src.split('/').pop()
-    if (!uploadId) {
-      setResolved(undefined)
-      return
-    }
+    if (!uploadId) return
 
     let active = true
     let objectUrl: string | undefined
@@ -44,6 +37,7 @@ export function useSecureImageUrl(src?: string | null) {
     }
   }, [src])
 
+  if (!src || !src.startsWith('/')) return src || undefined
   return resolved
 }
 

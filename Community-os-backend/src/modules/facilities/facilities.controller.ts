@@ -69,17 +69,18 @@ export class FacilitiesController {
 
   @Delete('items/:id')
   @Permissions('facility.item.manage')
-  removeItem(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  removeItem(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.facilityItemsService.removeItem(req.user.community.id, id);
   }
 
   @Get('items/loans')
   @Permissions('facility.item.borrow')
   findLoans(@Request() req: any, @Query() query: ItemLoanQueryDto) {
-    return this.facilityItemsService.findLoans(req.user.community.id, req.user, query);
+    return this.facilityItemsService.findLoans(
+      req.user.community.id,
+      req.user,
+      query,
+    );
   }
 
   @Post('items/:itemId/loans')
@@ -89,7 +90,12 @@ export class FacilitiesController {
     @Param('itemId', ParseUUIDPipe) itemId: string,
     @Body() dto: BorrowItemDto,
   ) {
-    return this.facilityItemsService.borrow(req.user.community.id, req.user, itemId, dto);
+    return this.facilityItemsService.borrow(
+      req.user.community.id,
+      req.user,
+      itemId,
+      dto,
+    );
   }
 
   @Patch('items/loans/:loanId/approve')
@@ -98,7 +104,11 @@ export class FacilitiesController {
     @Request() req: any,
     @Param('loanId', ParseUUIDPipe) loanId: string,
   ) {
-    return this.facilityItemsService.approveLoan(req.user.community.id, req.user, loanId);
+    return this.facilityItemsService.approveLoan(
+      req.user.community.id,
+      req.user,
+      loanId,
+    );
   }
 
   @Patch('items/loans/:loanId/reject')
@@ -108,7 +118,12 @@ export class FacilitiesController {
     @Param('loanId', ParseUUIDPipe) loanId: string,
     @Body() dto: RejectLoanDto,
   ) {
-    return this.facilityItemsService.rejectLoan(req.user.community.id, req.user, loanId, dto);
+    return this.facilityItemsService.rejectLoan(
+      req.user.community.id,
+      req.user,
+      loanId,
+      dto,
+    );
   }
 
   @Patch('items/loans/:loanId/return')
@@ -118,7 +133,11 @@ export class FacilitiesController {
     @Param('loanId', ParseUUIDPipe) loanId: string,
     @Body() dto: LoanRemarksDto,
   ) {
-    return this.facilityItemsService.returnLoan(req.user.community.id, loanId, dto);
+    return this.facilityItemsService.returnLoan(
+      req.user.community.id,
+      loanId,
+      dto,
+    );
   }
 
   @Delete('items/loans/:loanId')
@@ -127,7 +146,11 @@ export class FacilitiesController {
     @Request() req: any,
     @Param('loanId', ParseUUIDPipe) loanId: string,
   ) {
-    return this.facilityItemsService.cancelLoan(req.user.community.id, req.user, loanId);
+    return this.facilityItemsService.cancelLoan(
+      req.user.community.id,
+      req.user,
+      loanId,
+    );
   }
 
   // ==========================================
