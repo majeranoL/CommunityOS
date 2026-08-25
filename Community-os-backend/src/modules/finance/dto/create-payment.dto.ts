@@ -28,11 +28,6 @@ export class PaymentAllocationInputDto {
 }
 
 export class CreatePaymentDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(30)
-  paymentNumber!: string;
-
   @IsOptional()
   @IsUUID()
   assessmentId?: string;

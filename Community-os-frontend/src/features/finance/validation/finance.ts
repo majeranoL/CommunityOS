@@ -40,7 +40,6 @@ export const paymentAllocationSchema = z.object({
 })
 
 export const paymentSchema = z.object({
-  paymentNumber: z.string().min(1, 'Payment number is required').max(30),
   residentId: z.string().min(1, 'Select a resident'),
   amount: z.number({ error: 'Enter an amount' }).min(0.01, 'Amount must be greater than 0'),
   paymentDate: z.string().min(1, 'Payment date is required'),

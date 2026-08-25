@@ -202,7 +202,6 @@ export interface PaymentAllocationInput {
 }
 
 export interface CreatePaymentInput {
-  paymentNumber: string
   allocations?: PaymentAllocationInput[]
   assessmentId?: string
   billingPeriodIds?: string[]

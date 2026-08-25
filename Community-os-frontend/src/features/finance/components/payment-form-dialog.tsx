@@ -87,7 +87,6 @@ function PaymentFormDialogContent({
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
-      paymentNumber: payment?.paymentNumber ?? '',
       residentId: payment?.resident?.id ?? '',
       amount: payment ? Number(payment.amount) : 0,
       paymentDate: payment?.paymentDate ? new Date(payment.paymentDate).toISOString().slice(0, 16) : '',
@@ -195,7 +194,6 @@ function PaymentFormDialogContent({
       .map((item) => item.id)
 
     const input = {
-      paymentNumber: values.paymentNumber,
       residentId: values.residentId,
       amount: values.amount,
       paymentDate: new Date(values.paymentDate).toISOString(),
@@ -231,19 +229,6 @@ function PaymentFormDialogContent({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="paymentNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Payment number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. PAY-0001" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
               <FormField
                 control={form.control}
                 name="method"

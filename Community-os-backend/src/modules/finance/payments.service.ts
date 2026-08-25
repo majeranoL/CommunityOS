@@ -35,30 +35,37 @@ export class PaymentsService {
   // Create Payment (always starts PENDING_VERIFICATION)
   // ==========================================
 
+  private async nextPaymentNumber(communityId: string): Promise<string> {
+    const latest = await this.prisma.payment.findFirst({
+      where: { communityId },
+      orderBy: { paymentNumber: 'desc' },
+      select: { paymentNumber: true },
+    });
+
+    let nextNumber = 0;
+
+    if (latest) {
+      const parsed = parseInt(latest.paymentNumber.replace(/^PAY-/, ''), 10);
+
+      if (!Number.isNaN(parsed)) nextNumber = parsed;
+    }
+
+    return `PAY-${String(nextNumber + 1).padStart(6, '0')}`;
+  }
+
   async create(communityId: string, dto: CreatePaymentDto) {
+    // ==========================================
+    // Auto-generate Payment Number
+    // ==========================================
+
+    const paymentNumber = await this.nextPaymentNumber(communityId);
+
     // ==========================================
     // Clean Inputs
     // ==========================================
 
-    dto.paymentNumber = dto.paymentNumber.trim();
     dto.referenceNumber = dto.referenceNumber?.trim();
     dto.remarks = dto.remarks?.trim();
-
-    // ==========================================
-    // Duplicate Payment Number
-    // ==========================================
-
-    const existing = await this.prisma.payment.findFirst({
-      where: {
-        communityId,
-        paymentNumber: dto.paymentNumber,
-        deletedAt: null,
-      },
-    });
-
-    if (existing) {
-      throw new ConflictException('Payment already exists.');
-    }
 
     // ==========================================
     // Validate Resident
@@ -118,7 +125,7 @@ export class PaymentsService {
       data: {
         communityId,
 
-        paymentNumber: dto.paymentNumber,
+        paymentNumber,
         residentId: dto.residentId,
         amount: dto.amount,
         paymentDate: new Date(dto.paymentDate),
@@ -574,7 +581,6 @@ export class PaymentsService {
 
     const data: any = {};
 
-    if (dto.paymentNumber) data.paymentNumber = dto.paymentNumber.trim();
     if (dto.residentId) data.residentId = dto.residentId;
     if (dto.amount !== undefined) data.amount = dto.amount;
     if (dto.paymentDate) data.paymentDate = new Date(dto.paymentDate);
