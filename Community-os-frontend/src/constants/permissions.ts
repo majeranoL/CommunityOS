@@ -92,6 +92,8 @@ export const PERMISSIONS = {
   facilityCreate: 'facility.create',
   facilityUpdate: 'facility.update',
   facilityDelete: 'facility.delete',
+  facilityItemManage: 'facility.item.manage',
+  facilityItemBorrow: 'facility.item.borrow',
 
   reservationView: 'reservation.view',
   reservationCreate: 'reservation.create',
