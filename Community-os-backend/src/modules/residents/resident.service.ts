@@ -538,7 +538,12 @@ export class ResidentService {
       data: resident,
     };
   }
-  async update(communityId: string, user: any, id: string, dto: UpdateResidentDto) {
+  async update(
+    communityId: string,
+    user: any,
+    id: string,
+    dto: UpdateResidentDto,
+  ) {
     const resident = await this.prisma.resident.findFirst({
       where: {
         id,
