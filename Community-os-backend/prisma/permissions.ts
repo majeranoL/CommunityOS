@@ -953,6 +953,7 @@ export const MEMBER_PERMISSIONS: string[] = [
   'resident.create',
   'resident.update',
   'resident.delete',
+  'household.view',
   'vehicle.create',
   'vehicle.view',
   'sticker.create',
