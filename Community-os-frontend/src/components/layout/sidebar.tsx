@@ -88,10 +88,14 @@ function SidebarContent({ onNavigate }: SidebarProps) {
         <nav className="flex flex-col gap-6">
           {NAV_SECTIONS.map((section) => {
             const visible = section.items.filter(
-              (item) =>
-                (!item.permission || user?.permissions.includes(item.permission)) &&
-                (!item.feature || enabledCodes.has(item.feature)) &&
-                (!isOfficer && item.href === '/app/households' ? false : true),
+              (item) => {
+                if (!item.permission || user?.permissions.includes(item.permission)) {
+                  if (item.feature && !enabledCodes.has(item.feature)) return false
+                  if (!isOfficer && item.href === '/app/households') return false
+                  return true
+                }
+                return false
+              },
             )
             if (visible.length === 0) return null
             return (
