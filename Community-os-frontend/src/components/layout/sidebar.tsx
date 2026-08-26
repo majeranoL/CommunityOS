@@ -90,7 +90,8 @@ function SidebarContent({ onNavigate }: SidebarProps) {
             const visible = section.items.filter(
               (item) =>
                 (!item.permission || user?.permissions.includes(item.permission)) &&
-                (!item.feature || enabledCodes.has(item.feature)),
+                (!item.feature || enabledCodes.has(item.feature)) &&
+                (!isOfficer && item.href === '/app/households' ? false : true),
             )
             if (visible.length === 0) return null
             return (
@@ -103,7 +104,7 @@ function SidebarContent({ onNavigate }: SidebarProps) {
                     key={item.href}
                     to={item.href}
                     icon={item.icon}
-                    label={!isOfficer && item.href === '/app/households' ? 'My Household' : item.label}
+                    label={item.label}
                     badge={badgeMap[item.href] ?? item.badge}
                     onClick={onNavigate}
                   />
