@@ -73,7 +73,6 @@ import { AssessmentFormDialog } from '@/features/finance/components/assessment-f
 import { AssessmentDetailDialog } from '@/features/finance/components/assessment-detail-dialog'
 import { GenerateDuesDialog } from '@/features/finance/components/generate-dues-dialog'
 import { DuesMonthsTab } from '@/features/finance/components/dues-months-tab'
-import { MyBalanceCard } from '@/features/finance/components/my-balance-card'
 import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
 import { PaymentDetailDialog } from '@/features/finance/components/payment-detail-dialog'
 import { PaymentReceiptDialog } from '@/features/finance/components/payment-receipt-dialog'
@@ -220,7 +219,6 @@ export default function FinancePage() {
           </DropdownMenu>
         ) : null}
       </div>
-      {!isManager ? <MyBalanceCard /> : null}
       <Tabs value={currentTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           {tabs.map((tab) => (

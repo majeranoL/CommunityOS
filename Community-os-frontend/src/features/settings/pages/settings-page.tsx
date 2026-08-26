@@ -1,6 +1,9 @@
-import { Check, Moon, Sun, Monitor } from 'lucide-react'
+import { useState } from 'react'
+import { Check, Home, Moon, Sun, Monitor } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
+import { StatusBadge } from '@/components/shared/status-badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +13,8 @@ import { useAuthStore, useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { useTheme } from '@/components/theme-provider'
+import { useMyHousehold } from '@/features/households/hooks/use-households'
+import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
 import { CommunitySettings } from '@/features/settings/components/community-settings'
 import { ChangePasswordForm } from '@/features/settings/components/change-password-form'
 import { BrandingSettings } from '@/features/branding/components/branding-settings'
@@ -29,7 +34,9 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   const canBrand = useHasPermission(PERMISSIONS.communityBranding)
   const { data: branding, isLoading: brandingLoading } = useBranding()
+  const { data: myHousehold } = useMyHousehold()
   const avatarUrl = useSecureImageUrl(user?.avatarUrl)
+  const [householdOpen, setHouseholdOpen] = useState(false)
 
   return (
     <div className="space-y-6">
@@ -114,6 +121,53 @@ export default function SettingsPage() {
 
         <div className="space-y-6 lg:col-span-3">
           <ChangePasswordForm />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>My Household</CardTitle>
+              <CardDescription>Your household and unit details.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {myHousehold ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                      <Home className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">
+                        {[
+                          myHousehold.block && `Block ${myHousehold.block}`,
+                          myHousehold.lot && `Lot ${myHousehold.lot}`,
+                          myHousehold.unit && `Unit ${myHousehold.unit}`,
+                          myHousehold.address,
+                        ]
+                          .filter(Boolean)
+                          .join(', ') || 'Unnamed unit'}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {myHousehold.residentCount} resident{myHousehold.residentCount === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                    <StatusBadge status={myHousehold.status} />
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setHouseholdOpen(true)}>
+                    View details
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  You are not linked to a household yet.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <HouseholdDetailsDialog
+            householdId={myHousehold?.id ?? null}
+            open={householdOpen}
+            onOpenChange={setHouseholdOpen}
+          />
 
           <Card>
             <CardHeader>
