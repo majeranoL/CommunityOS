@@ -513,8 +513,6 @@ export class AuthService {
       const lot = dto.lot?.trim();
 
       if (block && lot) {
-        // Ownership rule: match by block + lot (incl. soft-deleted/INACTIVE so
-        // the same household's financial history is reused on reactivation)
         household = await prisma.household.findFirst({
           where: {
             communityId: community.id,
@@ -524,36 +522,14 @@ export class AuthService {
           select: { id: true, status: true },
         });
 
-        if (household) {
-          if (household.status === HouseholdStatus.ACTIVE) {
-            // Already occupied by an active account holder?
-            const owner = await prisma.user.findFirst({
-              where: {
-                communityId: community.id,
-                status: { in: [UserStatus.ACTIVE, UserStatus.PENDING] },
-                deletedAt: null,
-                resident: {
-                  householdId: household.id,
-                },
-              },
-              select: { id: true },
-            });
-
-            if (owner) {
-              throw new ConflictException(
-                'This unit already has an account. Contact your administrator.',
-              );
-            }
-          } else {
-            // INACTIVE: reactivate the same household and reuse its history
-            await prisma.household.update({
-              where: { id: household.id },
-              data: {
-                status: HouseholdStatus.ACTIVE,
-                deletedAt: null,
-              },
-            });
-          }
+        if (household?.status === HouseholdStatus.INACTIVE) {
+          await prisma.household.update({
+            where: { id: household.id },
+            data: {
+              status: HouseholdStatus.ACTIVE,
+              deletedAt: null,
+            },
+          });
         }
       }
 
@@ -584,6 +560,28 @@ export class AuthService {
           },
           select: { id: true },
         });
+      }
+
+      // ==========================================
+      // 1-account-per-household restriction
+      // ==========================================
+
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          communityId: community.id,
+          status: { in: [UserStatus.ACTIVE, UserStatus.PENDING] },
+          deletedAt: null,
+          resident: {
+            householdId: household.id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingUser) {
+        throw new ConflictException(
+          'This household already has a registered account. Only one account is allowed per household.',
+        );
       }
 
       // ==========================================
