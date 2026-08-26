@@ -951,6 +951,8 @@ export const MEMBER_PERMISSIONS: string[] = [
   'poll.vote',
   'settings.view',
   'resident.create',
+  'resident.update',
+  'resident.delete',
   'vehicle.create',
   'vehicle.view',
   'sticker.create',

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertTriangle, Home, KeyRound, UserRound } from 'lucide-react'
+import { AlertTriangle, Home, KeyRound, Plus, UserRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -19,11 +19,12 @@ import {
   useHousehold,
   useUpdateHousehold,
 } from '@/features/households/hooks/use-households'
+import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
 import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
 import { TransferOwnershipDialog } from '@/features/households/components/transfer-ownership-dialog'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
-import { useHasPermission } from '@/store/auth-store'
+import { useHasPermission, useAuthStore } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { cn } from '@/lib/utils'
 import { formatCurrency, initials } from '@/lib/format'
@@ -56,10 +57,21 @@ export function HouseholdDetailsDialog({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [renterOpen, setRenterOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
+  const [addResidentOpen, setAddResidentOpen] = useState(false)
+  const [editResidentId, setEditResidentId] = useState<string | null>(null)
   const canCreateUser = useHasPermission(PERMISSIONS.userCreate)
   const canUpdateHousehold = useHasPermission(PERMISSIONS.householdUpdate)
+  const canVerify = useHasPermission(PERMISSIONS.residentVerify)
+  const canCreateResident = useHasPermission(PERMISSIONS.residentCreate)
+  const user = useAuthStore((state) => state.user)
+  const myHouseholdId = user?.resident?.household?.id ?? null
+
+  const isOfficer = canVerify
+  const isOwnHousehold = householdId != null && householdId === myHouseholdId
 
   const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
+
+  const showStanding = isOfficer || isOwnHousehold
 
   const toggleStatus = () => {
     if (!household) return
@@ -144,7 +156,7 @@ export function HouseholdDetailsDialog({
                       ? 'No linked account for the owner yet.'
                       : 'No owner recorded for this unit — anyone can register into it.'}
                   </p>
-                  {household.status === 'ACTIVE' && canCreateUser ? (
+                  {isOfficer && household.status === 'ACTIVE' && canCreateUser ? (
                     <Button
                       size="sm"
                       variant="outline"
@@ -159,64 +171,78 @@ export function HouseholdDetailsDialog({
               )}
             </div>
 
+            {showStanding ? (
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <h4 className="text-sm font-medium">Billing & payments</h4>
+                  {household.finance && standingEnabled ? (
+                    <StatusBadge status={household.finance.standing} />
+                  ) : null}
+                </div>
+
+                {household.finance ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 rounded-lg border p-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Billed</p>
+                        <p className="font-medium">
+                          {formatCurrency(household.finance.totalBilled)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Paid</p>
+                        <p className="font-medium">
+                          {formatCurrency(household.finance.totalPaid)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          Outstanding
+                        </p>
+                        <p
+                          className={cn(
+                            'font-medium',
+                            household.finance.outstanding > 0
+                              ? 'text-destructive'
+                              : 'text-success',
+                          )}
+                        >
+                          {formatCurrency(household.finance.outstanding)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {household.finance.monthsBehind === 0
+                        ? 'Up to date with assessments.'
+                        : `${household.finance.monthsBehind} month${
+                            household.finance.monthsBehind === 1 ? '' : 's'
+                          } behind on payments.`}
+                    </p>
+                  </>
+                ) : null}
+
+                <HouseholdLedger
+                  assessments={household.assessments}
+                  finance={household.finance}
+                  unitLabel={unitLabel(household)}
+                />
+              </div>
+            ) : null}
+
             <div>
               <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-sm font-medium">Billing & payments</h4>
-                {household.finance && standingEnabled ? (
-                  <StatusBadge status={household.finance.standing} />
+                <h4 className="text-sm font-medium">Residents</h4>
+                {(isOfficer || isOwnHousehold) && canCreateResident ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setAddResidentOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add
+                  </Button>
                 ) : null}
               </div>
-
-              {household.finance ? (
-                <>
-                  <div className="grid grid-cols-3 gap-2 rounded-lg border p-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Billed</p>
-                      <p className="font-medium">
-                        {formatCurrency(household.finance.totalBilled)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Paid</p>
-                      <p className="font-medium">
-                        {formatCurrency(household.finance.totalPaid)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Outstanding
-                      </p>
-                      <p
-                        className={cn(
-                          'font-medium',
-                          household.finance.outstanding > 0
-                            ? 'text-destructive'
-                            : 'text-success',
-                        )}
-                      >
-                        {formatCurrency(household.finance.outstanding)}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {household.finance.monthsBehind === 0
-                      ? 'Up to date with assessments.'
-                      : `${household.finance.monthsBehind} month${
-                          household.finance.monthsBehind === 1 ? '' : 's'
-                        } behind on payments.`}
-                  </p>
-                </>
-              ) : null}
-
-              <HouseholdLedger
-                assessments={household.assessments}
-                finance={household.finance}
-                unitLabel={unitLabel(household)}
-              />
-            </div>
-
-            <div>
-              <h4 className="mb-2 text-sm font-medium">Residents</h4>
               {household.residents.length ? (
                 <ul className="space-y-2">
                   {household.residents.map((resident) => (
@@ -227,7 +253,7 @@ export function HouseholdDetailsDialog({
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                         <UserRound className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <div className="leading-tight">
+                      <div className="min-w-0 flex-1 leading-tight">
                         <p className="font-medium">
                           {resident.firstName} {resident.lastName}
                         </p>
@@ -235,12 +261,21 @@ export function HouseholdDetailsDialog({
                           {resident.residentNumber}
                         </p>
                       </div>
-                      <div className="ml-auto flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         {resident.user ? (
                           <Badge variant="secondary">Has account</Badge>
                         ) : null}
                         <StatusBadge status={resident.residentType} />
                         <StatusBadge status={resident.status} />
+                        {(isOfficer || isOwnHousehold) ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditResidentId(resident.id)}
+                          >
+                            Edit
+                          </Button>
+                        ) : null}
                       </div>
                     </li>
                   ))}
@@ -255,7 +290,7 @@ export function HouseholdDetailsDialog({
         )}
 
         <DialogFooter className="gap-2">
-          {household?.status === 'ACTIVE' ? (
+          {isOfficer && household?.status === 'ACTIVE' ? (
             <Button
               variant="outline"
               className="text-warning hover:text-warning"
@@ -265,7 +300,7 @@ export function HouseholdDetailsDialog({
               Deactivate unit
             </Button>
           ) : null}
-          {canUpdateHousehold && household ? (
+          {isOfficer && canUpdateHousehold && household ? (
             <Button
               variant="outline"
               onClick={() => setTransferOpen(true)}
@@ -274,7 +309,7 @@ export function HouseholdDetailsDialog({
               Transfer ownership
             </Button>
           ) : null}
-          {household?.status === 'INACTIVE' ? (
+          {isOfficer && household?.status === 'INACTIVE' ? (
             <Button
               variant="outline"
               onClick={toggleStatus}
@@ -283,7 +318,7 @@ export function HouseholdDetailsDialog({
               Activate unit
             </Button>
           ) : null}
-          {household ? (
+          {isOfficer && household ? (
             <Button
               variant="outline"
               className="text-destructive hover:text-destructive"
@@ -300,6 +335,18 @@ export function HouseholdDetailsDialog({
             </Button>
           ) : null}
         </DialogFooter>
+
+        <ResidentFormDialog
+          open={addResidentOpen}
+          onOpenChange={setAddResidentOpen}
+          selfService={!isOfficer}
+        />
+        <ResidentFormDialog
+          open={Boolean(editResidentId)}
+          onOpenChange={(open) => !open && setEditResidentId(null)}
+          residentId={editResidentId}
+          selfService={!isOfficer}
+        />
 
         <CreateRenterDialog
           householdId={household?.id ?? null}

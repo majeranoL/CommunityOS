@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useHasPermission } from '@/store/auth-store'
+import { useHasPermission, useAuthStore } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useResidents, useVerifyResident } from '@/features/residents/hooks/use-residents'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
@@ -57,6 +57,9 @@ export default function ResidentsPage() {
   const canVerify = useHasPermission(PERMISSIONS.residentVerify)
   const canImport = useHasPermission(PERMISSIONS.residentImport)
   const canExport = useHasPermission(PERMISSIONS.residentExport)
+
+  const user = useAuthStore((state) => state.user)
+  const myHouseholdId = user?.resident?.household?.id ?? null
 
   const verifyResident = useVerifyResident()
 
@@ -151,7 +154,7 @@ export default function ResidentsPage() {
       header: '',
       cell: (row) => (
         <div className="flex justify-end gap-1">
-          {canUpdate ? (
+          {canUpdate && (canVerify || row.household?.id === myHouseholdId) ? (
             <Button
               type="button"
               variant="ghost"
@@ -305,11 +308,12 @@ export default function ResidentsPage() {
 
       <Pagination pagination={data?.pagination} onPageChange={setPage} />
 
-      <ResidentFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <ResidentFormDialog open={createOpen} onOpenChange={setCreateOpen} selfService={!canVerify} />
       <ResidentFormDialog
         open={Boolean(editId)}
         onOpenChange={(open) => !open && setEditId(null)}
         residentId={editId}
+        selfService={!canVerify}
       />
       <ResidentDetailsDialog
         residentId={selectedId}

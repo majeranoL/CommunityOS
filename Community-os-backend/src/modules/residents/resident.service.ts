@@ -538,7 +538,7 @@ export class ResidentService {
       data: resident,
     };
   }
-  async update(communityId: string, id: string, dto: UpdateResidentDto) {
+  async update(communityId: string, user: any, id: string, dto: UpdateResidentDto) {
     const resident = await this.prisma.resident.findFirst({
       where: {
         id,
@@ -549,6 +549,31 @@ export class ResidentService {
 
     if (!resident) {
       throw new NotFoundException('Resident not found.');
+    }
+
+    // ==========================
+    // Self-Service Scope
+    // ==========================
+
+    const permissions = this.getPermissionCodes(user);
+    const isOfficer = permissions.includes('resident.verify');
+
+    if (!isOfficer) {
+      const ownHouseholdId = user?.resident?.household?.id;
+
+      if (!ownHouseholdId) {
+        throw new ForbiddenException(
+          'You must be linked to a household to edit residents.',
+        );
+      }
+
+      if (resident.householdId !== ownHouseholdId) {
+        throw new ForbiddenException(
+          'You can only edit residents in your own household.',
+        );
+      }
+
+      dto.householdId = ownHouseholdId;
     }
 
     // ==========================
@@ -864,7 +889,7 @@ export class ResidentService {
       data: updatedResident,
     };
   }
-  async remove(communityId: string, id: string) {
+  async remove(communityId: string, user: any, id: string) {
     const resident = await this.prisma.resident.findFirst({
       where: {
         id,
@@ -883,6 +908,29 @@ export class ResidentService {
 
     if (!resident) {
       throw new NotFoundException('Resident not found.');
+    }
+
+    // ==========================
+    // Self-Service Scope
+    // ==========================
+
+    const permissions = this.getPermissionCodes(user);
+    const isOfficer = permissions.includes('resident.verify');
+
+    if (!isOfficer) {
+      const ownHouseholdId = user?.resident?.household?.id;
+
+      if (!ownHouseholdId) {
+        throw new ForbiddenException(
+          'You must be linked to a household to delete residents.',
+        );
+      }
+
+      if (resident.householdId !== ownHouseholdId) {
+        throw new ForbiddenException(
+          'You can only delete residents in your own household.',
+        );
+      }
     }
 
     if (resident.user) {

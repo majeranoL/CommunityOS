@@ -66,7 +66,12 @@ export class ResidentController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateResidentDto,
   ) {
-    return this.residentService.update(req.user.community.id, id, dto);
+    return this.residentService.update(
+      req.user.community.id,
+      req.user,
+      id,
+      dto,
+    );
   }
 
   // ==========================================
@@ -100,6 +105,6 @@ export class ResidentController {
   @Delete(':id')
   @Permissions('resident.delete')
   remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
-    return this.residentService.remove(req.user.community.id, id);
+    return this.residentService.remove(req.user.community.id, req.user, id);
   }
 }

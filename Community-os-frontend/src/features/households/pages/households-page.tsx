@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useHouseholds } from '@/features/households/hooks/use-households'
+import { useHouseholds, useMyHousehold } from '@/features/households/hooks/use-households'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { HouseholdFormDialog } from '@/features/households/components/household-form-dialog'
 import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
@@ -36,7 +36,7 @@ const STANDING_FILTERS = ['ALL', 'GOOD', 'BAD'] as const
 
 const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
 
-function unitLabel(household: HouseholdListItem) {
+function unitLabel(household: { block?: string | null; lot?: string | null; unit?: string | null; address?: string | null }) {
   return (
     [household.block, household.lot, household.unit, household.address]
       .filter(Boolean)
@@ -44,7 +44,74 @@ function unitLabel(household: HouseholdListItem) {
   )
 }
 
-export default function HouseholdsPage() {
+function MemberHouseholdView() {
+  const { data: household, isLoading } = useMyHousehold()
+  const [editId, setEditId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+        <div className="h-20 animate-pulse rounded-lg bg-muted" />
+      </div>
+    )
+  }
+
+  if (!household) {
+    return (
+      <div className="rounded-lg border p-8 text-center">
+        <Home className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">
+          You are not linked to a household yet.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+            <Home className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">{unitLabel(household)}</p>
+            <p className="text-sm text-muted-foreground">
+              {household.residentCount} resident{household.residentCount === 1 ? '' : 's'}
+            </p>
+          </div>
+          <StatusBadge status={household.status} />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setEditId(household.id)}>
+          Edit household
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setSelectedId(household.id)}>
+          View details
+        </Button>
+      </div>
+
+      <HouseholdFormDialog
+        open={Boolean(editId)}
+        onOpenChange={(open) => !open && setEditId(null)}
+        householdId={editId}
+      />
+      <HouseholdDetailsDialog
+        householdId={selectedId}
+        open={Boolean(selectedId)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null)
+        }}
+      />
+    </div>
+  )
+}
+
+function OfficerHouseholdsView() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
   const [standing, setStanding] = useState<string>('ALL')
@@ -175,7 +242,7 @@ export default function HouseholdsPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <>
       <PageHeader
         title="Households"
         description="Property units and their current residents."
@@ -311,6 +378,16 @@ export default function HouseholdsPage() {
       />
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="households" entityLabel="Household" />
       <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="households" entityLabel="Household" />
+    </>
+  )
+}
+
+export default function HouseholdsPage() {
+  const isOfficer = useHasPermission(PERMISSIONS.residentVerify)
+
+  return (
+    <div className="space-y-6">
+      {isOfficer ? <OfficerHouseholdsView /> : <MemberHouseholdView />}
     </div>
   )
 }
