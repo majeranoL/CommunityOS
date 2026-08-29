@@ -126,7 +126,7 @@ async function main() {
       code: 'COMMUNITY001',
       slug: 'community-os-demo',
       displayName: 'CommunityOS Demo HOA',
-      email: 'admin@communityos.com',
+      email: 'hoa@communityosdemo.com',
       contactNumber: '09123456789',
       address: '123 Sampaguita Street, Barangay San Isidro, Antipolo City',
       status: CommunityStatus.ACTIVE,
@@ -1522,7 +1522,7 @@ async function main() {
   const settingData = [
     { key: 'communityName', value: 'CommunityOS Demo HOA', group: 'general', isPublic: true },
     { key: 'communityDescription', value: 'Demo community for the CommunityOS platform.', group: 'general', isPublic: true },
-    { key: 'contactEmail', value: 'admin@communityos.com', group: 'general', isPublic: true },
+    { key: 'contactEmail', value: 'hoa@communityosdemo.com', group: 'general', isPublic: true },
     { key: 'contactNumber', value: '09123456789', group: 'general', isPublic: true },
     { key: 'address', value: '123 Sampaguita Street, Barangay San Isidro, Antipolo City', group: 'general', isPublic: true },
     { key: 'pollReminders', value: true, group: 'notifications', isPublic: false },

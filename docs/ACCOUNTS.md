@@ -30,6 +30,10 @@ what it can do, and how to log in.
 - **Role:** **President** (system role)
 - **Community:** CommunityOS Demo HOA (`COMMUNITY001`)
 
+> The demo HOA uses its own contact email (`hoa@communityosdemo.com`) — it is
+> **not** the superadmin login address, so the tenant and platform admin are kept
+> separate at login.
+
 This is the top-level account in the demo. There is no separate
 platform-level "superadmin" account — the seeded **President** role is granted
 **every permission** defined in `prisma/permissions.ts`, so this account has
