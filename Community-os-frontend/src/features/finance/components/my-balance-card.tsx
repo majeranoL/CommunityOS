@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
+import { GoodStandingPassCard } from '@/features/good-standing/components/good-standing-pass-card'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
@@ -46,13 +47,23 @@ export function MyBalanceCard() {
           </CardTitle>
           <div className="flex items-center gap-2">
             {canAddResident ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setResidentOpen(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setResidentOpen(true)}
+              >
                 <UserPlus className="h-4 w-4" />
                 Add resident
               </Button>
             ) : null}
             {canAddVehicle ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => setVehicleOpen(true)}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setVehicleOpen(true)}
+              >
                 <Car className="h-4 w-4" />
                 Register vehicle
               </Button>
@@ -109,6 +120,9 @@ export function MyBalanceCard() {
                 </p>
               </div>
             </div>
+            {standingEnabled ? (
+              <GoodStandingPassCard householdId={household.id} />
+            ) : null}
             <HouseholdLedger
               assessments={household.assessments}
               finance={household.finance ?? null}
@@ -123,10 +137,7 @@ export function MyBalanceCard() {
         onOpenChange={setResidentOpen}
         selfService
       />
-      <VehicleFormDialog
-        open={vehicleOpen}
-        onOpenChange={setVehicleOpen}
-      />
+      <VehicleFormDialog open={vehicleOpen} onOpenChange={setVehicleOpen} />
     </Card>
   )
 }

@@ -24,6 +24,7 @@ export class CreateUtilityExpenseDto {
   @IsNotEmpty()
   utilityType!: UtilityType;
 
+  @Type(() => Number)
   @IsNumber()
   @Min(0.01)
   @IsNotEmpty()

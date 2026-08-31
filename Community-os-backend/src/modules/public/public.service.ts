@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CommunityStatus } from '@prisma/client';
 
@@ -71,6 +71,59 @@ export class PublicService {
       message: 'Communities retrieved successfully.',
       data: communities,
     };
+  }
+
+  // ==========================================
+  // Single community by slug (tenant storefront)
+  // ==========================================
+
+  async findCommunityBySlug(slug: string) {
+    const community = await this.prisma.community.findFirst({
+      where: {
+        slug,
+        status: CommunityStatus.ACTIVE,
+        deletedAt: null,
+      },
+    });
+
+    if (!community) {
+      throw new NotFoundException('Community not found.');
+    }
+
+    const { id, code, displayName, description, address, logoUrl } = community;
+
+    return {
+      success: true,
+      message: 'Community retrieved successfully.',
+      data: {
+        id,
+        code,
+        slug: community.slug,
+        displayName,
+        description,
+        address,
+        branding: {
+          primaryColor: community.primaryColor,
+          accentColor: community.accentColor,
+          sidebarColor: community.sidebarColor,
+          logoUrl,
+        },
+        registrationOpen: await this.isRegistrationOpen(id),
+      },
+    };
+  }
+
+  private async isRegistrationOpen(communityId: string) {
+    const setting = await this.prisma.setting.findUnique({
+      where: {
+        communityId_key: {
+          communityId,
+          key: 'registrationMode',
+        },
+      },
+    });
+
+    return (setting?.value as string | undefined) !== 'CLOSED';
   }
 
   // ==========================================

@@ -9,6 +9,8 @@ import {
 
 import { Gender, CivilStatus, ResidentType } from '@prisma/client';
 
+import { PhoneNumber } from '../../../common/utils/validation';
+
 export class CreateResidentDto {
   @IsOptional()
   @IsUUID()
@@ -46,6 +48,7 @@ export class CreateResidentDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   phoneNumber?: string;
 
   @IsOptional()

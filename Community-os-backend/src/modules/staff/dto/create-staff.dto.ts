@@ -10,6 +10,8 @@ import {
 
 import { StaffRole, StaffStatus } from '@prisma/client';
 
+import { PhoneNumber } from '../../../common/utils/validation';
+
 export class CreateStaffDto {
   @IsString()
   @IsNotEmpty()
@@ -37,6 +39,7 @@ export class CreateStaffDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   @MaxLength(20)
   phoneNumber?: string;
 

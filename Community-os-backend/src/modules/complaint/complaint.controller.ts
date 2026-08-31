@@ -22,10 +22,18 @@ import { PermissionsGuard } from '../../common/guards/permissions.guard';
 import { UpdateComplaintDto } from './dto/update-complaint.dto';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 
+import { hasAnyPermission } from '../../common/utils/permissions';
+
 @Controller('complaints')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ComplaintController {
   constructor(private readonly complaintService: ComplaintService) {}
+
+  private resolveScope(user: any): string | undefined {
+    if (hasAnyPermission(user, ['complaint.review'])) return undefined;
+
+    return user.resident?.id;
+  }
 
   // ==========================================
   // Create Complaint
@@ -40,7 +48,11 @@ export class ComplaintController {
   @Get()
   @Permissions('complaint.view')
   findAll(@Request() req: any, @Query() query: ComplaintQueryDto) {
-    return this.complaintService.findAll(req.user.community.id, query);
+    return this.complaintService.findAll(
+      req.user.community.id,
+      query,
+      this.resolveScope(req.user),
+    );
   }
 
   // ==========================================
@@ -55,7 +67,11 @@ export class ComplaintController {
     @Param('id', ParseUUIDPipe)
     id: string,
   ) {
-    return this.complaintService.findOne(req.user.community.id, id);
+    return this.complaintService.findOne(
+      req.user.community.id,
+      id,
+      this.resolveScope(req.user),
+    );
   }
 
   // ==========================================

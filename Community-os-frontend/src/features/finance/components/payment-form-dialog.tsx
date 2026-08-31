@@ -3,11 +3,32 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DateTimePicker } from '@/components/shared/date-time-picker'
 import { ResidentSelect } from '@/features/facilities/components/resident-select'
 import { documentsService } from '@/features/documents/services/documents'
@@ -19,9 +40,18 @@ import {
   useChargeTypes,
   useFinanceResidentOptions,
 } from '@/features/finance/hooks/use-finance'
-import { paymentSchema, PAYMENT_METHODS, type PaymentFormValues } from '@/features/finance/validation/finance'
-import type { Payment, PaymentMethod } from '@/features/finance/types/finance'
-import { formatCurrency } from '@/lib/format'
+import {
+  paymentSchema,
+  PAYMENT_METHODS,
+  type PaymentFormValues,
+} from '@/features/finance/validation/finance'
+import type {
+  CreatePaymentInput,
+  Payment,
+  PaymentMethod,
+} from '@/features/finance/types/finance'
+import { formatCurrency, formatDateTime, toTitleCase } from '@/lib/format'
+import { SummaryConfirmDialog } from '@/components/shared/summary-confirm-dialog'
 
 interface PaymentFormDialogProps {
   open: boolean
@@ -40,7 +70,12 @@ interface PayableItem {
 
 const PAYABLE_STATUSES = new Set(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'])
 
-export function PaymentFormDialog({ open, onOpenChange, payment, preselectAssessmentId }: PaymentFormDialogProps) {
+export function PaymentFormDialog({
+  open,
+  onOpenChange,
+  payment,
+  preselectAssessmentId,
+}: PaymentFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open ? (
@@ -68,7 +103,16 @@ function PaymentFormDialogContent({
   const updatePayment = useUpdatePayment()
 
   const initialHouseholdId = payment?.resident?.householdId ?? null
-  const [householdId, setHouseholdId] = useState<string | null>(initialHouseholdId)
+  const [householdId, setHouseholdId] = useState<string | null>(
+    initialHouseholdId,
+  )
+  const [residentLabel, setResidentLabel] = useState<string>(() => {
+    const resident = payment?.resident
+    if (!resident) return ''
+    return (
+      [resident.firstName, resident.lastName].filter(Boolean).join(' ') || ''
+    )
+  })
   const [selected, setSelected] = useState<Set<string>>(() => {
     const ids = new Set<string>()
     payment?.allocations?.forEach((allocation) => {
@@ -78,9 +122,21 @@ function PaymentFormDialogContent({
     return ids
   })
   const [uploading, setUploading] = useState(false)
-  const [proof, setProof] = useState<{ fileId: string; url: string; name: string } | null>(
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pending, setPending] = useState<{ input: CreatePaymentInput } | null>(
+    null,
+  )
+  const [proof, setProof] = useState<{
+    fileId: string
+    url: string
+    name: string
+  } | null>(
     payment?.proofFileId && payment.proofUrl
-      ? { fileId: payment.proofFileId, url: payment.proofUrl, name: 'Payment proof' }
+      ? {
+          fileId: payment.proofFileId,
+          url: payment.proofUrl,
+          name: 'Payment proof',
+        }
       : null,
   )
 
@@ -89,18 +145,25 @@ function PaymentFormDialogContent({
     defaultValues: {
       residentId: payment?.resident?.id ?? '',
       amount: payment ? Number(payment.amount) : 0,
-      paymentDate: payment?.paymentDate ? new Date(payment.paymentDate).toISOString().slice(0, 16) : '',
+      paymentDate: payment?.paymentDate
+        ? new Date(payment.paymentDate).toISOString().slice(0, 16)
+        : '',
       method: payment?.method ?? 'CASH',
       referenceNumber: payment?.referenceNumber ?? '',
       remarks: payment?.remarks ?? '',
       chargeTypeId: payment?.chargeType?.id ?? '',
       assessmentId: '',
-      billingPeriodIds: payment?.allocations
-        ?.filter((allocation) => !allocation.reversedAt)
-        .map((allocation) => allocation.assessmentId) ?? [],
-      allocations: payment?.allocations
-        ?.filter((allocation) => !allocation.reversedAt)
-        .map((allocation) => ({ assessmentId: allocation.assessmentId, amount: Number(allocation.allocatedAmount) })) ?? [],
+      billingPeriodIds:
+        payment?.allocations
+          ?.filter((allocation) => !allocation.reversedAt)
+          .map((allocation) => allocation.assessmentId) ?? [],
+      allocations:
+        payment?.allocations
+          ?.filter((allocation) => !allocation.reversedAt)
+          .map((allocation) => ({
+            assessmentId: allocation.assessmentId,
+            amount: Number(allocation.allocatedAmount),
+          })) ?? [],
       proofFileId: payment?.proofFileId ?? '',
       proofUrl: payment?.proofUrl ?? '',
     },
@@ -134,12 +197,19 @@ function PaymentFormDialogContent({
         kind: 'assessment' as const,
         id: assessment.id,
         label: `${assessment.assessmentNumber} · ${assessment.title}`,
-        amount: Math.max(Number(assessment.amount) - Number(assessment.paidAmount ?? 0), 0),
+        amount: Math.max(
+          Number(assessment.amount) - Number(assessment.paidAmount ?? 0),
+          0,
+        ),
       }))
       .filter((item) => item.amount > 0)
 
     const periodItems: PayableItem[] = (periodData?.items ?? [])
-      .filter((period) => period.status === 'OPEN' && advanceChargeTypes.has(period.chargeType.id))
+      .filter(
+        (period) =>
+          period.status === 'OPEN' &&
+          advanceChargeTypes.has(period.chargeType.id),
+      )
       .map((period) => ({
         key: `period:${period.id}`,
         kind: 'billing-period' as const,
@@ -169,14 +239,20 @@ function PaymentFormDialogContent({
     })
   }
 
-  const handleProofUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProofUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0]
     if (!file) return
     event.target.value = ''
     setUploading(true)
     try {
       const result = await documentsService.upload(file)
-      const next = { fileId: result.id, url: result.url, name: result.originalName }
+      const next = {
+        fileId: result.id,
+        url: result.url,
+        name: result.originalName,
+      }
       setProof(next)
       form.setValue('proofFileId', next.fileId, { shouldValidate: true })
       form.setValue('proofUrl', next.url, { shouldValidate: true })
@@ -201,25 +277,47 @@ function PaymentFormDialogContent({
       referenceNumber: values.referenceNumber || undefined,
       remarks: values.remarks || undefined,
       allocations: assessments.length > 0 ? assessments : undefined,
-      billingPeriodIds: billingPeriodIds.length > 0 ? billingPeriodIds : undefined,
+      billingPeriodIds:
+        billingPeriodIds.length > 0 ? billingPeriodIds : undefined,
       proofFileId: values.proofFileId || undefined,
       proofUrl: values.proofUrl || undefined,
     }
 
+    setPending({ input })
+    setConfirmOpen(true)
+  }
+
+  const confirmSave = () => {
+    if (!pending) return
     if (isEdit && payment) {
       updatePayment.mutate(
-        { id: payment.id, input },
-        { onSuccess: () => onOpenChange(false) },
+        { id: payment.id, input: pending.input },
+        {
+          onSuccess: () => {
+            setConfirmOpen(false)
+            onOpenChange(false)
+          },
+        },
       )
     } else {
-      createPayment.mutate(input, { onSuccess: () => onOpenChange(false) })
+      createPayment.mutate(pending.input, {
+        onSuccess: () => {
+          setConfirmOpen(false)
+          onOpenChange(false)
+        },
+      })
     }
   }
 
+  const isSubmitting = createPayment.isPending || updatePayment.isPending
+
   return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
+    <>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit payment' : 'Record payment'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? 'Edit payment' : 'Record payment'}
+          </DialogTitle>
           <DialogDescription>
             {isEdit
               ? 'Update payment metadata. Items can only be changed while pending verification.'
@@ -227,7 +325,10 @@ function PaymentFormDialogContent({
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -265,7 +366,14 @@ function PaymentFormDialogContent({
                       value={field.value}
                       onChange={field.onChange}
                       useOptions={useFinanceResidentOptions}
-                      onSelect={(resident) => setHouseholdId(resident.householdId)}
+                      onSelect={(resident) => {
+                        setHouseholdId(resident.householdId)
+                        setResidentLabel(
+                          [resident.firstName, resident.lastName]
+                            .filter(Boolean)
+                            .join(' '),
+                        )
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -289,17 +397,23 @@ function PaymentFormDialogContent({
                         />
                         <span>{item.label}</span>
                       </span>
-                      <span className="font-medium">{formatCurrency(item.amount)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(item.amount)}
+                      </span>
                     </label>
                   ))}
                   {items.length === 0 ? (
                     <p className="px-2 py-3 text-sm text-muted-foreground">
-                      No outstanding assessments or advance billing periods found for this household.
+                      No outstanding assessments or advance billing periods
+                      found for this household.
                     </p>
                   ) : null}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Total selected: <span className="font-semibold text-foreground">{formatCurrency(totalAmount)}</span>
+                  Total selected:{' '}
+                  <span className="font-semibold text-foreground">
+                    {formatCurrency(totalAmount)}
+                  </span>
                 </p>
               </div>
             ) : null}
@@ -318,11 +432,14 @@ function PaymentFormDialogContent({
                         step="0.01"
                         placeholder="0.00"
                         value={field.value || ''}
-                        onChange={(event) => field.onChange(event.target.valueAsNumber)}
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
                       />
                     </FormControl>
                     <FormDescription>
-                      In PHP. Must equal the total of selected items ({formatCurrency(totalAmount)}).
+                      In PHP. Must equal the total of selected items (
+                      {formatCurrency(totalAmount)}).
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -335,7 +452,10 @@ function PaymentFormDialogContent({
                   <FormItem>
                     <FormLabel>Payment date</FormLabel>
                     <FormControl>
-                      <DateTimePicker value={field.value} onChange={field.onChange} />
+                      <DateTimePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -349,7 +469,10 @@ function PaymentFormDialogContent({
                 <FormItem>
                   <FormLabel>Reference number</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. GCash receipt no. (optional)" {...field} />
+                    <Input
+                      placeholder="e.g. GCash receipt no. (optional)"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -393,23 +516,93 @@ function PaymentFormDialogContent({
                 </div>
               ) : (
                 <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed p-4 text-sm text-muted-foreground hover:bg-accent">
-                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
                   {uploading ? 'Uploading…' : 'Upload receipt or screenshot'}
-                  <input type="file" accept="image/*,.pdf" className="sr-only" onChange={handleProofUpload} disabled={uploading} />
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="sr-only"
+                    onChange={handleProofUpload}
+                    disabled={uploading}
+                  />
                 </label>
               )}
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createPayment.isPending || updatePayment.isPending || uploading}>
+              <Button
+                type="submit"
+                disabled={
+                  createPayment.isPending ||
+                  updatePayment.isPending ||
+                  uploading
+                }
+              >
                 {isEdit ? 'Save changes' : 'Record payment'}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
+
+      <SummaryConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={isEdit ? 'Confirm payment changes' : 'Confirm payment'}
+        description={
+          isEdit
+            ? 'Review the details before saving. Allocated items can only change while the payment is pending verification.'
+            : 'Review the payment details before recording. This payment will wait for verification.'
+        }
+        loading={isSubmitting}
+        confirmLabel={isEdit ? 'Save changes' : 'Record payment'}
+        onConfirm={confirmSave}
+        rows={[
+          {
+            label: 'Resident',
+            value: residentLabel || pending?.input.residentId || '—',
+          },
+          { label: 'Amount', value: formatCurrency(pending?.input.amount) },
+          {
+            label: 'Method',
+            value: pending?.input.method
+              ? toTitleCase(pending.input.method)
+              : '—',
+          },
+          {
+            label: 'Payment date',
+            value: pending?.input.paymentDate
+              ? formatDateTime(pending.input.paymentDate)
+              : '—',
+          },
+          {
+            label: 'Covers',
+            value:
+              selectedItems.length > 0
+                ? selectedItems.map((item) => item.label).join(' · ')
+                : 'No items allocated (unallocated payment)',
+          },
+          {
+            label: 'Reference / remarks',
+            value:
+              [pending?.input.referenceNumber, pending?.input.remarks]
+                .filter(Boolean)
+                .join(' · ') || '—',
+          },
+          { label: 'Proof', value: proof ? 'Attached' : 'None' },
+        ]}
+      />
+    </>
   )
 }

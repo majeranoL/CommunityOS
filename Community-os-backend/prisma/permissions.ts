@@ -129,6 +129,11 @@ export const permissions = [
     module: 'Complaints',
     description: 'Close complaints',
   },
+  {
+    code: 'complaint.review',
+    module: 'Complaints',
+    description: 'Review all complaints in the community',
+  },
 
   // =====================================================
   // RESIDENTS

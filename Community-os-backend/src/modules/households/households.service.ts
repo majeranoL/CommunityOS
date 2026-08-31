@@ -17,7 +17,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { FeaturesService } from '../features/features.service';
 import {
-  DEFAULT_BAD_STANDING_BALANCE_THRESHOLD,
   DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
   GOOD_BAD_STANDING_FEATURE,
 } from '../features/feature.constants';
@@ -60,8 +59,7 @@ export function summarizeFinance(
   assessments: FinanceAssessmentInput[],
   paidByHousehold: Map<string, number>,
   now: Date = new Date(),
-  delinquencyThresholdMonths: number = 4,
-  badStandingBalanceThreshold: number = 10000,
+  delinquencyThresholdMonths: number = 3,
 ): Map<string, HouseholdFinanceSummary> {
   const summary = new Map<string, HouseholdFinanceSummary>();
 
@@ -111,10 +109,7 @@ export function summarizeFinance(
     entry.monthsBehind = overdueMonths.get(householdId)?.size ?? 0;
 
     entry.standing =
-      entry.outstanding >= badStandingBalanceThreshold ||
-      entry.monthsBehind >= delinquencyThresholdMonths
-        ? 'BAD'
-        : 'GOOD';
+      entry.monthsBehind >= delinquencyThresholdMonths ? 'BAD' : 'GOOD';
   }
 
   return summary;
@@ -237,13 +232,6 @@ export class HouseholdsService {
         ? config.delinquencyThresholdMonths
         : DEFAULT_DELINQUENCY_THRESHOLD_MONTHS;
 
-    const badStandingBalanceThreshold =
-      typeof config.badStandingBalanceThreshold === 'number' &&
-      Number.isFinite(config.badStandingBalanceThreshold) &&
-      config.badStandingBalanceThreshold > 0
-        ? config.badStandingBalanceThreshold
-        : DEFAULT_BAD_STANDING_BALANCE_THRESHOLD;
-
     return summarizeFinance(
       householdIds,
       assessments.map((assessment) => ({
@@ -255,7 +243,6 @@ export class HouseholdsService {
       paidByHousehold,
       new Date(),
       delinquencyThresholdMonths,
-      badStandingBalanceThreshold,
     );
   }
 
@@ -341,7 +328,7 @@ export class HouseholdsService {
   // ==========================================
 
   async findAll(communityId: string, query: HouseholdQueryDto) {
-    const { page, limit, search, status, sortBy, order } = query;
+    const { page, limit, search, block, status, sortBy, order } = query;
 
     const skip = (page - 1) * limit;
 
@@ -382,6 +369,10 @@ export class HouseholdsService {
 
     if (status) {
       where.status = status;
+    }
+
+    if (block) {
+      where.block = block;
     }
 
     const [households, total] = await this.prisma.$transaction([
@@ -440,6 +431,37 @@ export class HouseholdsService {
         hasNextPage: page < Math.ceil(total / limit),
         hasPreviousPage: page > 1,
       },
+    };
+  }
+
+  // ==========================================
+  // Get Distinct Block Options (for filters)
+  // ==========================================
+
+  async getBlockOptions(communityId: string) {
+    const blocks = await this.prisma.household.findMany({
+      where: {
+        communityId,
+        deletedAt: null,
+        NOT: {
+          OR: [{ block: null }, { block: '' }],
+        },
+      },
+      distinct: ['block'],
+      select: {
+        block: true,
+      },
+      orderBy: {
+        block: 'asc',
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Household blocks retrieved successfully.',
+      data: blocks
+        .map((row) => row.block)
+        .filter((value): value is string => value !== null),
     };
   }
 

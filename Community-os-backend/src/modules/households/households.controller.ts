@@ -69,6 +69,16 @@ export class HouseholdsController {
   }
 
   // ==========================================
+  // Get Distinct Block Options (filter dropdown)
+  // ==========================================
+
+  @Get('block-options')
+  @Permissions('household.view')
+  getBlockOptions(@Request() req: any) {
+    return this.householdsService.getBlockOptions(req.user.community.id);
+  }
+
+  // ==========================================
   // Get Household By ID
   // ==========================================
 

@@ -127,7 +127,11 @@ export class ComplaintService {
     };
   }
 
-  async findAll(communityId: string, query: ComplaintQueryDto) {
+  async findAll(
+    communityId: string,
+    query: ComplaintQueryDto,
+    scopeResidentId?: string,
+  ) {
     // ==========================================
     // Extract Query Parameters
     // ==========================================
@@ -167,8 +171,13 @@ export class ComplaintService {
       where.category = category;
     }
 
-    if (residentId) {
+    if (residentId && !scopeResidentId) {
       where.residentId = residentId;
+    }
+
+    // Non-reviewers may only see their own complaints.
+    if (scopeResidentId) {
+      where.residentId = scopeResidentId;
     }
 
     if (search) {
@@ -293,7 +302,7 @@ export class ComplaintService {
   // Get Complaint By ID
   // ==========================================
 
-  async findOne(communityId: string, id: string) {
+  async findOne(communityId: string, id: string, scopeResidentId?: string) {
     // ==========================================
     // Find Complaint
     // ==========================================
@@ -303,6 +312,7 @@ export class ComplaintService {
         id,
         communityId,
         deletedAt: null,
+        ...(scopeResidentId && { residentId: scopeResidentId }),
       },
 
       include: {

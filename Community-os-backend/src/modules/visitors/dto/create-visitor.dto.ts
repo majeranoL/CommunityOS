@@ -10,6 +10,8 @@ import {
 
 import { VisitorCategory, VisitorStatus } from '@prisma/client';
 
+import { PhoneNumber } from '../../../common/utils/validation';
+
 export class CreateVisitorDto {
   @IsString()
   @IsNotEmpty()
@@ -18,6 +20,7 @@ export class CreateVisitorDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   @MaxLength(20)
   phoneNumber?: string;
 

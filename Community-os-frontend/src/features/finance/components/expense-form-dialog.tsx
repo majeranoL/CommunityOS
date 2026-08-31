@@ -1,18 +1,51 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DateTimePicker } from '@/components/shared/date-time-picker'
 import { FileUpload } from '@/components/shared/file-upload'
-import { useCreateExpense, useUpdateExpense } from '@/features/finance/hooks/use-finance'
-import { expenseSchema, EXPENSE_CATEGORIES, PAYMENT_METHODS, type ExpenseFormValues } from '@/features/finance/validation/finance'
-import { toTitleCase } from '@/lib/format'
-import type { Expense } from '@/features/finance/types/finance'
+import {
+  useCreateExpense,
+  useUpdateExpense,
+} from '@/features/finance/hooks/use-finance'
+import {
+  expenseSchema,
+  EXPENSE_CATEGORIES,
+  PAYMENT_METHODS,
+  type ExpenseFormValues,
+} from '@/features/finance/validation/finance'
+import { toTitleCase, formatCurrency, formatDateTime } from '@/lib/format'
+import type {
+  CreateExpenseInput,
+  Expense,
+} from '@/features/finance/types/finance'
+import { SummaryConfirmDialog } from '@/components/shared/summary-confirm-dialog'
 
 interface ExpenseFormDialogProps {
   open: boolean
@@ -20,10 +53,18 @@ interface ExpenseFormDialogProps {
   expense?: Expense | null
 }
 
-export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDialogProps) {
+export function ExpenseFormDialog({
+  open,
+  onOpenChange,
+  expense,
+}: ExpenseFormDialogProps) {
   const isEdit = Boolean(expense)
   const createExpense = useCreateExpense()
   const updateExpense = useUpdateExpense()
+  const [pending, setPending] = useState<{ input: CreateExpenseInput } | null>(
+    null,
+  )
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),
@@ -47,7 +88,9 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
         description: expense?.description ?? '',
         category: expense?.category,
         amount: expense ? Number(expense.amount) : 0,
-        expenseDate: expense?.expenseDate ? new Date(expense.expenseDate).toISOString().slice(0, 16) : '',
+        expenseDate: expense?.expenseDate
+          ? new Date(expense.expenseDate).toISOString().slice(0, 16)
+          : '',
         paymentMethod: expense?.paymentMethod,
         payee: expense?.payee ?? '',
         referenceNumber: expense?.referenceNumber ?? '',
@@ -59,7 +102,7 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
   }, [open, expense, form])
 
   const handleSubmit = (values: ExpenseFormValues) => {
-    const input = {
+    const input: CreateExpenseInput = {
       title: values.title,
       description: values.description || undefined,
       category: values.category,
@@ -73,21 +116,41 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
       receiptUrl: values.receiptUrl || undefined,
     }
 
+    setPending({ input })
+    setConfirmOpen(true)
+  }
+
+  const confirmSave = () => {
+    if (!pending) return
     if (isEdit && expense) {
       updateExpense.mutate(
-        { id: expense.id, input },
-        { onSuccess: () => onOpenChange(false) },
+        { id: expense.id, input: pending.input },
+        {
+          onSuccess: () => {
+            setConfirmOpen(false)
+            onOpenChange(false)
+          },
+        },
       )
     } else {
-      createExpense.mutate(input, { onSuccess: () => onOpenChange(false) })
+      createExpense.mutate(pending.input, {
+        onSuccess: () => {
+          setConfirmOpen(false)
+          onOpenChange(false)
+        },
+      })
     }
   }
+
+  const isSubmitting = createExpense.isPending || updateExpense.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit expense' : 'Record expense'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? 'Edit expense' : 'Record expense'}
+          </DialogTitle>
           <DialogDescription>
             {isEdit
               ? 'Update the details of this HOA expense.'
@@ -95,7 +158,10 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="title"
@@ -103,7 +169,10 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Water bill for the clubhouse" {...field} />
+                    <Input
+                      placeholder="e.g. Water bill for the clubhouse"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -116,7 +185,11 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="What was this expense for?" rows={2} {...field} />
+                    <Textarea
+                      placeholder="What was this expense for?"
+                      rows={2}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -130,7 +203,10 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                   <FormItem>
                     <FormLabel>Category</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
@@ -154,7 +230,10 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                   <FormItem>
                     <FormLabel>Payment method</FormLabel>
                     <FormControl>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select a method" />
                         </SelectTrigger>
@@ -186,7 +265,9 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                         step="0.01"
                         placeholder="0.00"
                         value={field.value || ''}
-                        onChange={(event) => field.onChange(event.target.valueAsNumber)}
+                        onChange={(event) =>
+                          field.onChange(event.target.valueAsNumber)
+                        }
                       />
                     </FormControl>
                     <FormDescription>In PHP.</FormDescription>
@@ -201,7 +282,10 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
                   <FormItem>
                     <FormLabel>Expense date</FormLabel>
                     <FormControl>
-                      <DateTimePicker value={field.value} onChange={field.onChange} />
+                      <DateTimePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -281,16 +365,61 @@ export function ExpenseFormDialog({ open, onOpenChange, expense }: ExpenseFormDi
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createExpense.isPending || updateExpense.isPending}>
+              <Button
+                type="submit"
+                disabled={createExpense.isPending || updateExpense.isPending}
+              >
                 {isEdit ? 'Save changes' : 'Record expense'}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
+
+      <SummaryConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={isEdit ? 'Confirm expense changes' : 'Confirm expense'}
+        description="Review the expense details before recording. This is reflected in the income statement."
+        loading={isSubmitting}
+        confirmLabel={isEdit ? 'Save changes' : 'Record expense'}
+        onConfirm={confirmSave}
+        rows={[
+          { label: 'Title', value: pending?.input.title || '—' },
+          {
+            label: 'Category',
+            value: pending?.input.category
+              ? toTitleCase(pending.input.category)
+              : '—',
+          },
+          { label: 'Amount', value: formatCurrency(pending?.input.amount) },
+          {
+            label: 'Expense date',
+            value: pending?.input.expenseDate
+              ? formatDateTime(pending.input.expenseDate)
+              : '—',
+          },
+          {
+            label: 'Method',
+            value: pending?.input.paymentMethod
+              ? toTitleCase(pending.input.paymentMethod)
+              : '—',
+          },
+          { label: 'Payee', value: pending?.input.payee || '—' },
+          { label: 'Reference', value: pending?.input.referenceNumber || '—' },
+          {
+            label: 'Receipt',
+            value: pending?.input.receiptUrl ? 'Attached' : 'None',
+          },
+        ]}
+      />
     </Dialog>
   )
 }

@@ -84,6 +84,7 @@ export const PERMISSIONS = {
   complaintAssign: 'complaint.assign',
   complaintResolve: 'complaint.resolve',
   complaintClose: 'complaint.close',
+  complaintReview: 'complaint.review',
 
   notificationView: 'notification.view',
   notificationUpdate: 'notification.update',

@@ -9,6 +9,8 @@ import {
 
 import { CommunityStatus } from '@prisma/client';
 
+import { PhoneNumber } from '../../../common/utils/validation';
+
 export class CreateCommunityDto {
   @IsString()
   @IsNotEmpty()
@@ -36,6 +38,7 @@ export class CreateCommunityDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   @MaxLength(20)
   contactNumber?: string;
 

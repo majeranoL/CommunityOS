@@ -101,39 +101,6 @@ describe('summarizeFinance', () => {
     expect(summary.get('h1')).toMatchObject({ monthsBehind: 4, standing: BAD });
   });
 
-  it('marks BAD standing when the unpaid balance reaches the balance threshold even without overdue months', () => {
-    const summary = summarizeFinance(
-      ['h1'],
-      [
-        assessment('h1', 5000, new Date('2026-08-05'), AssessmentStatus.ISSUED),
-        assessment('h1', 5000, new Date('2026-09-05'), AssessmentStatus.ISSUED),
-      ],
-      new Map(),
-      now,
-    );
-
-    expect(summary.get('h1')).toMatchObject({
-      monthsBehind: 0,
-      outstanding: 10000,
-      standing: BAD,
-    });
-  });
-
-  it('stays GOOD when the unpaid balance is below the balance threshold', () => {
-    const summary = summarizeFinance(
-      ['h1'],
-      [assessment('h1', 5000, new Date('2026-08-05'), AssessmentStatus.ISSUED)],
-      new Map(),
-      now,
-    );
-
-    expect(summary.get('h1')).toMatchObject({
-      monthsBehind: 0,
-      outstanding: 5000,
-      standing: GOOD,
-    });
-  });
-
   it('does not count assessments that are not yet due', () => {
     const summary = summarizeFinance(
       ['h1'],
@@ -222,7 +189,7 @@ describe('summarizeFinance', () => {
     });
   });
 
-  it('respects a custom delinquency threshold (default 4)', () => {
+  it('respects a custom delinquency threshold (default 3)', () => {
     const overdue = [
       assessment('h1', 1000, new Date('2026-05-05'), AssessmentStatus.OVERDUE),
       assessment('h1', 1000, new Date('2026-06-05'), AssessmentStatus.OVERDUE),
@@ -239,21 +206,6 @@ describe('summarizeFinance', () => {
 
     expect(
       summarizeFinance(['h1'], overdue, new Map(), now).get('h1'),
-    ).toMatchObject({ monthsBehind: 3, standing: GOOD });
-  });
-
-  it('respects a custom unpaid balance threshold', () => {
-    const billed = [
-      assessment('h1', 5000, new Date('2026-08-05'), AssessmentStatus.ISSUED),
-      assessment('h1', 5000, new Date('2026-09-05'), AssessmentStatus.ISSUED),
-    ];
-
-    expect(
-      summarizeFinance(['h1'], billed, new Map(), now, 4, 5000).get('h1'),
-    ).toMatchObject({ outstanding: 10000, standing: BAD });
-
-    expect(
-      summarizeFinance(['h1'], billed, new Map(), now, 4, 20000).get('h1'),
-    ).toMatchObject({ outstanding: 10000, standing: GOOD });
+    ).toMatchObject({ monthsBehind: 3, standing: BAD });
   });
 });

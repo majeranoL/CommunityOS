@@ -16,6 +16,7 @@ import {
   PASSWORD_RULE,
   PASSWORD_RULE_MESSAGE,
 } from '../../../common/utils/password';
+import { PhoneNumber } from '../../../common/utils/validation';
 
 export class ProvisionOwnerDto {
   @IsString()
@@ -55,6 +56,7 @@ export class ProvisionCommunityDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   @MaxLength(20)
   contactNumber?: string;
 

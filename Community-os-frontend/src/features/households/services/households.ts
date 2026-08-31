@@ -28,6 +28,13 @@ export const householdsService = {
     return data.data
   },
 
+  async blockOptions() {
+    const { data } = await api.get<ApiEnvelope<string[]>>(
+      '/households/block-options',
+    )
+    return data.data
+  },
+
   async me() {
     const { data } =
       await api.get<ApiEnvelope<HouseholdDetail>>('/households/me')

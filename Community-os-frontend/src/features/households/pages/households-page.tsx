@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useHouseholds, useMyHousehold } from '@/features/households/hooks/use-households'
+import { useHouseholds, useHouseholdBlockOptions, useMyHousehold } from '@/features/households/hooks/use-households'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { HouseholdFormDialog } from '@/features/households/components/household-form-dialog'
 import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
@@ -114,6 +114,7 @@ function MemberHouseholdView() {
 function OfficerHouseholdsView() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
+  const [block, setBlock] = useState<string>('ALL')
   const [standing, setStanding] = useState<string>('ALL')
   const [sortBy, setSortBy] = useState<string>('createdAt')
   const [page, setPage] = useState(1)
@@ -130,11 +131,14 @@ function OfficerHouseholdsView() {
 
   const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
 
+  const { data: blockOptions } = useHouseholdBlockOptions()
+
   const { data, isLoading, isFetching } = useHouseholds({
     page,
     limit: 10,
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
+    block: block === 'ALL' ? undefined : block,
   })
 
   const rows = useMemo(() => {
@@ -154,6 +158,14 @@ function OfficerHouseholdsView() {
       return [...filtered].sort(
         (a, b) =>
           (b.finance?.monthsBehind ?? 0) - (a.finance?.monthsBehind ?? 0),
+      )
+    }
+
+    if (sortBy === 'block') {
+      return [...filtered].sort((a, b) =>
+        (a.block ?? '').localeCompare(b.block ?? '', undefined, {
+          numeric: true,
+        }),
       )
     }
 
@@ -179,6 +191,14 @@ function OfficerHouseholdsView() {
           <span className="font-medium">{unitLabel(row)}</span>
         </button>
       ),
+    },
+    {
+      key: 'block',
+      header: 'Block',
+      cell: (row) => (
+        <span className="font-medium">{row.block || '—'}</span>
+      ),
+      hideBelow: 'md',
     },
     {
       key: 'residents',
@@ -314,6 +334,25 @@ function OfficerHouseholdsView() {
             ))}
           </SelectContent>
         </Select>
+        <Select
+          value={block}
+          onValueChange={(value) => {
+            setBlock(value)
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="sm:w-44">
+            <SelectValue placeholder="Block" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All blocks</SelectItem>
+            {(blockOptions ?? []).map((option) => (
+              <SelectItem key={option} value={option}>
+                Block {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {standingEnabled ? (
           <Select
             value={standing}
@@ -344,6 +383,7 @@ function OfficerHouseholdsView() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="createdAt">Newest first</SelectItem>
+            <SelectItem value="block">Block (A–Z)</SelectItem>
             <SelectItem value="outstanding">Highest outstanding</SelectItem>
             <SelectItem value="monthsBehind">Most months behind</SelectItem>
           </SelectContent>

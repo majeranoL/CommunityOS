@@ -16,6 +16,7 @@ import {
   PASSWORD_RULE,
   PASSWORD_RULE_MESSAGE,
 } from '../../../common/utils/password';
+import { PhoneNumber } from '../../../common/utils/validation';
 
 export class CreateUserDto {
   @IsEmail()
@@ -42,6 +43,7 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   phoneNumber?: string;
 
   @IsOptional()

@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -29,6 +30,11 @@ export class HouseholdQueryDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  block?: string;
 
   @IsOptional()
   @IsEnum(HouseholdStatus)

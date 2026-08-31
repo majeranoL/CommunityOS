@@ -7,7 +7,13 @@ import { DataTable, type Column } from '@/components/shared/data-table'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -16,30 +22,42 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useHasPermission, useAuthStore } from '@/store/auth-store'
+import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useComplaints, useDeleteComplaint } from '@/features/complaints/hooks/use-complaints'
+import {
+  useComplaints,
+  useDeleteComplaint,
+} from '@/features/complaints/hooks/use-complaints'
 import { ComplaintFormDialog } from '@/features/complaints/components/complaint-form-dialog'
 import { ComplaintDetailDialog } from '@/features/complaints/components/complaint-detail-dialog'
-import { CATEGORY_OPTIONS, PRIORITY_OPTIONS } from '@/features/complaints/validation/complaint'
+import {
+  CATEGORY_OPTIONS,
+  PRIORITY_OPTIONS,
+} from '@/features/complaints/validation/complaint'
 import type { ComplaintListItem } from '@/features/complaints/types/complaint'
-import { Switch } from '@/components/ui/switch'
 import { formatDate } from '@/lib/format'
 import { useViewParam } from '@/lib/use-view-param'
 
-const STATUS_FILTERS = ['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const
+const STATUS_FILTERS = [
+  'ALL',
+  'OPEN',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+] as const
 
-function optionLabel(options: readonly { value: string; label: string }[], value: string) {
+function optionLabel(
+  options: readonly { value: string; label: string }[],
+  value: string,
+) {
   return options.find((option) => option.value === value)?.label ?? value
 }
 
 export default function ComplaintsPage() {
-  const user = useAuthStore((state) => state.user)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
   const [priority, setPriority] = useState<string>('ALL')
   const [category, setCategory] = useState<string>('ALL')
-  const [myOnly, setMyOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -47,7 +65,7 @@ export default function ComplaintsPage() {
 
   const canCreate = useHasPermission(PERMISSIONS.complaintCreate)
   const canDelete = useHasPermission(PERMISSIONS.complaintDelete)
-  const myResidentId = user?.resident?.id
+  const canReview = useHasPermission(PERMISSIONS.complaintReview)
 
   const { data, isLoading, isFetching } = useComplaints({
     page,
@@ -56,7 +74,6 @@ export default function ComplaintsPage() {
     status: status === 'ALL' ? undefined : status,
     priority: priority === 'ALL' ? undefined : priority,
     category: category === 'ALL' ? undefined : category,
-    residentId: myOnly ? myResidentId : undefined,
   })
 
   const deleteComplaint = useDeleteComplaint()
@@ -68,30 +85,48 @@ export default function ComplaintsPage() {
       key: 'title',
       header: 'Complaint',
       cell: (row) => (
-        <button type="button" className="text-left" onClick={() => setDetailId(row.id)}>
+        <button
+          type="button"
+          className="text-left"
+          onClick={() => setDetailId(row.id)}
+        >
           <p className="font-medium hover:underline">{row.title}</p>
           <p className="text-xs text-muted-foreground">{row.complaintNumber}</p>
         </button>
       ),
     },
-    {
-      key: 'resident',
-      header: 'Reporter',
-      cell: (row) => <span className="text-muted-foreground">{row.resident.fullName}</span>,
-      hideBelow: 'md',
-    },
+    ...(canReview
+      ? [
+          {
+            key: 'resident',
+            header: 'Reporter',
+            cell: (row: ComplaintListItem) => (
+              <span className="text-muted-foreground">
+                {row.resident.fullName}
+              </span>
+            ),
+            hideBelow: 'md' as const,
+          } as Column<ComplaintListItem>,
+        ]
+      : []),
     {
       key: 'assignedTo',
       header: 'Assignee',
       cell: (row) => (
-        <span className="text-muted-foreground">{row.assignedTo?.fullName ?? '—'}</span>
+        <span className="text-muted-foreground">
+          {row.assignedTo?.fullName ?? '—'}
+        </span>
       ),
       hideBelow: 'lg',
     },
     {
       key: 'category',
       header: 'Category',
-      cell: (row) => <Badge variant="secondary">{optionLabel(CATEGORY_OPTIONS, row.category)}</Badge>,
+      cell: (row) => (
+        <Badge variant="secondary">
+          {optionLabel(CATEGORY_OPTIONS, row.category)}
+        </Badge>
+      ),
       hideBelow: 'lg',
     },
     {
@@ -119,7 +154,11 @@ export default function ComplaintsPage() {
     {
       key: 'createdAt',
       header: 'Filed',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.createdAt)}</span>,
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {formatDate(row.createdAt)}
+        </span>
+      ),
       hideBelow: 'md',
     },
     {
@@ -134,11 +173,16 @@ export default function ComplaintsPage() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setDetailId(row.id)}>View</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setDetailId(row.id)}>
+              View
+            </DropdownMenuItem>
             {canDelete ? (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleting(row)}>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setDeleting(row)}
+                >
                   Delete
                 </DropdownMenuItem>
               </>
@@ -236,19 +280,9 @@ export default function ComplaintsPage() {
             ))}
           </SelectContent>
         </Select>
-        {myResidentId ? (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Switch
-              checked={myOnly}
-              onCheckedChange={(value) => {
-                setMyOnly(value)
-                setPage(1)
-              }}
-            />
-            My complaints
-          </label>
+        {isFetching ? (
+          <span className="text-xs text-muted-foreground">Updating…</span>
         ) : null}
-        {isFetching ? <span className="text-xs text-muted-foreground">Updating…</span> : null}
       </div>
 
       <DataTable
@@ -280,7 +314,10 @@ export default function ComplaintsPage() {
         destructive
         loading={deleteComplaint.isPending}
         onConfirm={() => {
-          if (deleting) deleteComplaint.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+          if (deleting)
+            deleteComplaint.mutate(deleting.id, {
+              onSuccess: () => setDeleting(null),
+            })
         }}
       />
     </div>

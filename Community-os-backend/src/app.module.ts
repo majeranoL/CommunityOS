@@ -15,6 +15,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
 import { FacilitiesModule } from './modules/facilities/facilities.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { HouseholdsModule } from './modules/households/households.module';
+import { GoodStandingModule } from './modules/good-standing/good-standing.module';
 import { VisitorsModule } from './modules/visitors/visitors.module';
 import { VehiclesModule } from './modules/vehicles/vehicles.module';
 import { PetsModule } from './modules/pets/pets.module';
@@ -62,6 +63,7 @@ import { UtilityBillingModule } from './modules/utility-billing/utility-billing.
     FacilitiesModule,
     ReservationsModule,
     HouseholdsModule,
+    GoodStandingModule,
     VisitorsModule,
     VehiclesModule,
     PetsModule,

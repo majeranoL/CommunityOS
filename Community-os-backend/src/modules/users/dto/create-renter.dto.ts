@@ -9,6 +9,8 @@ import {
 
 import { Gender } from '@prisma/client';
 
+import { PhoneNumber } from '../../../common/utils/validation';
+
 export class CreateRenterDto {
   @IsEmail()
   @IsNotEmpty()
@@ -28,6 +30,7 @@ export class CreateRenterDto {
 
   @IsOptional()
   @IsString()
+  @PhoneNumber()
   phoneNumber?: string;
 
   @IsOptional()

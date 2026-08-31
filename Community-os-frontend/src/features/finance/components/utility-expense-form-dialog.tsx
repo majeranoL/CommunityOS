@@ -1,18 +1,50 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DateTimePicker } from '@/components/shared/date-time-picker'
 import { FileUpload } from '@/components/shared/file-upload'
-import { useCreateUtilityExpense, useUpdateUtilityExpense } from '@/features/finance/hooks/use-finance'
-import { utilityExpenseSchema, PAYMENT_METHODS, UTILITY_TYPES, type UtilityExpenseFormValues } from '@/features/finance/validation/finance'
-import { toTitleCase } from '@/lib/format'
-import type { UtilityExpense } from '@/features/finance/types/finance'
+import {
+  useCreateUtilityExpense,
+  useUpdateUtilityExpense,
+} from '@/features/finance/hooks/use-finance'
+import {
+  utilityExpenseSchema,
+  PAYMENT_METHODS,
+  UTILITY_TYPES,
+  type UtilityExpenseFormValues,
+} from '@/features/finance/validation/finance'
+import { toTitleCase, formatCurrency, formatDateTime } from '@/lib/format'
+import type {
+  CreateUtilityExpenseInput,
+  UtilityExpense,
+} from '@/features/finance/types/finance'
+import { SummaryConfirmDialog } from '@/components/shared/summary-confirm-dialog'
 
 interface UtilityExpenseFormDialogProps {
   open: boolean
@@ -20,10 +52,18 @@ interface UtilityExpenseFormDialogProps {
   expense?: UtilityExpense | null
 }
 
-export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: UtilityExpenseFormDialogProps) {
+export function UtilityExpenseFormDialog({
+  open,
+  onOpenChange,
+  expense,
+}: UtilityExpenseFormDialogProps) {
   const isEdit = Boolean(expense)
   const createExpense = useCreateUtilityExpense()
   const updateExpense = useUpdateUtilityExpense()
+  const [pending, setPending] = useState<{
+    input: CreateUtilityExpenseInput
+  } | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const form = useForm<UtilityExpenseFormValues>({
     resolver: zodResolver(utilityExpenseSchema),
@@ -48,20 +88,24 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
         providerName: expense?.providerName ?? '',
         utilityType: expense?.utilityType ?? 'OTHER',
         amount: expense ? Number(expense.amount) : 0,
-        expenseDate: expense?.expenseDate ? new Date(expense.expenseDate).toISOString().slice(0, 16) : '',
+        expenseDate: expense?.expenseDate
+          ? new Date(expense.expenseDate).toISOString().slice(0, 16)
+          : '',
         billingPeriod: expense?.billingPeriod ?? '',
         paymentMethod: expense?.paymentMethod ?? 'CASH',
         referenceNumber: expense?.referenceNumber ?? '',
         invoiceNumber: expense?.invoiceNumber ?? '',
         description: expense?.description ?? '',
         receiptFileId: expense?.receiptFileId ?? '',
-        receiptUrl: expense?.receiptFileId ? `/api/uploads/${expense.receiptFileId}` : '',
+        receiptUrl: expense?.receiptFileId
+          ? `/api/uploads/${expense.receiptFileId}`
+          : '',
       })
     }
   }, [open, expense, form])
 
   const handleSubmit = (values: UtilityExpenseFormValues) => {
-    const input = {
+    const input: CreateUtilityExpenseInput = {
       providerName: values.providerName,
       utilityType: values.utilityType,
       amount: values.amount,
@@ -74,13 +118,29 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
       receiptFileId: values.receiptFileId || undefined,
     }
 
+    setPending({ input })
+    setConfirmOpen(true)
+  }
+
+  const confirmSave = () => {
+    if (!pending) return
     if (isEdit && expense) {
       updateExpense.mutate(
-        { id: expense.id, input },
-        { onSuccess: () => onOpenChange(false) },
+        { id: expense.id, input: pending.input },
+        {
+          onSuccess: () => {
+            setConfirmOpen(false)
+            onOpenChange(false)
+          },
+        },
       )
     } else {
-      createExpense.mutate(input, { onSuccess: () => onOpenChange(false) })
+      createExpense.mutate(pending.input, {
+        onSuccess: () => {
+          setConfirmOpen(false)
+          onOpenChange(false)
+        },
+      })
     }
   }
 
@@ -90,14 +150,21 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit Utility Expense' : 'Record Utility Expense'}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? 'Edit Utility Expense' : 'Record Utility Expense'}
+          </DialogTitle>
           <DialogDescription>
-            {isEdit ? 'Update the utility expense details.' : 'Track a payment to a utility provider.'}
+            {isEdit
+              ? 'Update the utility expense details.'
+              : 'Track a payment to a utility provider.'}
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="providerName"
@@ -105,7 +172,10 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
                 <FormItem>
                   <FormLabel>Provider Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. Manila Water, Meralco" {...field} />
+                    <Input
+                      placeholder="e.g. Manila Water, Meralco"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -150,7 +220,9 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
                         step="0.01"
                         min="0"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onChange={(e) =>
+                          field.onChange(parseFloat(e.target.value) || 0)
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -167,7 +239,10 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
                   <FormItem>
                     <FormLabel>Date</FormLabel>
                     <FormControl>
-                      <DateTimePicker value={field.value} onChange={field.onChange} />
+                      <DateTimePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -251,7 +326,11 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Optional notes" rows={2} {...field} />
+                    <Textarea
+                      placeholder="Optional notes"
+                      rows={2}
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -291,7 +370,11 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
             />
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
@@ -301,6 +384,52 @@ export function UtilityExpenseFormDialog({ open, onOpenChange, expense }: Utilit
           </form>
         </Form>
       </DialogContent>
+
+      <SummaryConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={
+          isEdit ? 'Confirm utility expense changes' : 'Confirm utility expense'
+        }
+        description="Review the expense details before recording it as paid out of HOA funds."
+        loading={isSubmitting}
+        confirmLabel={isEdit ? 'Save changes' : 'Record expense'}
+        onConfirm={confirmSave}
+        rows={[
+          { label: 'Provider', value: pending?.input.providerName || '—' },
+          {
+            label: 'Type',
+            value: pending?.input.utilityType
+              ? toTitleCase(pending.input.utilityType)
+              : '—',
+          },
+          { label: 'Amount', value: formatCurrency(pending?.input.amount) },
+          {
+            label: 'Date',
+            value: pending?.input.expenseDate
+              ? formatDateTime(pending.input.expenseDate)
+              : '—',
+          },
+          {
+            label: 'Method',
+            value: pending?.input.paymentMethod
+              ? toTitleCase(pending.input.paymentMethod)
+              : '—',
+          },
+          {
+            label: 'Billing period / invoice',
+            value:
+              [pending?.input.billingPeriod, pending?.input.invoiceNumber]
+                .filter(Boolean)
+                .join(' · ') || '—',
+          },
+          { label: 'Reference', value: pending?.input.referenceNumber || '—' },
+          {
+            label: 'Receipt',
+            value: pending?.input.receiptFileId ? 'Attached' : 'None',
+          },
+        ]}
+      />
     </Dialog>
   )
 }

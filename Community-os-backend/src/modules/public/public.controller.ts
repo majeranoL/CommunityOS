@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
   Query,
   Request,
@@ -23,6 +24,11 @@ export class PublicController {
   @Get('communities')
   findCommunities(@Query() query: PublicCommunitiesQueryDto) {
     return this.publicService.findCommunities(query);
+  }
+
+  @Get('communities/:slug')
+  findCommunityBySlug(@Param('slug') slug: string) {
+    return this.publicService.findCommunityBySlug(slug);
   }
 
   @Get('plans')

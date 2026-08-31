@@ -13,6 +13,7 @@ export const householdKeys = {
   list: (params: ListQuery) => ['households', 'list', params] as const,
   detail: (id: string) => ['households', 'detail', id] as const,
   me: ['households', 'me'] as const,
+  blockOptions: ['households', 'block-options'] as const,
 }
 
 export function useHouseholds(params: ListQuery) {
@@ -20,6 +21,13 @@ export function useHouseholds(params: ListQuery) {
     queryKey: householdKeys.list(params),
     queryFn: () => householdsService.list(params),
     placeholderData: (previous) => previous,
+  })
+}
+
+export function useHouseholdBlockOptions() {
+  return useQuery({
+    queryKey: householdKeys.blockOptions,
+    queryFn: () => householdsService.blockOptions(),
   })
 }
 

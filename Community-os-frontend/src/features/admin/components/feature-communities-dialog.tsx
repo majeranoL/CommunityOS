@@ -30,14 +30,16 @@ import {
   useUpdateFeatureAssignment,
 } from '@/features/admin/hooks/use-features'
 import { formatDate } from '@/lib/format'
-import type { Feature, FeatureAuditLog, FeatureAssignment } from '@/features/admin/types/feature'
+import type {
+  Feature,
+  FeatureAuditLog,
+  FeatureAssignment,
+} from '@/features/admin/types/feature'
 
 const PET_FEATURE = 'pet-registration'
 const VERIFICATION_MODES = ['auto', 'approval'] as const
 const GOOD_BAD_STANDING_FEATURE = 'good-bad-standing'
-const DEFAULT_DELINQUENCY_THRESHOLD_MONTHS = 4
-const DEFAULT_BAD_STANDING_BALANCE_THRESHOLD = 10000
-
+const DEFAULT_DELINQUENCY_THRESHOLD_MONTHS = 3
 const AUDIT_ACTION_LABELS: Record<string, string> = {
   ASSIGNED: 'Assigned',
   ENABLED: 'Enabled',
@@ -46,7 +48,10 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   CONFIG_UPDATED: 'Config updated',
 }
 
-const AUDIT_ACTION_VARIANTS: Record<string, 'success' | 'warning' | 'muted' | 'destructive' | 'secondary'> = {
+const AUDIT_ACTION_VARIANTS: Record<
+  string,
+  'success' | 'warning' | 'muted' | 'destructive' | 'secondary'
+> = {
   ASSIGNED: 'success',
   ENABLED: 'success',
   DISABLED: 'warning',
@@ -60,8 +65,14 @@ interface FeatureCommunitiesDialogProps {
   feature: Feature | null
 }
 
-export function FeatureCommunitiesDialog({ open, onOpenChange, feature }: FeatureCommunitiesDialogProps) {
-  const { data, isLoading } = useFeatureCommunities(open ? (feature?.id ?? null) : null)
+export function FeatureCommunitiesDialog({
+  open,
+  onOpenChange,
+  feature,
+}: FeatureCommunitiesDialogProps) {
+  const { data, isLoading } = useFeatureCommunities(
+    open ? (feature?.id ?? null) : null,
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,8 +80,8 @@ export function FeatureCommunitiesDialog({ open, onOpenChange, feature }: Featur
         <DialogHeader>
           <DialogTitle>{feature?.name}</DialogTitle>
           <DialogDescription>
-            Communities with this feature assigned. Toggle availability, edit per-community
-            configuration, or revoke the feature.
+            Communities with this feature assigned. Toggle availability, edit
+            per-community configuration, or revoke the feature.
           </DialogDescription>
         </DialogHeader>
 
@@ -84,7 +95,11 @@ export function FeatureCommunitiesDialog({ open, onOpenChange, feature }: Featur
           ) : data?.length ? (
             data.map((assignment) =>
               feature ? (
-                <AssignmentRow key={assignment.id} assignment={assignment} feature={feature} />
+                <AssignmentRow
+                  key={assignment.id}
+                  assignment={assignment}
+                  feature={feature}
+                />
               ) : null,
             )
           ) : (
@@ -100,7 +115,13 @@ export function FeatureCommunitiesDialog({ open, onOpenChange, feature }: Featur
   )
 }
 
-function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment; feature: Feature }) {
+function AssignmentRow({
+  assignment,
+  feature,
+}: {
+  assignment: FeatureAssignment
+  feature: Feature
+}) {
   const [revoking, setRevoking] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
 
@@ -118,9 +139,12 @@ function AssignmentRow({ assignment, feature }: { assignment: FeatureAssignment;
     <div className="space-y-3 rounded-lg border p-3">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{assignment.community?.displayName}</p>
+          <p className="truncate text-sm font-medium">
+            {assignment.community?.displayName}
+          </p>
           <p className="truncate text-xs text-muted-foreground">
-            {assignment.community?.code} · {assignment.community?.status?.toLowerCase()}
+            {assignment.community?.code} ·{' '}
+            {assignment.community?.status?.toLowerCase()}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -197,7 +221,10 @@ function AuditHistory({
   featureId: string
   communityId: string
 }) {
-  const { data, isLoading } = useFeatureAuditLogs(featureId, { communityId, limit: 10 })
+  const { data, isLoading } = useFeatureAuditLogs(featureId, {
+    communityId,
+    limit: 10,
+  })
 
   if (isLoading) {
     return <Skeleton className="h-20 w-full" />
@@ -218,13 +245,21 @@ function AuditHistory({
       </p>
       <ul className="space-y-1">
         {logs.map((log: FeatureAuditLog) => (
-          <li key={log.id} className="flex items-center justify-between text-xs">
+          <li
+            key={log.id}
+            className="flex items-center justify-between text-xs"
+          >
             <div className="flex items-center gap-2">
-              <Badge variant={AUDIT_ACTION_VARIANTS[log.action] ?? 'muted'} className="text-[10px] px-1.5 py-0">
+              <Badge
+                variant={AUDIT_ACTION_VARIANTS[log.action] ?? 'muted'}
+                className="text-[10px] px-1.5 py-0"
+              >
                 {AUDIT_ACTION_LABELS[log.action] ?? log.action}
               </Badge>
             </div>
-            <span className="text-muted-foreground">{formatDate(log.createdAt)}</span>
+            <span className="text-muted-foreground">
+              {formatDate(log.createdAt)}
+            </span>
           </li>
         ))}
       </ul>
@@ -243,8 +278,12 @@ function PetRegistrationConfig({
     verificationMode?: string
     documentsRequired?: boolean
   }
-  const [verificationMode, setVerificationMode] = useState(initial.verificationMode ?? 'auto')
-  const [documentsRequired, setDocumentsRequired] = useState(initial.documentsRequired === true)
+  const [verificationMode, setVerificationMode] = useState(
+    initial.verificationMode ?? 'auto',
+  )
+  const [documentsRequired, setDocumentsRequired] = useState(
+    initial.documentsRequired === true,
+  )
   const [saving, setSaving] = useState(false)
 
   const updateAssignment = useUpdateFeatureAssignment()
@@ -287,9 +326,18 @@ function PetRegistrationConfig({
             Require vaccination, rabies, and veterinary certificates.
           </p>
         </div>
-        <Switch checked={documentsRequired} onCheckedChange={setDocumentsRequired} />
+        <Switch
+          checked={documentsRequired}
+          onCheckedChange={setDocumentsRequired}
+        />
       </div>
-      <Button type="button" variant="outline" size="sm" onClick={save} disabled={saving}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={save}
+        disabled={saving}
+      >
         Save configuration
       </Button>
     </div>
@@ -305,14 +353,10 @@ function GoodBadStandingConfig({
 }) {
   const initial = (assignment.config ?? {}) as {
     delinquencyThresholdMonths?: number
-    badStandingBalanceThreshold?: number
     restrictedServices?: string[]
   }
   const [threshold, setThreshold] = useState(
     initial.delinquencyThresholdMonths ?? DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
-  )
-  const [balanceThreshold, setBalanceThreshold] = useState(
-    initial.badStandingBalanceThreshold ?? DEFAULT_BAD_STANDING_BALANCE_THRESHOLD,
   )
   const [restrictFacilities, setRestrictFacilities] = useState(
     Array.isArray(initial.restrictedServices)
@@ -325,7 +369,9 @@ function GoodBadStandingConfig({
 
   const save = () => {
     setSaving(true)
-    const restrictedServices = restrictFacilities ? ['facility_reservations'] : []
+    const restrictedServices = restrictFacilities
+      ? ['facility_reservations']
+      : []
     updateAssignment.mutate(
       {
         featureId,
@@ -333,7 +379,6 @@ function GoodBadStandingConfig({
         input: {
           config: {
             delinquencyThresholdMonths: threshold,
-            badStandingBalanceThreshold: balanceThreshold,
             restrictedServices,
           },
         },
@@ -363,27 +408,6 @@ function GoodBadStandingConfig({
           </p>
         </div>
       </div>
-      <div className="space-y-1.5">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Unpaid balance threshold
-        </p>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={1}
-            step={500}
-            value={balanceThreshold}
-            onChange={(event) =>
-              setBalanceThreshold(Math.max(1, Number(event.target.value)))
-            }
-            className="w-28"
-          />
-          <p className="text-xs text-muted-foreground">
-            pesos of unpaid balance across any assessments before a household is
-            BAD standing
-          </p>
-        </div>
-      </div>
       <label className="flex items-start justify-between gap-3 rounded-md border p-2.5">
         <div>
           <p className="text-sm font-medium">Restrict facility reservations</p>
@@ -396,7 +420,13 @@ function GoodBadStandingConfig({
           onCheckedChange={(value) => setRestrictFacilities(value === true)}
         />
       </label>
-      <Button type="button" variant="outline" size="sm" onClick={save} disabled={saving}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={save}
+        disabled={saving}
+      >
         Save configuration
       </Button>
     </div>
@@ -451,7 +481,13 @@ function GenericConfigEditor({
         placeholder="{}"
       />
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      <Button type="button" variant="outline" size="sm" onClick={save} disabled={saving}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={save}
+        disabled={saving}
+      >
         Save configuration
       </Button>
     </div>

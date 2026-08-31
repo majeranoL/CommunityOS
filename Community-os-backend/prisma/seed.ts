@@ -502,6 +502,7 @@ async function main() {
         'complaint.assign',
         'complaint.resolve',
         'complaint.close',
+        'complaint.review',
         'resident.view',
         'resident.create',
         'resident.update',
@@ -1382,7 +1383,6 @@ async function main() {
       configSchema: {
         properties: {
           delinquencyThresholdMonths: { type: 'number' },
-          badStandingBalanceThreshold: { type: 'number' },
           restrictedServices: { type: 'array' },
         },
       },
@@ -1471,8 +1471,7 @@ async function main() {
       rulesUrl: '',
     },
     'good-bad-standing': {
-      delinquencyThresholdMonths: 4,
-      badStandingBalanceThreshold: 10000,
+      delinquencyThresholdMonths: 3,
       restrictedServices: ['facility_reservations'],
     },
   };
