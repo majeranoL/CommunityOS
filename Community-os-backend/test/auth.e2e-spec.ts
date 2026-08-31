@@ -86,6 +86,35 @@ describe('Auth lifecycle (e2e)', () => {
     expect(user!.resident!.household!.lot).toBe('7');
     expect(user!.resident!.household!.unit).toBe('2A');
   });
+  it('derives a name-based storefront slug and suffixes on collision', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const displayName = `Metroville Tanza ${Date.now()}`;
+    const baseSlug = `metroville-tanza-${Date.now()}`;
+
+    const first = await agent.post('/api/public/hoa/signup').send({
+      displayName,
+      owner: {
+        firstName: 'Slug',
+        lastName: 'One',
+        email: uniqueEmail('slug1'),
+        password: PASSWORD,
+      },
+    });
+    expect(first.status).toBe(201);
+    expect(first.body.data.community.slug).toBe(baseSlug);
+
+    const second = await agent.post('/api/public/hoa/signup').send({
+      displayName,
+      owner: {
+        firstName: 'Slug',
+        lastName: 'Two',
+        email: uniqueEmail('slug2'),
+        password: PASSWORD,
+      },
+    });
+    expect(second.status).toBe(201);
+    expect(second.body.data.community.slug).toBe(`${baseSlug}-2`);
+  });
   it('returns the owner profile via /api/auth/me', async () => {
     const email = uniqueEmail('me');
     const { accessToken, agent } = await provisionCommunity(app, 'Me HOA', {

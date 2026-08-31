@@ -939,8 +939,19 @@ export class CommunitiesService {
   }
 
   private async generateUniqueSlug(base: string) {
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const candidate = `${base}-${Math.random().toString(36).slice(2, 6)}`;
+    // Prefer the clean, name-derived slug with no suffix.
+    const baseAvailable = await this.prisma.community.findFirst({
+      where: { slug: base },
+      select: { id: true },
+    });
+
+    if (!baseAvailable) {
+      return base;
+    }
+
+    // Only on collision, append a deterministic numeric suffix.
+    for (let attempt = 2; attempt <= 10; attempt++) {
+      const candidate = `${base}-${attempt}`;
 
       const existing = await this.prisma.community.findFirst({
         where: { slug: candidate },
