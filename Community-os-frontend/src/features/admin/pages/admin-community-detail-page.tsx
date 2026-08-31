@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Building2,
+  Copy,
   CreditCard,
   Mail,
   MapPin,
@@ -13,8 +14,16 @@ import {
   Plus,
 } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from '@/components/ui/sonner'
+import { storefrontUrl } from '@/lib/storefront-url'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/shared/page-header'
@@ -77,7 +86,7 @@ export default function AdminCommunityDetailPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
-      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           <Skeleton className="h-40" />
           <Skeleton className="h-40" />
         </div>
@@ -86,11 +95,26 @@ export default function AdminCommunityDetailPage() {
   }
 
   if (!community) {
-    return <EmptyState icon={Building2} title="Community not found" description="This community may have been deleted." />
+    return (
+      <EmptyState
+        icon={Building2}
+        title="Community not found"
+        description="This community may have been deleted."
+      />
+    )
   }
 
   const users = community.users ?? []
   const isActive = community.status === 'ACTIVE'
+
+  const copyStorefrontLink = async () => {
+    try {
+      await navigator.clipboard.writeText(storefrontUrl(community.slug))
+      toast.success(`Storefront link copied for ${community.displayName}`)
+    } catch {
+      toast.error('Could not copy the link')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -98,7 +122,14 @@ export default function AdminCommunityDetailPage() {
         title={community.displayName}
         description={`${community.code} · ${community.slug}`}
       >
-        <Button variant="outline" onClick={() => navigate('/admin/communities')}>
+        <Button variant="outline" onClick={copyStorefrontLink}>
+          <Copy className="h-4 w-4" />
+          Copy community link
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => navigate('/admin/communities')}
+        >
           <ArrowLeft className="h-4 w-4" />
           Back to communities
         </Button>
@@ -125,7 +156,8 @@ export default function AdminCommunityDetailPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete this community?</AlertDialogTitle>
               <AlertDialogDescription>
-                This permanently disables {community.displayName} and hides it from the platform. This action cannot be undone.
+                This permanently disables {community.displayName} and hides it
+                from the platform. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -133,7 +165,9 @@ export default function AdminCommunityDetailPage() {
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 onClick={() => {
-                  remove.mutate(id, { onSuccess: () => navigate('/admin/communities') })
+                  remove.mutate(id, {
+                    onSuccess: () => navigate('/admin/communities'),
+                  })
                 }}
               >
                 Delete community
@@ -183,7 +217,9 @@ export default function AdminCommunityDetailPage() {
             {community.subscription ? (
               <>
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">{community.subscription.plan?.name ?? 'No plan'}</span>
+                  <span className="font-medium">
+                    {community.subscription.plan?.name ?? 'No plan'}
+                  </span>
                   <div className="flex items-center gap-2">
                     {community.subscription.plan?.tier === 'CUSTOM' && (
                       <Badge variant="warning">Custom</Badge>
@@ -194,18 +230,25 @@ export default function AdminCommunityDetailPage() {
                 {community.subscription.plan && (
                   <p className="text-muted-foreground">
                     {formatCurrency(community.subscription.plan.price)}/
-                    {community.subscription.plan.billingCycle === 'YEARLY' ? 'yr' : 'mo'}
+                    {community.subscription.plan.billingCycle === 'YEARLY'
+                      ? 'yr'
+                      : 'mo'}
                   </p>
                 )}
                 <p className="text-muted-foreground">
-                  {formatDate(community.subscription.startsAt)} — {formatDate(community.subscription.endsAt)}
+                  {formatDate(community.subscription.startsAt)} —{' '}
+                  {formatDate(community.subscription.endsAt)}
                 </p>
                 {community.subscription.trialEndsAt && (
-                  <Badge variant="secondary">Trial ends {formatDate(community.subscription.trialEndsAt)}</Badge>
+                  <Badge variant="secondary">
+                    Trial ends {formatDate(community.subscription.trialEndsAt)}
+                  </Badge>
                 )}
               </>
             ) : (
-              <p className="text-muted-foreground">No subscription on record.</p>
+              <p className="text-muted-foreground">
+                No subscription on record.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -216,7 +259,9 @@ export default function AdminCommunityDetailPage() {
               <Ban className="h-4 w-4" />
               Billing Exemptions
             </CardTitle>
-            <CardDescription>Communities with active exemptions skip billing sweep.</CardDescription>
+            <CardDescription>
+              Communities with active exemptions skip billing sweep.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {exemptions?.length ? (
@@ -232,11 +277,14 @@ export default function AdminCommunityDetailPage() {
                           <p className="text-sm font-medium">{ex.reason}</p>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(ex.startDate)}
-                            {ex.endDate ? ` — ${formatDate(ex.endDate)}` : ' — Ongoing'}
+                            {ex.endDate
+                              ? ` — ${formatDate(ex.endDate)}`
+                              : ' — Ongoing'}
                           </p>
                           {ex.grantedBy && (
                             <p className="text-xs text-muted-foreground">
-                              Granted by {ex.grantedBy.firstName} {ex.grantedBy.lastName}
+                              Granted by {ex.grantedBy.firstName}{' '}
+                              {ex.grantedBy.lastName}
                             </p>
                           )}
                         </div>
@@ -262,7 +310,9 @@ export default function AdminCommunityDetailPage() {
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No exemptions granted.</p>
+              <p className="text-sm text-muted-foreground">
+                No exemptions granted.
+              </p>
             )}
             <Button
               variant="outline"
@@ -287,19 +337,27 @@ export default function AdminCommunityDetailPage() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-2xl font-semibold">{community._count?.users ?? 0}</p>
+              <p className="text-2xl font-semibold">
+                {community._count?.users ?? 0}
+              </p>
               <p className="text-xs text-muted-foreground">Users</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-2xl font-semibold">{community._count?.residents ?? 0}</p>
+              <p className="text-2xl font-semibold">
+                {community._count?.residents ?? 0}
+              </p>
               <p className="text-xs text-muted-foreground">Residents</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-2xl font-semibold">{community._count?.households ?? 0}</p>
+              <p className="text-2xl font-semibold">
+                {community._count?.households ?? 0}
+              </p>
               <p className="text-xs text-muted-foreground">Households</p>
             </div>
             <div className="rounded-lg border p-4 text-center">
-              <p className="text-2xl font-semibold">{community._count?.facilities ?? 0}</p>
+              <p className="text-2xl font-semibold">
+                {community._count?.facilities ?? 0}
+              </p>
               <p className="text-xs text-muted-foreground">Facilities</p>
             </div>
           </CardContent>
@@ -309,7 +367,9 @@ export default function AdminCommunityDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle>Users</CardTitle>
-          <CardDescription>First 20 user accounts in this community.</CardDescription>
+          <CardDescription>
+            First 20 user accounts in this community.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {users.length ? (
@@ -317,7 +377,9 @@ export default function AdminCommunityDetailPage() {
               {users.map((user) => (
                 <li key={user.id} className="flex items-center gap-3 py-3">
                   <Avatar className="h-9 w-9">
-                    <AvatarFallback>{initials(user.firstName, user.lastName)}</AvatarFallback>
+                    <AvatarFallback>
+                      {initials(user.firstName, user.lastName)}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
@@ -326,14 +388,19 @@ export default function AdminCommunityDetailPage() {
                         <ShieldCheck className="ml-1 inline h-3.5 w-3.5 text-primary" />
                       )}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">{user.account.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {user.account.email}
+                    </p>
                   </div>
                   <StatusBadge status={user.status} />
                 </li>
               ))}
             </ul>
           ) : (
-            <EmptyState title="No users" description="This community has no user accounts yet." />
+            <EmptyState
+              title="No users"
+              description="This community has no user accounts yet."
+            />
           )}
         </CardContent>
       </Card>
@@ -341,25 +408,42 @@ export default function AdminCommunityDetailPage() {
       <Card>
         <CardHeader>
           <CardTitle>Features</CardTitle>
-          <CardDescription>Features assigned to this community.</CardDescription>
+          <CardDescription>
+            Features assigned to this community.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {communityFeatures?.length ? (
             <ul className="divide-y">
               {communityFeatures.map((cf) => (
-                <li key={cf.id} className="flex items-center justify-between py-3">
+                <li
+                  key={cf.id}
+                  className="flex items-center justify-between py-3"
+                >
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                       <Puzzle className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{cf.feature?.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{cf.feature?.code}</p>
+                      <p className="truncate text-sm font-medium">
+                        {cf.feature?.name}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {cf.feature?.code}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={cf.feature?.type === 'OPTIONAL' ? 'warning' : 'secondary'}>
-                      {cf.feature?.type === 'OPTIONAL' ? 'Optional' : 'Standard'}
+                    <Badge
+                      variant={
+                        cf.feature?.type === 'OPTIONAL'
+                          ? 'warning'
+                          : 'secondary'
+                      }
+                    >
+                      {cf.feature?.type === 'OPTIONAL'
+                        ? 'Optional'
+                        : 'Standard'}
                     </Badge>
                     <Badge variant={cf.enabled ? 'success' : 'muted'}>
                       {cf.enabled ? 'Enabled' : 'Disabled'}
@@ -383,8 +467,8 @@ export default function AdminCommunityDetailPage() {
           <DialogHeader>
             <DialogTitle>Grant billing exemption</DialogTitle>
             <DialogDescription>
-              This community will be skipped during billing sweep. Invoices generated during the
-              exemption period will be marked as WAIVED.
+              This community will be skipped during billing sweep. Invoices
+              generated during the exemption period will be marked as WAIVED.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -407,22 +491,31 @@ export default function AdminCommunityDetailPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">End date (optional)</label>
+                <label className="text-sm font-medium">
+                  End date (optional)
+                </label>
                 <Input
                   type="date"
                   value={exemptionEnd}
                   onChange={(e) => setExemptionEnd(e.target.value)}
                 />
-                <p className="mt-1 text-xs text-muted-foreground">Leave empty for indefinite.</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Leave empty for indefinite.
+                </p>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowExemptionDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowExemptionDialog(false)}
+            >
               Cancel
             </Button>
             <Button
-              disabled={!exemptionReason || !exemptionStart || grantExemption.isPending}
+              disabled={
+                !exemptionReason || !exemptionStart || grantExemption.isPending
+              }
               onClick={() =>
                 grantExemption.mutate(
                   {
