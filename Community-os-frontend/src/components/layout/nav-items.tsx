@@ -148,6 +148,7 @@ export const NAV_SECTIONS: NavSection[] = [
         href: '/app/gate',
         icon: ScanLine,
         permission: PERMISSIONS.visitorCheckIn,
+        feature: 'good-bad-standing',
       },
     ],
   },

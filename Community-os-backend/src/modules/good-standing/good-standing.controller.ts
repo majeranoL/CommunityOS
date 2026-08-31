@@ -14,11 +14,14 @@ import { VerifyQrDto } from './dto/verify-qr.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
+import { FeatureGuard } from '../../common/guards/feature.guard';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
+import { Feature } from '../../common/decorators/feature.decorator';
 
 @Controller('good-standing')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, FeatureGuard, PermissionsGuard)
+@Feature('good-bad-standing')
 export class GoodStandingController {
   constructor(private readonly goodStandingService: GoodStandingService) {}
 
