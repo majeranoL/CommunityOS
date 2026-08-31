@@ -40,6 +40,52 @@ describe('Auth lifecycle (e2e)', () => {
       ),
     ).toBe(true);
   });
+  it('links the owner to a household and OWNER resident when unit info is provided', async () => {
+    const agent = request.agent(app.getHttpServer());
+    const email = uniqueEmail('linked');
+    const res = await agent.post('/api/public/hoa/signup').send({
+      displayName: 'Link HOA',
+      owner: {
+        firstName: 'Link',
+        lastName: 'Owner',
+        email,
+        password: PASSWORD,
+        block: 'B',
+        lot: '7',
+        unit: '2A',
+      },
+    });
+    expect(res.status).toBe(201);
+
+    const user = await prisma.user.findFirst({
+      where: { account: { email } },
+      select: {
+        id: true,
+        residentId: true,
+        resident: {
+          select: {
+            id: true,
+            residentType: true,
+            residentNumber: true,
+            householdId: true,
+            household: {
+              select: { id: true, block: true, lot: true, unit: true },
+            },
+          },
+        },
+      },
+    });
+
+    expect(user).not.toBeNull();
+    expect(user!.residentId).toBeDefined();
+    expect(user!.resident).not.toBeNull();
+    expect(user!.resident!.residentType).toBe('OWNER');
+    expect(user!.resident!.residentNumber).toMatch(/^RES-\d{6}$/);
+    expect(user!.resident!.household).not.toBeNull();
+    expect(user!.resident!.household!.block).toBe('B');
+    expect(user!.resident!.household!.lot).toBe('7');
+    expect(user!.resident!.household!.unit).toBe('2A');
+  });
   it('returns the owner profile via /api/auth/me', async () => {
     const email = uniqueEmail('me');
     const { accessToken, agent } = await provisionCommunity(app, 'Me HOA', {

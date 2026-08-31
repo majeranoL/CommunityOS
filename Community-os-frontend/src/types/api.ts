@@ -302,6 +302,10 @@ export interface HoaSignupInput {
     lastName: string
     email: string
     password: string
+    block?: string
+    lot?: string
+    unit?: string
+    address?: string
   }
 }
 

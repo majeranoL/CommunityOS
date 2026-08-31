@@ -50,11 +50,28 @@ const provisionSchema = z
       .min(8, 'Password must be at least 8 characters')
       .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'Password must contain a letter and a number'),
     confirmPassword: z.string(),
+    block: z.string().optional(),
+    lot: z.string().optional(),
+    unit: z.string().optional(),
+    ownerAddress: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   })
+  .refine(
+    (data) =>
+      Boolean(
+        data.block?.trim() ||
+          data.lot?.trim() ||
+          data.unit?.trim() ||
+          data.ownerAddress?.trim(),
+      ),
+    {
+      message: 'Provide at least one of block, lot, unit, or address for the owner.',
+      path: ['block'],
+    },
+  )
 
 type ProvisionValues = z.infer<typeof provisionSchema>
 
@@ -79,6 +96,10 @@ export default function AdminProvisionPage() {
       ownerEmail: '',
       password: '',
       confirmPassword: '',
+      block: '',
+      lot: '',
+      unit: '',
+      ownerAddress: '',
     },
   })
 
@@ -98,6 +119,10 @@ export default function AdminProvisionPage() {
           lastName: values.lastName,
           email: values.ownerEmail,
           password: values.password,
+          block: values.block?.trim() || undefined,
+          lot: values.lot?.trim() || undefined,
+          unit: values.unit?.trim() || undefined,
+          address: values.ownerAddress?.trim() || undefined,
         },
       },
       { onSuccess: () => navigate('/admin/communities') },
@@ -271,6 +296,66 @@ export default function AdminProvisionPage() {
                     </FormItem>
                   )}
                 />
+                <div className="mt-4">
+                  <p className="mb-3 text-sm font-medium">Owner unit</p>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <FormField
+                      control={form.control}
+                      name="block"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Block</FormLabel>
+                          <FormControl>
+                            <Input placeholder="A" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="lot"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Lot</FormLabel>
+                          <FormControl>
+                            <Input placeholder="12" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="unit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unit</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Unit 3B" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="ownerAddress"
+                    render={({ field }) => (
+                      <FormItem className="mt-4">
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Block A, Lot 12 – 12 Sampaguita St." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    The owner will be linked to this household as the community President.
+                  </p>
+                </div>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <FormField
                     control={form.control}

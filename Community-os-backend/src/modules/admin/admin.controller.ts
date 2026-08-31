@@ -50,7 +50,7 @@ export class AdminController {
 
   @Post('communities')
   provision(@Body() dto: ProvisionCommunityDto) {
-    return this.communitiesService.provision(dto);
+    return this.communitiesService.provision(dto, true);
   }
 
   @Get('communities/:id')

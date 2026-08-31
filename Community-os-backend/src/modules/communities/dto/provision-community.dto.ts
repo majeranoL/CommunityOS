@@ -24,6 +24,11 @@ export class ProvisionOwnerDto {
   @MaxLength(100)
   firstName!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  middleName?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(100)
@@ -32,6 +37,31 @@ export class ProvisionOwnerDto {
   @IsEmail()
   @MaxLength(255)
   email!: string;
+
+  @IsOptional()
+  @IsString()
+  @PhoneNumber()
+  @MaxLength(20)
+  phoneNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  block?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  lot?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  unit?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
 
   @IsString()
   @MinLength(PASSWORD_MIN_LENGTH)

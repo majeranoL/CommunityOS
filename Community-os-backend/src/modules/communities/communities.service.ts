@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 
 import * as bcrypt from 'bcrypt';
@@ -9,6 +10,9 @@ import * as bcrypt from 'bcrypt';
 import {
   AccountStatus,
   CommunityStatus,
+  HouseholdStatus,
+  ResidentStatus,
+  ResidentType,
   SubscriptionStatus,
   UserStatus,
 } from '@prisma/client';
@@ -561,7 +565,7 @@ export class CommunitiesService {
   // Provision Community (HOA signup / platform admin)
   // ==========================================
 
-  async provision(dto: ProvisionCommunityDto) {
+  async provision(dto: ProvisionCommunityDto, requireUnit = false) {
     const ownerEmail = dto.owner.email.trim().toLowerCase();
 
     // ==========================================
@@ -607,6 +611,24 @@ export class CommunitiesService {
       dto.owner.password,
       Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
     );
+
+    // ==========================================
+    // Require Owner Unit Info (superadmin flow)
+    // ==========================================
+
+    const owner = dto.owner;
+    const hasUnitInfo = Boolean(
+      owner.block?.trim() ||
+      owner.lot?.trim() ||
+      owner.unit?.trim() ||
+      owner.address?.trim(),
+    );
+
+    if (requireUnit && !hasUnitInfo) {
+      throw new BadRequestException(
+        'Please provide at least one of block, lot, unit, or address for the owner.',
+      );
+    }
 
     // ==========================================
     // Provision Transaction
@@ -753,11 +775,101 @@ export class CommunitiesService {
         select: { id: true },
       });
 
+      // ---------- Owner Household + Resident ----------
+
+      let residentId: string | null = null;
+
+      if (hasUnitInfo) {
+        const block = owner.block?.trim();
+        const lot = owner.lot?.trim();
+        const unit = owner.unit?.trim();
+
+        // Find or create the household (mirrors the member register flow).
+        let household: { id: string; status?: HouseholdStatus } | null =
+          block && lot
+            ? await tx.household.findFirst({
+                where: {
+                  communityId: community.id,
+                  block,
+                  lot,
+                },
+                select: { id: true, status: true },
+              })
+            : null;
+
+        if (household?.status === HouseholdStatus.INACTIVE) {
+          await tx.household.update({
+            where: { id: household.id },
+            data: { status: HouseholdStatus.ACTIVE, deletedAt: null },
+          });
+        }
+
+        if (!household && (block || lot || unit)) {
+          household = await tx.household.findFirst({
+            where: {
+              communityId: community.id,
+              deletedAt: null,
+              ...(block ? { block } : {}),
+              ...(lot ? { lot } : {}),
+              ...(unit ? { unit } : {}),
+            },
+            select: { id: true },
+          });
+        }
+
+        if (!household) {
+          household = await tx.household.create({
+            data: {
+              communityId: community.id,
+              block: block ?? null,
+              lot: lot ?? null,
+              unit: unit ?? null,
+              address: owner.address?.trim() ?? null,
+              status: HouseholdStatus.ACTIVE,
+            },
+            select: { id: true },
+          });
+        }
+
+        const latestResident = await tx.resident.findFirst({
+          where: { communityId: community.id },
+          orderBy: { residentNumber: 'desc' },
+          select: { residentNumber: true },
+        });
+
+        let residentNumber = 'RES-000001';
+
+        if (latestResident) {
+          const latestNumber = Number(
+            latestResident.residentNumber.replace('RES-', ''),
+          );
+          residentNumber = `RES-${String(latestNumber + 1).padStart(6, '0')}`;
+        }
+
+        const resident = await tx.resident.create({
+          data: {
+            communityId: community.id,
+            residentNumber,
+            householdId: household.id,
+            firstName: capitalize(owner.firstName),
+            middleName: owner.middleName ? capitalize(owner.middleName) : null,
+            lastName: capitalize(owner.lastName),
+            phoneNumber: owner.phoneNumber?.trim(),
+            email: ownerEmail,
+            status: ResidentStatus.ACTIVE,
+            residentType: ResidentType.OWNER,
+          },
+          select: { id: true },
+        });
+
+        residentId = resident.id;
+      }
+
       const user = await tx.user.create({
         data: {
           accountId: account.id,
           communityId: community.id,
-
+          residentId,
           referenceNumber: 'USR-000001',
 
           firstName: capitalize(dto.owner.firstName),
