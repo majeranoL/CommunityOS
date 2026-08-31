@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { randomBytes } from 'crypto';
 
@@ -15,7 +19,7 @@ import {
 
 import { summarizeFinance } from '../households/households.service';
 
-const QR_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const QR_TOKEN_TTL_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class GoodStandingService {
@@ -35,6 +39,12 @@ export class GoodStandingService {
     }
 
     const standing = await this.currentStanding(communityId, householdId);
+
+    if (standing === 'BAD') {
+      throw new ForbiddenException(
+        'Your household is in bad standing. Please pay your dues first.',
+      );
+    }
 
     const expiresAt = new Date(Date.now() + QR_TOKEN_TTL_MS);
 

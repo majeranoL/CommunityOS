@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
-import { GoodStandingPassCard } from '@/features/good-standing/components/good-standing-pass-card'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
@@ -120,9 +119,6 @@ export function MyBalanceCard() {
                 </p>
               </div>
             </div>
-            {standingEnabled ? (
-              <GoodStandingPassCard householdId={household.id} />
-            ) : null}
             <HouseholdLedger
               assessments={household.assessments}
               finance={household.finance ?? null}

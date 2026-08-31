@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { useGenerateQrPass } from '@/features/good-standing/hooks/use-good-standing'
 import type { GoodStandingQR } from '@/features/good-standing/types/good-standing'
+import { apiErrorMessage } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 
 export function GoodStandingPassCard({ householdId }: { householdId: string }) {
@@ -46,9 +47,21 @@ export function GoodStandingPassCard({ householdId }: { householdId: string }) {
           Generating pass…
         </div>
       ) : generate.isError && !qr ? (
-        <p className="py-4 text-sm text-muted-foreground">
-          Could not generate your pass. Try again in a moment.
-        </p>
+        <div className="space-y-3 py-4">
+          <p className="text-sm text-muted-foreground">
+            {apiErrorMessage(generate.error, 'Could not generate your pass.')}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => generate.mutate(householdId)}
+            disabled={generate.isPending}
+          >
+            <RefreshCcw className="h-4 w-4" />
+            Retry
+          </Button>
+        </div>
       ) : qr ? (
         <div className="mt-3 flex flex-col items-center gap-3">
           <QRCodeSVG

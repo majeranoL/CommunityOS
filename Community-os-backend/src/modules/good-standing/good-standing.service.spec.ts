@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 import { AssessmentStatus } from '@prisma/client';
 
@@ -62,7 +62,21 @@ describe('GoodStandingService', () => {
   });
 
   describe('generate', () => {
-    it('creates a QR pass for the household with a 24h expiry', async () => {
+    it('creates a QR pass for a GOOD-standing household with a 1h expiry', async () => {
+      prisma.assessment.findMany.mockResolvedValue([
+        {
+          householdId,
+          amount: { toNumber: () => 1000 },
+          dueDate: new Date('2026-01-05'),
+          status: AssessmentStatus.OVERDUE,
+        },
+        {
+          householdId,
+          amount: { toNumber: () => 1000 },
+          dueDate: new Date('2026-02-05'),
+          status: AssessmentStatus.OVERDUE,
+        },
+      ]);
       prisma.household.findFirst.mockResolvedValue({ id: householdId });
       standingQrs.create.mockImplementation(({ data, select }) => ({
         token: data.token,
@@ -87,7 +101,7 @@ describe('GoodStandingService', () => {
           data: expect.objectContaining({
             communityId,
             householdId,
-            standing: 'BAD',
+            standing: 'GOOD',
             expiresAt: expect.any(Date),
           }),
           select: {
@@ -102,12 +116,21 @@ describe('GoodStandingService', () => {
       const token = result.token;
       expect(token).toMatch(/^[0-9a-f]{36}$/);
       expect(result.expiresAt.getTime()).toBeGreaterThanOrEqual(
-        before + 24 * 60 * 60 * 1000,
+        before + 60 * 60 * 1000,
       );
       expect(result.expiresAt.getTime()).toBeLessThanOrEqual(
-        after + 24 * 60 * 60 * 1000,
+        after + 60 * 60 * 1000,
       );
       expect(result.householdId).toBe(householdId);
+    });
+
+    it('throws Forbidden when the household is in bad standing', async () => {
+      prisma.household.findFirst.mockResolvedValue({ id: householdId });
+
+      await expect(service.generate(communityId, householdId)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(standingQrs.create).not.toHaveBeenCalled();
     });
 
     it('throws NotFound when the household does not exist in the community', async () => {
