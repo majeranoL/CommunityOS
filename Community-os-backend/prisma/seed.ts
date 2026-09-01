@@ -685,12 +685,17 @@ async function main() {
   // DEMO MEMBER USERS
   // =====================================================
 
+  // Note: Ana (H2), Rosa (H4), and Danilo (H9) live in households in BAD
+  // standing, so they can demo the "bad standing" QR rejection.
   const demoUserData = [
     { referenceNumber: 'USR-000002', email: 'juan.delacruz@example.com', firstName: 'Juan', lastName: 'Dela Cruz', residentIndex: 0, roleId: memberRole.id },
     { referenceNumber: 'USR-000003', email: 'pedro.reyes@example.com', firstName: 'Pedro', lastName: 'Reyes', residentIndex: 2, roleId: memberRole.id },
     { referenceNumber: 'USR-000004', email: 'maria.delacruz@example.com', firstName: 'Maria', lastName: 'Dela Cruz', residentIndex: 1, roleId: treasurerRole.id },
     { referenceNumber: 'USR-000005', email: 'carlo.mendoza@example.com', firstName: 'Carlo', lastName: 'Mendoza', residentIndex: 4, roleId: secretaryRole.id },
     { referenceNumber: 'USR-000006', email: 'lorna.bautista@example.com', firstName: 'Lorna', lastName: 'Bautista', residentIndex: 8, roleId: vicePresidentRole.id },
+    { referenceNumber: 'USR-000007', email: 'ana.garcia@example.com', firstName: 'Ana', lastName: 'Garcia', residentIndex: 3, roleId: memberRole.id },
+    { referenceNumber: 'USR-000008', email: 'rosa.villanueva@example.com', firstName: 'Rosa', lastName: 'Villanueva', residentIndex: 6, roleId: memberRole.id },
+    { referenceNumber: 'USR-000009', email: 'danilo.aquino@example.com', firstName: 'Danilo', lastName: 'Aquino', residentIndex: 12, roleId: memberRole.id },
   ];
 
   const demoUsers: { id: string }[] = [];
@@ -726,7 +731,17 @@ async function main() {
   console.log('✅ Demo users created');
 
   // =====================================================
-  // BILLING PERIODS & MONTHLY DUES (Jun–Aug 2026)
+  // BILLING PERIODS & MONTHLY DUES (Apr–Aug 2026)
+  //
+  // Standing rule: a household is BAD when it has >= 3
+  // distinct unpaid months (delinquencyThresholdMonths, see
+  // communityFeature config below). Households with all five
+  // months (or a large chunk) unpaid are flagged BAD so the
+  // gate + good-standing demo has real bad-standing data:
+  //   householdIndex 2 (Ana)      -> BAD (5 unpaid months)
+  //   householdIndex 4 (Rosa)     -> BAD (5 unpaid months)
+  //   householdIndex 9 (Danilo)   -> BAD (5 unpaid months)
+  //   everyone else               -> GOOD / current
   // =====================================================
 
   type DuesOutcome =
@@ -743,14 +758,24 @@ async function main() {
     outcomes: DuesOutcome[];
   }[] = [
     {
+      key: '2026-04',
+      label: 'April 2026',
+      outcomes: ['PAID', 'PAID', 'OVERDUE', 'PAID', 'OVERDUE', 'PAID', 'PAID', 'PAID', 'PAID', 'OVERDUE'],
+    },
+    {
+      key: '2026-05',
+      label: 'May 2026',
+      outcomes: ['PAID', 'PAID', 'OVERDUE', 'PAID', 'OVERDUE', 'PAID', 'PAID', 'PAID', 'PAID', 'OVERDUE'],
+    },
+    {
       key: '2026-06',
       label: 'June 2026',
-      outcomes: Array(10).fill('PAID') as DuesOutcome[],
+      outcomes: ['PAID', 'PAID', 'PARTIAL', 'PAID', 'OVERDUE', 'PAID', 'PARTIAL', 'PAID', 'PAID', 'OVERDUE'],
     },
     {
       key: '2026-07',
       label: 'July 2026',
-      outcomes: ['PAID', 'PAID', 'PARTIAL', 'PAID', 'OVERDUE', 'PAID', 'WAIVED', 'PAID', 'PAID', 'PAID'],
+      outcomes: ['PAID', 'PAID', 'PARTIAL', 'PAID', 'OVERDUE', 'PAID', 'WAIVED', 'PAID', 'PAID', 'OVERDUE'],
     },
     {
       key: '2026-08',
@@ -1582,6 +1607,11 @@ async function main() {
   console.log('Secretary      : carlo.mendoza@example.com / Admin123!');
   console.log('Member         : juan.delacruz@example.com / Admin123!');
   console.log('Member         : pedro.reyes@example.com / Admin123!');
+  console.log('');
+  console.log('  Bad-standing (demo QR rejection):');
+  console.log('  Member         : ana.garcia@example.com / Admin123!');
+  console.log('  Member         : rosa.villanueva@example.com / Admin123!');
+  console.log('  Member         : danilo.aquino@example.com / Admin123!');
   console.log('===================================');
 }
 
