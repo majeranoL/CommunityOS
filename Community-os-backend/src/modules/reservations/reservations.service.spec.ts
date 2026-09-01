@@ -62,8 +62,8 @@ describe('ReservationsService.create standing enforcement', () => {
   const dto = {
     facilityId: 'fac-1',
     residentId: 'res-1',
-    startAt: '2026-09-01T10:00:00.000Z',
-    endAt: '2026-09-01T12:00:00.000Z',
+    startAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    endAt: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
   };
 
   it('allows creation when the feature is disabled', async () => {
