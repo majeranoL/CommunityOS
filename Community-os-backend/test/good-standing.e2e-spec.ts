@@ -82,13 +82,13 @@ describe('Good standing gate (e2e)', () => {
 
     const gen = await agent.post('/api/good-standing/qr').set(headers).send({});
     expect(gen.status).toBe(201);
-    expect(gen.body.token).toBeDefined();
+    expect(gen.body.data.token).toBeDefined();
 
     const verify = await agent
       .post('/api/good-standing/verify')
       .set(headers)
-      .send({ token: gen.body.token });
+      .send({ token: gen.body.data.token });
     expect(verify.status).toBe(201);
-    expect(verify.body.household).toBeDefined();
+    expect(verify.body.data.household).toBeDefined();
   });
 });

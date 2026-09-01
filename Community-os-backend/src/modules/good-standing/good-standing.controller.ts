@@ -33,17 +33,23 @@ export class GoodStandingController {
 
   @Post('qr')
   @Permissions('household.view')
-  generate(@Request() req: any, @Body() dto: GenerateQrDto) {
+  async generate(@Request() req: any, @Body() dto: GenerateQrDto) {
     const householdId = dto.householdId ?? req.user.resident?.household?.id;
 
     if (!householdId) {
       throw new BadRequestException('No household is linked to your account.');
     }
 
-    return this.goodStandingService.generate(
+    const data = await this.goodStandingService.generate(
       req.user.community.id,
       householdId,
     );
+
+    return {
+      success: true,
+      message: 'Good standing pass generated.',
+      data,
+    };
   }
 
   // ==========================================
@@ -52,11 +58,17 @@ export class GoodStandingController {
 
   @Post('verify')
   @Permissions('visitor.check-in')
-  verify(@Request() req: any, @Body() dto: VerifyQrDto) {
-    return this.goodStandingService.verify(
+  async verify(@Request() req: any, @Body() dto: VerifyQrDto) {
+    const data = await this.goodStandingService.verify(
       req.user.community.id,
       dto.token,
       req.user.id,
     );
+
+    return {
+      success: true,
+      message: 'Good standing pass verified.',
+      data,
+    };
   }
 }
