@@ -1335,7 +1335,13 @@ async function main() {
 
   const uploadsDir = join(process.cwd(), 'uploads');
 
-  await rm(uploadsDir, { recursive: true, force: true });
+  try {
+    await rm(uploadsDir, { recursive: true, force: true });
+  } catch (err) {
+    console.warn(
+      `⚠️ Could not clear uploads directory (${(err as Error).message}). Continuing...`,
+    );
+  }
   await mkdir(uploadsDir, { recursive: true });
 
   for (const item of documentData) {
