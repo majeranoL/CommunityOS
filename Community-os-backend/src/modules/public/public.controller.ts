@@ -12,6 +12,8 @@ import type { Response } from 'express';
 
 import { PublicService } from './public.service';
 
+import { GoodStandingService } from '../good-standing/good-standing.service';
+
 import { setRefreshTokenCookie } from '../auth/auth-cookies';
 
 import { PublicCommunitiesQueryDto } from './dto/public-communities-query.dto';
@@ -19,7 +21,15 @@ import { ProvisionCommunityDto } from '../communities/dto/provision-community.dt
 
 @Controller('public')
 export class PublicController {
-  constructor(private readonly publicService: PublicService) {}
+  constructor(
+    private readonly publicService: PublicService,
+    private readonly goodStandingService: GoodStandingService,
+  ) {}
+
+  @Get('good-standing/:token')
+  verifyGoodStanding(@Param('token') token: string) {
+    return this.goodStandingService.verifyPublic(token);
+  }
 
   @Get('communities')
   findCommunities(@Query() query: PublicCommunitiesQueryDto) {

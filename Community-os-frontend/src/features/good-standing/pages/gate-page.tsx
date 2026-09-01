@@ -20,6 +20,15 @@ function unitLabel(household: GoodStandingVerification['household']) {
   )
 }
 
+function tokenFromEntry(entry: string) {
+  const trimmed = entry.trim()
+  let match = trimmed.match(/\/verify\/([A-Za-z0-9]+)/)
+  if (match) return match[1]
+  match = trimmed.match(/good-standing\/([A-Za-z0-9]+)/)
+  if (match) return match[1]
+  return trimmed
+}
+
 export default function GatePage() {
   const [token, setToken] = useState('')
   const [result, setResult] = useState<GoodStandingVerification | null>(null)
@@ -61,8 +70,9 @@ export default function GatePage() {
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 220, height: 220 } },
         (decodedText) => {
-          if (decodedText) {
-            verify.mutate(decodedText)
+          const decoded = tokenFromEntry(decodedText)
+          if (decoded) {
+            verify.mutate(decoded)
           }
         },
         () => {},
@@ -168,7 +178,7 @@ export default function GatePage() {
                 />
                 <Button
                   type="button"
-                  onClick={() => verify.mutate(token.trim())}
+                  onClick={() => verify.mutate(tokenFromEntry(token))}
                   disabled={!token.trim() || verify.isPending}
                 >
                   {verify.isPending ? (

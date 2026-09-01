@@ -125,6 +125,66 @@ export class GoodStandingService {
     };
   }
 
+  async verifyPublic(token: string) {
+    const qr = await this.prisma.goodStandingQR.findFirst({
+      where: { token },
+      include: {
+        community: {
+          select: { id: true, slug: true, displayName: true },
+        },
+        household: {
+          select: {
+            id: true,
+            block: true,
+            lot: true,
+            unit: true,
+            address: true,
+          },
+        },
+      },
+    });
+
+    if (!qr || qr.expiresAt <= new Date()) {
+      return {
+        success: true,
+        message: 'Pass not found or expired.',
+        data: {
+          verified: false,
+          standing: null,
+          issuedStanding: null,
+          expiresAt: null,
+          community: null,
+          household: null,
+        },
+      };
+    }
+
+    const standing = await this.currentStanding(qr.communityId, qr.householdId);
+
+    return {
+      success: true,
+      message: 'Good standing pass verified.',
+      data: {
+        verified: true,
+        standing,
+        issuedStanding: qr.standing,
+        expiresAt: qr.expiresAt,
+        community: {
+          id: qr.community.id,
+          slug: qr.community.slug,
+          displayName: qr.community.displayName,
+        },
+        household: {
+          id: qr.household.id,
+          block: qr.household.block,
+          lot: qr.household.lot,
+          unit: qr.household.unit,
+          address: qr.household.address,
+        },
+      },
+    };
+  }
+
   private async currentStanding(
     communityId: string,
     householdId: string,

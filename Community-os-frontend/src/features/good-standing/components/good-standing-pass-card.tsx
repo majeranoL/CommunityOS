@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { BadgeCheck, Loader2, RefreshCcw } from 'lucide-react'
+import { BadgeCheck, Loader2, QrCode, RefreshCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { useGenerateQrPass } from '@/features/good-standing/hooks/use-good-standing'
@@ -8,17 +8,26 @@ import type { GoodStandingQR } from '@/features/good-standing/types/good-standin
 import { apiErrorMessage } from '@/lib/api'
 import { formatDateTime } from '@/lib/format'
 
+function passUrl(token: string) {
+  return `${window.location.origin}/verify/${token}`
+}
+
 export function GoodStandingPassCard({ householdId }: { householdId: string }) {
   const [qr, setQr] = useState<GoodStandingQR | null>(null)
+  const [showQr, setShowQr] = useState(false)
 
-  const generate = useGenerateQrPass((data) => setQr(data))
+  const generate = useGenerateQrPass((data) => {
+    setQr(data)
+    setShowQr(true)
+  })
 
-  useEffect(() => {
-    if (householdId) {
-      generate.mutate(householdId)
+  const handleGenerate = () => {
+    if (qr) {
+      setShowQr((open) => !open)
+      return
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [householdId])
+    generate.mutate(householdId)
+  }
 
   return (
     <div className="rounded-md border border-dashed p-4">
@@ -62,28 +71,62 @@ export function GoodStandingPassCard({ householdId }: { householdId: string }) {
             Retry
           </Button>
         </div>
-      ) : qr ? (
-        <div className="mt-3 flex flex-col items-center gap-3">
-          <QRCodeSVG
-            value={qr.token}
-            size={140}
-            level="M"
-            includeMargin={false}
-          />
-          <div className="flex items-center gap-2">
-            <StatusBadge status={qr.standing} />
-            <span className="text-xs text-muted-foreground">
-              Valid until {formatDateTime(qr.expiresAt)}
-            </span>
-          </div>
-          <p className="max-w-full break-all rounded bg-muted px-2 py-1 text-center font-mono text-[10px] text-muted-foreground">
-            {qr.token}
-          </p>
-          <p className="text-center text-xs text-muted-foreground">
-            Show this pass at the gate for verification.
-          </p>
+      ) : (
+        <div className="mt-3">
+          {!showQr ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <QrCode className="h-8 w-8 text-muted-foreground" />
+              {qr ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setShowQr(true)}
+                >
+                  View my pass
+                </Button>
+              ) : (
+                <Button type="button" size="sm" onClick={handleGenerate}>
+                  <QrCode className="h-4 w-4" />
+                  Generate QR
+                </Button>
+              )}
+              <p className="text-center text-xs text-muted-foreground">
+                Generate a Good Standing pass to present at the gate.
+              </p>
+            </div>
+          ) : qr ? (
+            <div className="flex flex-col items-center gap-3">
+              <QRCodeSVG
+                value={passUrl(qr.token)}
+                size={140}
+                level="M"
+                includeMargin={false}
+              />
+              <div className="flex items-center gap-2">
+                <StatusBadge status={qr.standing} />
+                <span className="text-xs text-muted-foreground">
+                  Valid until {formatDateTime(qr.expiresAt)}
+                </span>
+              </div>
+              <p className="max-w-full break-all rounded bg-muted px-2 py-1 text-center font-mono text-[10px] text-muted-foreground">
+                {qr.token}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowQr(false)}
+              >
+                Hide pass
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Scanning this with your phone camera opens a page confirming
+                your household is in good standing.
+              </p>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      )}
     </div>
   )
 }

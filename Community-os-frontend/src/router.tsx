@@ -58,6 +58,9 @@ const VisitorsPage = lazy(
   () => import('@/features/visitors/pages/visitors-page'),
 )
 const GatePage = lazy(() => import('@/features/good-standing/pages/gate-page'))
+const GoodStandingPublicPage = lazy(
+  () => import('@/features/good-standing/pages/good-standing-public-page'),
+)
 const DocumentsPage = lazy(
   () => import('@/features/documents/pages/documents-page'),
 )
@@ -152,6 +155,10 @@ export const router = createBrowserRouter([
   {
     path: '/reset-password',
     element: withSuspense(<ResetPasswordPage />),
+  },
+  {
+    path: '/verify/:token',
+    element: withSuspense(<GoodStandingPublicPage />),
   },
   {
     path: '/c/:slug',
