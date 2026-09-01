@@ -10,6 +10,12 @@ export interface TestOwner {
   lastName: string;
   email: string;
   password: string;
+  middleName?: string;
+  phoneNumber?: string;
+  block?: string;
+  lot?: string;
+  unit?: string;
+  address?: string;
 }
 
 export interface ProvisionedCommunity {
