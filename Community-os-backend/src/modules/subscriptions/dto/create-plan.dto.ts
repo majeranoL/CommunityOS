@@ -57,18 +57,6 @@ export class CreateSubscriptionPlanDto {
   featureIds?: string[];
 
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  maxUsers?: number;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  maxResidents?: number;
-
-  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 

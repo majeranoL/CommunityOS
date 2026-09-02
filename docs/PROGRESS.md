@@ -762,3 +762,15 @@ always read this md and add todo and progress here
 - **CI lint fix** (`11fb6cd`): prettier formatting errors in `billing.service.ts` (indent) + `subscriptions.service.ts` (line length) previously failed Backend Lint — fixed.
 - **Verified:** backend `tsc --noEmit` exit 0, jest **20 suites / 100 tests** pass, eslint 0 errors (pre-existing `any`-mock warnings only); frontend `tsc --noEmit` exit 0. Pushed `2218ea9` (feature work) + `11fb6cd` (lint fix).
 
+### 2026-09-03 — Remove user/resident plan limits (done)
+- **Decision (user):** plans are purely feature-based + flat price; drop the `maxUsers` / `maxResidents` caps entirely (they only blocked downgrades below usage and showed progress bars — never blocked adding users/residents).
+- **Schema** (`schema.prisma`): removed `maxUsers Int @default(1)` + `maxResidents Int @default(0)` from `SubscriptionPlan`; migration `20260903000000_remove_plan_user_resident_limits` created and applied locally via `migrate deploy`; `prisma generate` regenerated client.
+- **`subscriptions.service.ts`:** deleted the entire "Enforce Plan Limits (prevent downgrade below usage)" block (no more count checks / `ConflictException` on plan change).
+- **`billing.service.ts` `getPlanUsage()`:** removed `limits` + `exceeded` computed from the plan; kept `{ plan: { code, name }, status, usage: { users, residents, households } }` (endpoint kept per user request). `billing.controller.ts` doc updated.
+- **Plans CRUD/DTO/public select:** removed `maxUsers`/`maxResidents` from `create-plan.dto.ts`, `subscription-plans.service.ts` (create + update), and `public.service.ts` plan `select`.
+- **Seed & test fixtures:** removed from all 3 seeded plans and `test/setup-test-db.ts` STARTER/GROWTH upserts.
+- **Frontend:** removed from `types/api.ts` (`SubscriptionPlan` + `BillingLimits` simplified to usage only), `admin/types/plan.ts`, `admin/validation/plan.ts`, `plan-form-dialog.tsx` (defaults/reset/submit + the two max fields dropped, sort-order now standalone), `admin-plans-page.tsx` (removed "Limits" table header + users/residents cell), `billing-page.tsx` (removed `UsageMeter` + "Usage & limits" card + `useBillingLimits`/`Users` imports).
+- **Get-started flow (verified working):** landing plan-card "Get started" → `navigate('/get-started', { state: { planId } })` pre-selects the plan in the 2-step HOA signup wizard → on submit `POST /api/public/hoa/signup` → `CommunitiesService.provision()` (auto-syncs features from plan) → session set + redirect `/app/dashboard`. Unaffected by limit removal.
+- **Verified:** backend `tsc --noEmit` exit 0, `prisma validate` clean, migration dry-run (from-empty) clean, `migrate deploy` applied, jest **20 suites / 100 tests** pass, eslint 0 errors (pre-existing `any`-mock warnings only); frontend `tsc --noEmit` exit 0, `npm run build` exit 0, eslint 0 errors (pre-existing `form.watch` warning only).
+
+

@@ -133,33 +133,6 @@ export class SubscriptionsService {
     }
 
     // ==========================================
-    // Enforce Plan Limits (prevent downgrade below usage)
-    // ==========================================
-
-    if (plan.maxResidents > 0 || plan.maxUsers > 0) {
-      const [residentCount, userCount] = await Promise.all([
-        this.prisma.resident.count({
-          where: { communityId, deletedAt: null },
-        }),
-        this.prisma.user.count({
-          where: { communityId, deletedAt: null },
-        }),
-      ]);
-
-      if (plan.maxResidents > 0 && residentCount > plan.maxResidents) {
-        throw new ConflictException(
-          `Current resident count (${residentCount}) exceeds the plan limit (${plan.maxResidents}). Upgrade to a larger plan.`,
-        );
-      }
-
-      if (plan.maxUsers > 0 && userCount > plan.maxUsers) {
-        throw new ConflictException(
-          `Current user count (${userCount}) exceeds the plan limit (${plan.maxUsers}). Upgrade to a larger plan.`,
-        );
-      }
-    }
-
-    // ==========================================
     // Ensure No Active Subscription
     // ==========================================
 

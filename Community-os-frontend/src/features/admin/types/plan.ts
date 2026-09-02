@@ -22,8 +22,6 @@ export interface AdminPlan {
   features: string[]
   featureIds?: string[]
   planFeatures?: AdminPlanFeature[]
-  maxUsers: number
-  maxResidents: number
   isActive: boolean
   includesAllFeatures: boolean
   sortOrder: number
@@ -40,8 +38,6 @@ export type AdminPlanInput = {
   tier?: PlanTier
   features?: string[]
   featureIds?: string[]
-  maxUsers?: number
-  maxResidents?: number
   isActive?: boolean
   includesAllFeatures?: boolean
   sortOrder?: number

@@ -32,7 +32,7 @@ export class BillingController {
   @Get('limits')
   @Permissions('billing.view')
   @ApiBearerAuth()
-  @ApiOkResponse({ description: 'Get plan usage and limits for the community' })
+  @ApiOkResponse({ description: 'Get plan usage for the community' })
   limits(@Request() req: any) {
     return this.billingService.limits(req.user.community.id);
   }

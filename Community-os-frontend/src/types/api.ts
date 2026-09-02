@@ -117,8 +117,6 @@ export interface SubscriptionPlan {
   features: string[]
   featureIds?: string[]
   planFeatures?: PlanFeatureRef[]
-  maxUsers: number
-  maxResidents: number
   isActive: boolean
   includesAllFeatures: boolean
   sortOrder: number
@@ -175,22 +173,12 @@ export interface BillingLimits {
   plan: {
     code: string
     name: string
-    maxUsers: number
-    maxResidents: number
   } | null
   status: string | null
   usage: {
     users: number
     residents: number
     households: number
-  }
-  limits: {
-    users: number
-    residents: number
-  }
-  exceeded: {
-    users: boolean
-    residents: boolean
   }
 }
 

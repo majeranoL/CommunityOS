@@ -24,18 +24,6 @@ export const planSchema = z.object({
     .refine((value) => Number(value) >= 0, 'Price cannot be negative'),
   billingCycle: z.enum(['MONTHLY', 'YEARLY']),
   tier: z.enum(['STANDARD', 'CUSTOM']),
-  maxUsers: z
-    .string()
-    .min(1, 'Max users is required')
-    .refine((value) => Number(value) >= 1, 'Must be at least 1'),
-  maxResidents: z
-    .string()
-    .optional()
-    .or(z.literal(''))
-    .refine(
-      (value) => value === '' || Number(value) >= 0,
-      'Cannot be negative',
-    ),
   sortOrder: z
     .string()
     .optional()

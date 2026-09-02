@@ -332,8 +332,6 @@ export class BillingService {
           ? {
               code: plan.code,
               name: plan.name,
-              maxUsers: plan.maxUsers,
-              maxResidents: plan.maxResidents,
             }
           : null,
         status: current?.status ?? null,
@@ -342,16 +340,6 @@ export class BillingService {
           residents,
           households,
         },
-        limits: {
-          users: plan?.maxUsers ?? 0,
-          residents: plan?.maxResidents ?? 0,
-        },
-        exceeded: plan
-          ? {
-              users: plan.maxUsers > 0 && users > plan.maxUsers,
-              residents: plan.maxResidents > 0 && residents > plan.maxResidents,
-            }
-          : { users: false, residents: false },
       },
     };
   }

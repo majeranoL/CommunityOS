@@ -147,8 +147,6 @@ export class PublicService {
         price: true,
         billingCycle: true,
         features: true,
-        maxUsers: true,
-        maxResidents: true,
         isActive: true,
         includesAllFeatures: true,
         sortOrder: true,

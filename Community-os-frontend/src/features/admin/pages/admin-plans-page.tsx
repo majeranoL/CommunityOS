@@ -138,7 +138,6 @@ export default function AdminPlansPage() {
                     <TableHead>Plan</TableHead>
                     <TableHead>Billing</TableHead>
                     <TableHead>Tier</TableHead>
-                    <TableHead>Limits</TableHead>
                     <TableHead>Features</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-12" />
@@ -175,12 +174,6 @@ export default function AdminPlansPage() {
                         >
                           {plan.tier === 'CUSTOM' ? 'Custom' : 'Standard'}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <p className="text-sm">{plan.maxUsers} users</p>
-                        <p className="text-xs text-muted-foreground">
-                          {plan.maxResidents} residents
-                        </p>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">

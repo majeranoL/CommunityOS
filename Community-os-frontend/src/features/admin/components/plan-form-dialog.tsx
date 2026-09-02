@@ -91,8 +91,6 @@ export function PlanFormDialog({
       price: '',
       billingCycle: 'MONTHLY',
       tier: 'STANDARD',
-      maxUsers: '1',
-      maxResidents: '0',
       sortOrder: '0',
       featuresText: '',
       featureIds: [],
@@ -112,9 +110,6 @@ export function PlanFormDialog({
         price: plan?.price != null ? String(plan.price) : '',
         billingCycle: plan?.billingCycle ?? 'MONTHLY',
         tier: plan?.tier ?? 'STANDARD',
-        maxUsers: plan?.maxUsers != null ? String(plan.maxUsers) : '1',
-        maxResidents:
-          plan?.maxResidents != null ? String(plan.maxResidents) : '0',
         sortOrder: plan?.sortOrder != null ? String(plan.sortOrder) : '0',
         featuresText: plan?.features?.length
           ? featuresToText(plan.features)
@@ -134,8 +129,6 @@ export function PlanFormDialog({
       price: Number(values.price),
       billingCycle: values.billingCycle,
       tier: values.tier,
-      maxUsers: Number(values.maxUsers),
-      maxResidents: toNumber(values.maxResidents) ?? 0,
       sortOrder: toNumber(values.sortOrder) ?? 0,
       features: textToFeatures(values.featuresText ?? ''),
       featureIds: values.featureIds,
@@ -339,57 +332,19 @@ export function PlanFormDialog({
                 </FormItem>
               )}
             />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="maxUsers"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max users</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        placeholder="e.g. 50"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="maxResidents"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max residents</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        placeholder="e.g. 500"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="sortOrder"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sort order</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="e.g. 0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            <FormField
+              control={form.control}
+              name="sortOrder"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sort order</FormLabel>
+                  <FormControl>
+                    <Input type="number" placeholder="e.g. 0" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

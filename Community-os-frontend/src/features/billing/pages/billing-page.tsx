@@ -7,7 +7,6 @@ import {
   CreditCard,
   RefreshCcw,
   Sparkles,
-  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,7 +40,6 @@ import {
 } from '@/components/ui/dialog'
 import { KpiCard } from '@/features/dashboard/components/kpi-card'
 import {
-  useBillingLimits,
   useBillingSummary,
   useCancelSubscription,
   useInvoices,
@@ -54,55 +52,6 @@ import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-function UsageMeter({
-  label,
-  used,
-  limit,
-  exceeded,
-  loading,
-}: {
-  label: string
-  used: number
-  limit: number
-  exceeded: boolean
-  loading: boolean
-}) {
-  const percent =
-    limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        {loading ? (
-          <Skeleton className="h-4 w-16" />
-        ) : (
-          <span className="font-medium">
-            {used.toLocaleString()} /{' '}
-            {limit > 0 ? limit.toLocaleString() : 'Unlimited'}
-          </span>
-        )}
-      </div>
-      {!loading && (
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all',
-              exceeded ? 'bg-destructive' : 'bg-primary',
-            )}
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-      )}
-      {exceeded && (
-        <p className="text-xs text-destructive">
-          Exceeded the limit. Upgrade your plan to continue adding.
-        </p>
-      )}
-    </div>
-  )
-}
 
 function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
   const { data: plans, isLoading } = usePlansList()
@@ -207,7 +156,6 @@ function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
 
 export default function BillingPage() {
   const { data: summary, isLoading: summaryLoading } = useBillingSummary()
-  const { data: limits, isLoading: limitsLoading } = useBillingLimits()
   const { data: subscription, isLoading: subscriptionLoading } =
     useSubscription()
   const { data: invoices, isLoading: invoicesLoading } = useInvoices()
@@ -368,37 +316,6 @@ export default function BillingPage() {
                 )}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Usage & limits</CardTitle>
-            <CardDescription>
-              How much of your plan you&apos;re using.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <UsageMeter
-              label="Users"
-              used={limits?.usage.users ?? 0}
-              limit={limits?.limits.users ?? 0}
-              exceeded={limits?.exceeded.users ?? false}
-              loading={limitsLoading}
-            />
-            <UsageMeter
-              label="Residents"
-              used={limits?.usage.residents ?? 0}
-              limit={limits?.limits.residents ?? 0}
-              exceeded={limits?.exceeded.residents ?? false}
-              loading={limitsLoading}
-            />
-            <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-4 text-xs text-muted-foreground">
-              <Users className="h-4 w-4 shrink-0" />
-              <span>
-                {limits?.plan?.name ?? 'No plan'} · {limits?.status ?? '—'}
-              </span>
-            </div>
           </CardContent>
         </Card>
       </div>

@@ -69,8 +69,6 @@ export class SubscriptionPlansService {
         billingCycle: dto.billingCycle ?? BillingCycle.MONTHLY,
         tier: dto.tier ?? PlanTier.STANDARD,
         features: dto.features ?? [],
-        maxUsers: dto.maxUsers ?? 1,
-        maxResidents: dto.maxResidents ?? 0,
         isActive: dto.isActive ?? true,
         includesAllFeatures: dto.includesAllFeatures ?? false,
         sortOrder: dto.sortOrder ?? 0,
@@ -294,10 +292,6 @@ export class SubscriptionPlansService {
           ...(dto.billingCycle && { billingCycle: dto.billingCycle }),
           ...(dto.tier && { tier: dto.tier }),
           ...(dto.features !== undefined && { features: dto.features }),
-          ...(dto.maxUsers !== undefined && { maxUsers: dto.maxUsers }),
-          ...(dto.maxResidents !== undefined && {
-            maxResidents: dto.maxResidents,
-          }),
           ...(dto.isActive !== undefined && { isActive: dto.isActive }),
           ...(dto.includesAllFeatures !== undefined && {
             includesAllFeatures: dto.includesAllFeatures,
