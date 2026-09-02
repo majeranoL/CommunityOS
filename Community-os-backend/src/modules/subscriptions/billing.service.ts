@@ -151,7 +151,17 @@ export class BillingService {
       }
 
       // Sync features from plan after auto-renew
-      await this.syncFeaturesFromPlan(subscription.communityId, plan.id);
+      try {
+        await this.featuresService.syncFeaturesFromPlan(
+          subscription.communityId,
+          plan.id,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Failed to sync features for community ${subscription.communityId}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
 
       renewed++;
     }
@@ -403,84 +413,6 @@ export class BillingService {
     } else {
       result.setFullYear(result.getFullYear() + 1);
     }
-    return result;
-  }
-
-  // ==========================================
-  // Feature Sync from Plan
-  // ==========================================
-
-  private async syncFeaturesFromPlan(communityId: string, planId: string) {
-    try {
-      const planFeatures = await this.prisma.planFeature.findMany({
-        where: { planId },
-        select: { featureId: true },
-      });
-
-      const planFeatureIds = new Set(planFeatures.map((pf) => pf.featureId));
-
-      const standardFeatures = await this.prisma.feature.findMany({
-        where: { type: 'STANDARD', isActive: true },
-        select: { id: true },
-      });
-
-      const standardIds = new Set(standardFeatures.map((f) => f.id));
-      const desiredFeatureIds = new Set([...planFeatureIds, ...standardIds]);
-
-      const currentAssignments = await this.prisma.communityFeature.findMany({
-        where: { communityId },
-        select: { featureId: true, enabled: true },
-      });
-
-      const currentEnabled = new Set(
-        currentAssignments.filter((a) => a.enabled).map((a) => a.featureId),
-      );
-
-      // Enable missing features
-      const toEnable = [...desiredFeatureIds].filter(
-        (id) => !currentEnabled.has(id),
-      );
-      if (toEnable.length > 0) {
-        await this.prisma.communityFeature.createMany({
-          data: toEnable.map((featureId) => ({
-            communityId,
-            featureId,
-            enabled: true,
-            enabledAt: new Date(),
-          })),
-          skipDuplicates: true,
-        });
-
-        await this.prisma.communityFeature.updateMany({
-          where: { communityId, featureId: { in: toEnable }, enabled: false },
-          data: { enabled: true, disabledAt: null, disabledBy: null },
-        });
-      }
-
-      // Revoke optional features not in plan
-      const toRevoke = currentAssignments.filter(
-        (a) => a.enabled && !desiredFeatureIds.has(a.featureId),
-      );
-      if (toRevoke.length > 0) {
-        const revokeIds = toRevoke.map((a) => a.featureId);
-        const optionalToRevoke = await this.prisma.feature.findMany({
-          where: { id: { in: revokeIds }, type: 'OPTIONAL' },
-          select: { id: true },
-        });
-        if (optionalToRevoke.length > 0) {
-          await this.prisma.communityFeature.deleteMany({
-            where: {
-              communityId,
-              featureId: { in: optionalToRevoke.map((f) => f.id) },
-            },
-          });
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to sync features for community ${communityId}`,
-        error,
-      );
-    }
+return result;
   }
 }

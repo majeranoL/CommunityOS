@@ -73,6 +73,10 @@ export class CreateSubscriptionPlanDto {
   isActive?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  includesAllFeatures?: boolean;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   sortOrder?: number;

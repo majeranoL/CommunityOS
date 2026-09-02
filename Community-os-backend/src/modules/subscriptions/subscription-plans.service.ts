@@ -72,6 +72,7 @@ export class SubscriptionPlansService {
         maxUsers: dto.maxUsers ?? 1,
         maxResidents: dto.maxResidents ?? 0,
         isActive: dto.isActive ?? true,
+        includesAllFeatures: dto.includesAllFeatures ?? false,
         sortOrder: dto.sortOrder ?? 0,
         ...(featureIds.length > 0
           ? {
@@ -298,6 +299,9 @@ export class SubscriptionPlansService {
             maxResidents: dto.maxResidents,
           }),
           ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          ...(dto.includesAllFeatures !== undefined && {
+            includesAllFeatures: dto.includesAllFeatures,
+          }),
           ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
         },
         include: {

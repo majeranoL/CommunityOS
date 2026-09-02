@@ -97,6 +97,7 @@ export function PlanFormDialog({
       featuresText: '',
       featureIds: [],
       isActive: true,
+      includesAllFeatures: false,
     },
   })
 
@@ -120,6 +121,7 @@ export function PlanFormDialog({
           : '',
         featureIds: linkedFeatureIds,
         isActive: plan?.isActive ?? true,
+        includesAllFeatures: plan?.includesAllFeatures ?? false,
       })
     }
   }, [open, plan, form])
@@ -138,6 +140,7 @@ export function PlanFormDialog({
       features: textToFeatures(values.featuresText ?? ''),
       featureIds: values.featureIds,
       isActive: values.isActive,
+      includesAllFeatures: values.includesAllFeatures,
     }
 
     if (isEdit && plan) {
@@ -151,6 +154,7 @@ export function PlanFormDialog({
   }
 
   const selectedIds = form.watch('featureIds') ?? []
+  const includesAllFeatures = form.watch('includesAllFeatures') ?? false
   const toggleFeature = (id: string) => {
     const next = selectedIds.includes(id)
       ? selectedIds.filter((fid) => fid !== id)
@@ -434,6 +438,7 @@ export function PlanFormDialog({
                             <FeatureCheckbox
                               key={feature.id}
                               feature={feature}
+                              disabled={includesAllFeatures}
                             />
                           ))}
                         </div>
@@ -446,6 +451,29 @@ export function PlanFormDialog({
                     )}
                   </div>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="includesAllFeatures"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-0.5">
+                    <FormLabel>Include all features</FormLabel>
+                    <FormDescription>
+                      When enabled, every current and future feature module is
+                      available to communities on this plan. Optional modules
+                      are selected automatically.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

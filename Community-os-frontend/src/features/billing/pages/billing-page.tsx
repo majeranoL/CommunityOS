@@ -417,6 +417,21 @@ export default function BillingPage() {
                 <Skeleton key={i} className="h-10" />
               ))}
             </div>
+          ) : subscription?.plan?.includesAllFeatures ? (
+            <div className="rounded-lg border bg-primary/5 p-6">
+              <div className="flex items-start gap-3">
+                <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-medium">
+                    All features included in your plan
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Every current and future module is available on your
+                    community.
+                  </p>
+                </div>
+              </div>
+            </div>
           ) : subscription?.plan?.planFeatures?.length ? (
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {subscription.plan.planFeatures.map(({ feature }) => (

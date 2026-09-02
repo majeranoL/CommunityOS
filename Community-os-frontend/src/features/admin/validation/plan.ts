@@ -47,6 +47,7 @@ export const planSchema = z.object({
   featuresText: z.string().optional().or(z.literal('')),
   featureIds: z.array(z.string()),
   isActive: z.boolean(),
+  includesAllFeatures: z.boolean(),
 })
 
 export type PlanFormValues = z.infer<typeof planSchema>

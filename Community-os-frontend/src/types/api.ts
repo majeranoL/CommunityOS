@@ -120,6 +120,7 @@ export interface SubscriptionPlan {
   maxUsers: number
   maxResidents: number
   isActive: boolean
+  includesAllFeatures: boolean
   sortOrder: number
 }
 

@@ -880,24 +880,41 @@ export class FeaturesService {
   // ==========================================
 
   async syncFeaturesFromPlan(communityId: string, planId: string) {
-    // Get features linked to this plan
-    const planFeatures = await this.prisma.planFeature.findMany({
-      where: { planId },
-      select: { featureId: true },
+    // Fetch the plan to honor the includesAllFeatures flag
+    const plan = await this.prisma.subscriptionPlan.findUnique({
+      where: { id: planId },
+      select: { includesAllFeatures: true },
     });
 
-    const planFeatureIds = new Set(planFeatures.map((pf) => pf.featureId));
+    let desiredFeatureIds: Set<string>;
 
-    // Get all STANDARD features (always enabled)
-    const standardFeatures = await this.prisma.feature.findMany({
-      where: { type: 'STANDARD', isActive: true },
-      select: { id: true },
-    });
+    if (plan?.includesAllFeatures) {
+      // Premium/all-plans: every active feature (current + future)
+      const allFeatures = await this.prisma.feature.findMany({
+        where: { isActive: true },
+        select: { id: true },
+      });
+      desiredFeatureIds = new Set(allFeatures.map((f) => f.id));
+    } else {
+      // Get features linked to this plan
+      const planFeatures = await this.prisma.planFeature.findMany({
+        where: { planId },
+        select: { featureId: true },
+      });
 
-    const standardIds = new Set(standardFeatures.map((f) => f.id));
+      const planFeatureIds = new Set(planFeatures.map((pf) => pf.featureId));
 
-    // All features that should be enabled = plan features + standard features
-    const desiredFeatureIds = new Set([...planFeatureIds, ...standardIds]);
+      // Get all STANDARD features (always enabled)
+      const standardFeatures = await this.prisma.feature.findMany({
+        where: { type: 'STANDARD', isActive: true },
+        select: { id: true },
+      });
+
+      const standardIds = new Set(standardFeatures.map((f) => f.id));
+
+      // All features that should be enabled = plan features + standard features
+      desiredFeatureIds = new Set([...planFeatureIds, ...standardIds]);
+    }
 
     // Get current enabled features for this community
     const currentAssignments = await this.prisma.communityFeature.findMany({

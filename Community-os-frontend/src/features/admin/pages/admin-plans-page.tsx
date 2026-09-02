@@ -184,8 +184,18 @@ export default function AdminPlansPage() {
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
-                          {plan.planFeatures?.length ?? 0} modules
+                          {plan.includesAllFeatures
+                            ? 'All modules'
+                            : `${plan.planFeatures?.length ?? 0} modules`}
                         </span>
+                        {plan.includesAllFeatures ? (
+                          <Badge
+                            variant="warning"
+                            className="ml-auto mt-1 flex w-fit"
+                          >
+                            All features
+                          </Badge>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <Badge variant={plan.isActive ? 'success' : 'muted'}>

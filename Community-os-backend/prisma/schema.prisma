@@ -1931,17 +1931,18 @@ model Notification {
 model SubscriptionPlan {
   id String @id @default(uuid()) @db.Uuid
 
-  code         String       @unique @db.VarChar(50)
-  name         String       @db.VarChar(100)
-  description  String?
-  price        Decimal      @db.Decimal(10, 2)
-  billingCycle BillingCycle @default(MONTHLY)
-  tier         PlanTier     @default(STANDARD)
-  features     String[]
-  maxUsers     Int          @default(1)
-  maxResidents Int          @default(0)
-  isActive     Boolean      @default(true)
-  sortOrder    Int          @default(0)
+  code                String       @unique @db.VarChar(50)
+  name                String       @db.VarChar(100)
+  description         String?
+  price               Decimal      @db.Decimal(10, 2)
+  billingCycle        BillingCycle @default(MONTHLY)
+  tier                PlanTier     @default(STANDARD)
+  features            String[]
+  maxUsers            Int          @default(1)
+  maxResidents        Int          @default(0)
+  isActive            Boolean      @default(true)
+  includesAllFeatures Boolean      @default(false)
+  sortOrder           Int          @default(0)
 
   subscriptions Subscription[]
   planFeatures  PlanFeature[]

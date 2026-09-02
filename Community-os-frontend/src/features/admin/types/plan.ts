@@ -25,6 +25,7 @@ export interface AdminPlan {
   maxUsers: number
   maxResidents: number
   isActive: boolean
+  includesAllFeatures: boolean
   sortOrder: number
   createdAt: string
   updatedAt: string
@@ -42,5 +43,6 @@ export type AdminPlanInput = {
   maxUsers?: number
   maxResidents?: number
   isActive?: boolean
+  includesAllFeatures?: boolean
   sortOrder?: number
 }

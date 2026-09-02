@@ -291,7 +291,7 @@ async function main() {
         code: 'community-basic',
         name: 'Community Basic',
         description: 'Essential features for small communities',
-        price: 0,
+        price: 500,
         billingCycle: BillingCycle.MONTHLY,
         features: [
           'Up to 20 households',
@@ -310,7 +310,7 @@ async function main() {
         code: 'community-standard',
         name: 'Community Standard',
         description: 'Popular plan for growing communities',
-        price: 99,
+        price: 1000,
         billingCycle: BillingCycle.MONTHLY,
         features: [
           'Up to 100 households',
@@ -330,8 +330,9 @@ async function main() {
         code: 'community-premium',
         name: 'Community Premium',
         description: 'Advanced plan with full feature set',
-        price: 199,
+        price: 1500,
         billingCycle: BillingCycle.MONTHLY,
+        includesAllFeatures: true,
         features: [
           'Unlimited households',
           'Maintenance & staff module',

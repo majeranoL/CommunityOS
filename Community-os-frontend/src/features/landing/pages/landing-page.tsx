@@ -179,7 +179,18 @@ function PlanCard({
         </span>
       </div>
 
-      {hasLinked ? (
+      {plan.includesAllFeatures ? (
+        <ul className="mt-6 flex flex-1 flex-col gap-2.5">
+          <li className="flex items-start gap-2 text-sm">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>All features included</span>
+          </li>
+          <li className="flex items-start gap-2 text-sm">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <span>Every current and future module</span>
+          </li>
+        </ul>
+      ) : hasLinked ? (
         <ul className="mt-6 flex flex-1 flex-col gap-2.5">
           {optionalIncluded.map((feature) => (
             <li key={feature.id} className="flex items-start gap-2 text-sm">

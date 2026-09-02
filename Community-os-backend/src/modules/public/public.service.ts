@@ -150,6 +150,7 @@ export class PublicService {
         maxUsers: true,
         maxResidents: true,
         isActive: true,
+        includesAllFeatures: true,
         sortOrder: true,
         planFeatures: {
           select: {
