@@ -157,7 +157,7 @@ function PlanCard({
   return (
     <div
       className={cn(
-        'relative flex flex-col rounded-2xl border bg-card p-6',
+        'relative flex flex-col rounded-2xl border bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:border-primary/60 hover:shadow-lg hover:shadow-primary/10',
         highlighted
           ? 'border-primary shadow-lg shadow-primary/10'
           : 'border-border',
