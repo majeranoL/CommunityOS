@@ -333,7 +333,10 @@ export class SubscriptionsService {
     // Sync Features from Plan
     // ==========================================
 
-    await this.featuresService.syncFeaturesFromPlan(communityId, subscription.planId);
+    await this.featuresService.syncFeaturesFromPlan(
+      communityId,
+      subscription.planId,
+    );
 
     return {
       success: true,

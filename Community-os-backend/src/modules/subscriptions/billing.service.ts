@@ -413,6 +413,6 @@ export class BillingService {
     } else {
       result.setFullYear(result.getFullYear() + 1);
     }
-return result;
+    return result;
   }
 }
