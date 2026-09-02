@@ -1,7 +1,20 @@
 import { useState } from 'react'
-import { CreditCard, MoreHorizontal, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import {
+  CreditCard,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -24,7 +37,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useDeletePlan, usePlans } from '@/features/admin/hooks/use-plans'
 import { PlanFormDialog } from '@/features/admin/components/plan-form-dialog'
 import type { AdminPlan } from '@/features/admin/types/plan'
@@ -75,7 +95,9 @@ export default function AdminPlansPage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>Subscription plans</CardTitle>
-              <CardDescription>Manage pricing, limits, and availability.</CardDescription>
+              <CardDescription>
+                Manage pricing, limits, and availability.
+              </CardDescription>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <div className="relative">
@@ -132,27 +154,38 @@ export default function AdminPlansPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="truncate font-medium">{plan.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">{plan.code}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {plan.code}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium">{formatCurrency(plan.price)}</p>
+                        <p className="font-medium">
+                          {formatCurrency(plan.price)}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          per {plan.billingCycle === 'MONTHLY' ? 'month' : 'year'}
+                          per{' '}
+                          {plan.billingCycle === 'MONTHLY' ? 'month' : 'year'}
                         </p>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={plan.tier === 'CUSTOM' ? 'warning' : 'info'}>
+                        <Badge
+                          variant={plan.tier === 'CUSTOM' ? 'warning' : 'info'}
+                        >
                           {plan.tier === 'CUSTOM' ? 'Custom' : 'Standard'}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <p className="text-sm">{plan.maxUsers} users</p>
-                        <p className="text-xs text-muted-foreground">{plan.maxResidents} residents</p>
+                        <p className="text-xs text-muted-foreground">
+                          {plan.maxResidents} residents
+                        </p>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm text-muted-foreground">{plan.features.length} items</span>
+                        <span className="text-sm text-muted-foreground">
+                          {plan.planFeatures?.length ?? 0} modules
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge variant={plan.isActive ? 'success' : 'muted'}>
@@ -162,7 +195,11 @@ export default function AdminPlansPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                               <span className="sr-only">Open menu</span>
                             </Button>
@@ -191,7 +228,11 @@ export default function AdminPlansPage() {
                   ))}
                 </TableBody>
               </Table>
-              <Pagination className="mt-4" pagination={data.pagination} onPageChange={setPage} />
+              <Pagination
+                className="mt-4"
+                pagination={data.pagination}
+                onPageChange={setPage}
+              />
             </>
           ) : (
             <EmptyState
@@ -209,13 +250,16 @@ export default function AdminPlansPage() {
         plan={editing}
       />
 
-      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
+      <AlertDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => !open && setDeleting(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete plan?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate &quot;{deleting?.name}&quot; and hide it from new
-              subscriptions. Existing subscriptions are not affected.
+              This will deactivate &quot;{deleting?.name}&quot; and hide it from
+              new subscriptions. Existing subscriptions are not affected.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -226,7 +270,9 @@ export default function AdminPlansPage() {
               onClick={(event) => {
                 event.preventDefault()
                 if (deleting) {
-                  deletePlan.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+                  deletePlan.mutate(deleting.id, {
+                    onSuccess: () => setDeleting(null),
+                  })
                 }
               }}
             >

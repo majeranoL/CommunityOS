@@ -350,6 +350,27 @@ async function main() {
   console.log(`✅ ${plans.length} subscription plans created`);
 
   // =====================================================
+  // PLAN FEATURES
+  // =====================================================
+
+  const basicPlan = await prisma.subscriptionPlan.findUnique({
+    where: { code: 'community-basic' },
+  });
+  const standardPlanRef = await prisma.subscriptionPlan.findUnique({
+    where: { code: 'community-standard' },
+  });
+  const premiumPlan = await prisma.subscriptionPlan.findUnique({
+    where: { code: 'community-premium' },
+  });
+
+  // Map plan codes to plan IDs for later feature linking
+  const planIds = {
+    basic: basicPlan?.id,
+    standard: standardPlanRef?.id,
+    premium: premiumPlan?.id,
+  };
+
+  // =====================================================
   // ROLES & PERMISSIONS
   // =====================================================
 
@@ -1506,6 +1527,38 @@ async function main() {
       restrictedServices: ['facility_reservations'],
     },
   };
+
+  // =====================================================
+  // PLAN - FEATURE LINKS
+  // =====================================================
+
+  // Basic plan: only standard features (complaints, documents, events-calendar, reports-analytics)
+  // Standard plan: basic + pet-registration, vehicle-stickers
+  // Premium plan: everything
+  const planFeatureMap: Record<string, string[]> = {
+    [planIds.basic ?? '']: ['complaints', 'documents', 'events-calendar', 'reports-analytics'],
+    [planIds.standard ?? '']: ['complaints', 'documents', 'events-calendar', 'reports-analytics', 'pet-registration', 'vehicle-stickers'],
+    [planIds.premium ?? '']: ['complaints', 'documents', 'events-calendar', 'reports-analytics', 'pet-registration', 'good-bad-standing', 'vehicle-stickers', 'construction-management', 'visitor-gate-management', 'finance-transparency'],
+  };
+
+  for (const [planId, featureCodes] of Object.entries(planFeatureMap)) {
+    if (!planId) continue;
+
+    for (const code of featureCodes) {
+      const featureId = features.get(code);
+      if (!featureId) continue;
+
+      await prisma.planFeature.upsert({
+        where: {
+          planId_featureId: { planId, featureId },
+        },
+        update: {},
+        create: { planId, featureId },
+      });
+    }
+  }
+
+  console.log('✅ Plan-feature links created');
 
   for (const [code, config] of Object.entries(optionalFeatureConfigs)) {
     const featureId = features.get(code);

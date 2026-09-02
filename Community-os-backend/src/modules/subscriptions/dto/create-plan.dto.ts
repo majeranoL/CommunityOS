@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -48,6 +49,12 @@ export class CreateSubscriptionPlanDto {
   @ArrayMaxSize(50)
   @IsString({ each: true })
   features?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsUUID('4', { each: true })
+  featureIds?: string[];
 
   @IsOptional()
   @Type(() => Number)

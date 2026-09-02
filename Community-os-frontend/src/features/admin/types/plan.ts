@@ -1,6 +1,16 @@
 export type BillingCycle = 'MONTHLY' | 'YEARLY'
 export type PlanTier = 'STANDARD' | 'CUSTOM'
 
+export interface AdminPlanFeature {
+  feature: {
+    id: string
+    code: string
+    name: string
+    description: string | null
+    type: 'STANDARD' | 'OPTIONAL'
+  }
+}
+
 export interface AdminPlan {
   id: string
   code: string
@@ -10,6 +20,8 @@ export interface AdminPlan {
   billingCycle: BillingCycle
   tier: PlanTier
   features: string[]
+  featureIds?: string[]
+  planFeatures?: AdminPlanFeature[]
   maxUsers: number
   maxResidents: number
   isActive: boolean
@@ -26,6 +38,7 @@ export type AdminPlanInput = {
   billingCycle?: BillingCycle
   tier?: PlanTier
   features?: string[]
+  featureIds?: string[]
   maxUsers?: number
   maxResidents?: number
   isActive?: boolean

@@ -8,6 +8,7 @@ import {
 
 import { BillingService } from './billing.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FeaturesService } from '../features/features.service';
 
 describe('BillingService.sweep', () => {
   let service: BillingService;
@@ -31,7 +32,14 @@ describe('BillingService.sweep', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [BillingService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        BillingService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: FeaturesService,
+          useValue: { syncFeaturesFromPlan: jest.fn() },
+        },
+      ],
     }).compile();
 
     service = module.get<BillingService>(BillingService);

@@ -899,6 +899,14 @@ export class CommunitiesService {
       result.community.id,
     );
 
+    // Sync features from the assigned plan (enables optional features included in the plan)
+    if (result.subscription?.planId) {
+      await this.featuresService.syncFeaturesFromPlan(
+        result.community.id,
+        result.subscription.planId,
+      );
+    }
+
     return {
       success: true,
       message: 'Community provisioned successfully.',

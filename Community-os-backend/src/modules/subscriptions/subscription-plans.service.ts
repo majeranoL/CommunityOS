@@ -42,7 +42,22 @@ export class SubscriptionPlansService {
     }
 
     // ==========================================
-    // Create Plan
+    // Validate Feature IDs exist
+    // ==========================================
+
+    let featureIds = dto.featureIds ?? [];
+
+    if (featureIds.length > 0) {
+      const validFeatures = await this.prisma.feature.findMany({
+        where: { id: { in: featureIds }, isActive: true },
+        select: { id: true },
+      });
+
+      featureIds = validFeatures.map((f) => f.id);
+    }
+
+    // ==========================================
+    // Create Plan + PlanFeature links
     // ==========================================
 
     const plan = await this.prisma.subscriptionPlan.create({
@@ -58,6 +73,28 @@ export class SubscriptionPlansService {
         maxResidents: dto.maxResidents ?? 0,
         isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 0,
+        ...(featureIds.length > 0
+          ? {
+              planFeatures: {
+                create: featureIds.map((featureId) => ({ featureId })),
+              },
+            }
+          : {}),
+      },
+      include: {
+        planFeatures: {
+          include: {
+            feature: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                description: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -96,6 +133,21 @@ export class SubscriptionPlansService {
         skip,
         take: limit,
         orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }],
+        include: {
+          planFeatures: {
+            include: {
+              feature: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  description: true,
+                  type: true,
+                },
+              },
+            },
+          },
+        },
       }),
       this.prisma.subscriptionPlan.count({ where }),
     ]);
@@ -124,6 +176,21 @@ export class SubscriptionPlansService {
       where: {
         id,
         deletedAt: null,
+      },
+      include: {
+        planFeatures: {
+          include: {
+            feature: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                description: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -173,25 +240,82 @@ export class SubscriptionPlansService {
       }
     }
 
-    const updatedPlan = await this.prisma.subscriptionPlan.update({
-      where: { id },
-      data: {
-        ...(dto.code && { code: dto.code }),
-        ...(dto.name && { name: dto.name.trim() }),
-        ...(dto.description !== undefined && {
-          description: dto.description?.trim(),
-        }),
-        ...(dto.price !== undefined && { price: dto.price }),
-        ...(dto.billingCycle && { billingCycle: dto.billingCycle }),
-        ...(dto.tier && { tier: dto.tier }),
-        ...(dto.features !== undefined && { features: dto.features }),
-        ...(dto.maxUsers !== undefined && { maxUsers: dto.maxUsers }),
-        ...(dto.maxResidents !== undefined && {
-          maxResidents: dto.maxResidents,
-        }),
-        ...(dto.isActive !== undefined && { isActive: dto.isActive }),
-        ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
-      },
+    // ==========================================
+    // Validate and sync featureIds
+    // ==========================================
+
+    let featureIdsUpdate: string[] | undefined = undefined;
+
+    if (dto.featureIds !== undefined) {
+      let featureIds = dto.featureIds;
+
+      if (featureIds.length > 0) {
+        const validFeatures = await this.prisma.feature.findMany({
+          where: { id: { in: featureIds }, isActive: true },
+          select: { id: true },
+        });
+        featureIds = validFeatures.map((f) => f.id);
+      }
+
+      featureIdsUpdate = featureIds;
+    }
+
+    // ==========================================
+    // Update Plan
+    // ==========================================
+
+    const updatedPlan = await this.prisma.$transaction(async (tx) => {
+      // Sync PlanFeature records if featureIds provided
+      if (featureIdsUpdate !== undefined) {
+        // Remove existing
+        await tx.planFeature.deleteMany({ where: { planId: id } });
+
+        // Add new
+        if (featureIdsUpdate.length > 0) {
+          await tx.planFeature.createMany({
+            data: featureIdsUpdate.map((featureId) => ({
+              planId: id,
+              featureId,
+            })),
+          });
+        }
+      }
+
+      return tx.subscriptionPlan.update({
+        where: { id },
+        data: {
+          ...(dto.code && { code: dto.code }),
+          ...(dto.name && { name: dto.name.trim() }),
+          ...(dto.description !== undefined && {
+            description: dto.description?.trim(),
+          }),
+          ...(dto.price !== undefined && { price: dto.price }),
+          ...(dto.billingCycle && { billingCycle: dto.billingCycle }),
+          ...(dto.tier && { tier: dto.tier }),
+          ...(dto.features !== undefined && { features: dto.features }),
+          ...(dto.maxUsers !== undefined && { maxUsers: dto.maxUsers }),
+          ...(dto.maxResidents !== undefined && {
+            maxResidents: dto.maxResidents,
+          }),
+          ...(dto.isActive !== undefined && { isActive: dto.isActive }),
+          ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+        },
+        include: {
+          planFeatures: {
+            include: {
+              feature: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  description: true,
+                  type: true,
+                },
+              },
+            },
+          },
+        },
+      });
     });
 
     return {

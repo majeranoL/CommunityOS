@@ -151,6 +151,19 @@ export class PublicService {
         maxResidents: true,
         isActive: true,
         sortOrder: true,
+        planFeatures: {
+          select: {
+            feature: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                description: true,
+                type: true,
+              },
+            },
+          },
+        },
       },
     });
 

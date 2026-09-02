@@ -875,6 +875,91 @@ export class FeaturesService {
     });
   }
 
+  // ==========================================
+  // Plan-based Feature Sync
+  // ==========================================
+
+  async syncFeaturesFromPlan(communityId: string, planId: string) {
+    // Get features linked to this plan
+    const planFeatures = await this.prisma.planFeature.findMany({
+      where: { planId },
+      select: { featureId: true },
+    });
+
+    const planFeatureIds = new Set(planFeatures.map((pf) => pf.featureId));
+
+    // Get all STANDARD features (always enabled)
+    const standardFeatures = await this.prisma.feature.findMany({
+      where: { type: 'STANDARD', isActive: true },
+      select: { id: true },
+    });
+
+    const standardIds = new Set(standardFeatures.map((f) => f.id));
+
+    // All features that should be enabled = plan features + standard features
+    const desiredFeatureIds = new Set([...planFeatureIds, ...standardIds]);
+
+    // Get current enabled features for this community
+    const currentAssignments = await this.prisma.communityFeature.findMany({
+      where: { communityId },
+      select: { featureId: true, enabled: true },
+    });
+
+    const currentEnabled = new Set(
+      currentAssignments.filter((a) => a.enabled).map((a) => a.featureId),
+    );
+
+    // Enable features from plan that aren't already enabled
+    const toEnable = [...desiredFeatureIds].filter(
+      (id) => !currentEnabled.has(id),
+    );
+
+    if (toEnable.length > 0) {
+      await this.prisma.communityFeature.createMany({
+        data: toEnable.map((featureId) => ({
+          communityId,
+          featureId,
+          enabled: true,
+          enabledAt: new Date(),
+        })),
+        skipDuplicates: true,
+      });
+
+      // Re-enable any disabled features
+      await this.prisma.communityFeature.updateMany({
+        where: {
+          communityId,
+          featureId: { in: toEnable },
+          enabled: false,
+        },
+        data: { enabled: true, disabledAt: null, disabledBy: null },
+      });
+    }
+
+    // Revoke OPTIONAL features NOT in the plan
+    const toRevoke = currentAssignments.filter(
+      (a) => a.enabled && !desiredFeatureIds.has(a.featureId),
+    );
+
+    if (toRevoke.length > 0) {
+      const revokeIds = toRevoke.map((a) => a.featureId);
+
+      const optionalToRevoke = await this.prisma.feature.findMany({
+        where: { id: { in: revokeIds }, type: 'OPTIONAL' },
+        select: { id: true },
+      });
+
+      if (optionalToRevoke.length > 0) {
+        await this.prisma.communityFeature.deleteMany({
+          where: {
+            communityId,
+            featureId: { in: optionalToRevoke.map((f) => f.id) },
+          },
+        });
+      }
+    }
+  }
+
   private async assignStandardFeature(featureId: string) {
     const communities = await this.prisma.community.findMany({
       where: { status: 'ACTIVE', deletedAt: null },

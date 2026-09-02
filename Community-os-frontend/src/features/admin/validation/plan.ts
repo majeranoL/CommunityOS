@@ -32,13 +32,20 @@ export const planSchema = z.object({
     .string()
     .optional()
     .or(z.literal(''))
-    .refine((value) => value === '' || Number(value) >= 0, 'Cannot be negative'),
+    .refine(
+      (value) => value === '' || Number(value) >= 0,
+      'Cannot be negative',
+    ),
   sortOrder: z
     .string()
     .optional()
     .or(z.literal(''))
-    .refine((value) => value === '' || Number.isInteger(Number(value)), 'Must be a whole number'),
+    .refine(
+      (value) => value === '' || Number.isInteger(Number(value)),
+      'Must be a whole number',
+    ),
   featuresText: z.string().optional().or(z.literal('')),
+  featureIds: z.array(z.string()),
   isActive: z.boolean(),
 })
 

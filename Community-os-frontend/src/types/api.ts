@@ -96,6 +96,16 @@ export interface ListQuery {
 // SUBSCRIPTIONS / BILLING
 // ==============================================
 
+export interface PlanFeatureRef {
+  feature: {
+    id: string
+    code: string
+    name: string
+    description: string | null
+    type: 'STANDARD' | 'OPTIONAL'
+  }
+}
+
 export interface SubscriptionPlan {
   id: string
   code: string
@@ -105,6 +115,8 @@ export interface SubscriptionPlan {
   billingCycle: 'MONTHLY' | 'YEARLY'
   tier: 'STANDARD' | 'CUSTOM'
   features: string[]
+  featureIds?: string[]
+  planFeatures?: PlanFeatureRef[]
   maxUsers: number
   maxResidents: number
   isActive: boolean
@@ -231,7 +243,12 @@ export interface AdminCommunity {
     startsAt: string
     endsAt: string
     trialEndsAt: string | null
-    plan: { id: string; code: string; name: string; price: string | number } | null
+    plan: {
+      id: string
+      code: string
+      name: string
+      price: string | number
+    } | null
   } | null
 }
 
