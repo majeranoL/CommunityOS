@@ -77,6 +77,17 @@ export class InvoicesController {
     return this.invoicesService.markPaid(req.user.community.id, id, dto);
   }
 
+  @Post(':id/checkout')
+  @Permissions('invoice.view')
+  @ApiBearerAuth()
+  @ApiOkResponse({ description: 'Create a gateway checkout for an invoice' })
+  checkout(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.invoicesService.createGatewayCheckout(
+      req.user.community.id,
+      id,
+    );
+  }
+
   @Post(':id/void')
   @Permissions('invoice.manage')
   @ApiBearerAuth()

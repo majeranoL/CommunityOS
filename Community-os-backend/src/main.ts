@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import { AppModule } from './app.module';
 import { validateEnv } from './config/env';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
@@ -22,8 +23,19 @@ async function bootstrap() {
     });
   }
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   app.useLogger(new JsonLogger());
+
+  // Enable JSON/urlencoded body parsing while preserving the raw request body
+  // so gateway webhooks can verify signatures against the exact bytes sent.
+  app.use(
+    express.json({
+      verify: (req, _res, buf) => {
+        (req as { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
+  app.use(express.urlencoded({ extended: true }));
 
   app.use(requestLogger);
   app.setGlobalPrefix('api');

@@ -41,6 +41,8 @@ import { HealthModule } from './modules/health/health.module';
 import { ImportExportModule } from './modules/import-export/import-export.module';
 import { UtilityBillingModule } from './modules/utility-billing/utility-billing.module';
 import { S3Module } from './common/s3/s3.module';
+import { PaymentsGatewayModule } from './modules/payments-gateway/payments-gateway.module';
+import { GatewayWebhookModule } from './modules/gateway-webhook/gateway-webhook.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -53,6 +55,8 @@ import { S3Module } from './common/s3/s3.module';
     ]),
     PrismaModule,
     S3Module,
+    PaymentsGatewayModule,
+    GatewayWebhookModule,
     UsersModule,
     AuthModule,
     ResidentModule,

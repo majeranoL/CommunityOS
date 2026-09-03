@@ -58,6 +58,19 @@ export class PaymentsController {
   }
 
   // ==========================================
+  // Create a Gateway (online) Checkout for resident dues
+  // ==========================================
+
+  @Post('checkout')
+  @Permissions('payment.create')
+  checkout(@Request() req: any, @Body() dto: CreatePaymentDto) {
+    return this.paymentsService.createGatewayCheckout(
+      req.user.community.id,
+      dto,
+    );
+  }
+
+  // ==========================================
   // Get All Payments
   // ==========================================
 

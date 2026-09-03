@@ -248,7 +248,10 @@ enum AssessmentStatus {
 
 enum PaymentStatus {
   PENDING_VERIFICATION
+  PROCESSING
   VERIFIED
+  FAILED
+  EXPIRED
   REJECTED
   REFUNDED
   CANCELLED
@@ -261,6 +264,7 @@ enum PaymentMethod {
   CREDIT_CARD
   CHEQUE
   OTHER
+  ONLINE
 }
 
 enum FinanceCategory {
@@ -388,6 +392,7 @@ enum SubscriptionStatus {
 enum InvoiceStatus {
   DRAFT
   ISSUED
+  PROCESSING
   PAID
   OVERDUE
   WAIVED
@@ -1583,6 +1588,13 @@ model Payment {
   proofFileId     String?       @db.Uuid
   proofUrl        String?
 
+  gatewayProvider String?       @db.VarChar(50)
+  gatewayId       String?       @db.VarChar(100)
+  checkoutUrl     String?
+  gatewayMeta     Json?
+  paidAt          DateTime?
+  expiresAt       DateTime?
+
   status PaymentStatus @default(PENDING_VERIFICATION)
 
   verifiedById String?   @db.Uuid
@@ -1619,6 +1631,7 @@ model Payment {
   @@index([status])
   @@index([paymentDate])
   @@index([chargeTypeId])
+  @@index([gatewayId])
 }
 
 /////////////////////////////////////////////////////
@@ -2003,6 +2016,10 @@ model Invoice {
   paidAt        DateTime?
   paymentMethod String?       @db.VarChar(50)
   notes         String?
+
+  gatewayProvider String? @db.VarChar(50)
+  gatewayInvoiceId String? @db.VarChar(100)
+  checkoutUrl    String?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

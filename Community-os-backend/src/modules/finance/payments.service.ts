@@ -9,6 +9,7 @@ import {
   AssessmentStatus,
   ChargeRecurrence,
   NotificationType,
+  PaymentMethod,
   PaymentStatus,
 } from '@prisma/client';
 
@@ -23,12 +24,15 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { PaymentQueryDto } from './dto/payment-query.dto';
 import { RejectPaymentDto } from './dto/payment-review.dto';
 
+import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+
 @Injectable()
 export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
     private readonly financeSyncService: FinanceSyncService,
+    private readonly gateway: PaymentsGatewayService,
   ) {}
 
   // ==========================================
@@ -195,6 +199,201 @@ export class PaymentsService {
       message: 'Payment recorded and awaiting verification.',
       data: payment,
     };
+  }
+
+  // ==========================================
+  // Create a Gateway (online) Checkout for resident dues
+  // ==========================================
+
+  async createGatewayCheckout(communityId: string, dto: CreatePaymentDto) {
+    if (!this.gateway.enabled) {
+      throw new BadRequestException(
+        'Online payment gateway is not configured.',
+      );
+    }
+
+    // ==========================================
+    // Validate Resident
+    // ==========================================
+
+    const resident = await this.prisma.resident.findFirst({
+      where: { id: dto.residentId, communityId, deletedAt: null },
+    });
+
+    if (!resident) {
+      throw new NotFoundException('Resident not found.');
+    }
+    if (!resident.householdId) {
+      throw new BadRequestException('Resident is not linked to a household.');
+    }
+
+    // ==========================================
+    // Resolve target assessments
+    // ==========================================
+
+    const { targets, chargeTypeId } = await this.resolveTargets(
+      communityId,
+      dto,
+      resident.householdId,
+    );
+
+    if (targets.length === 0) {
+      throw new BadRequestException(
+        'Select at least one assessment or billing period to pay for.',
+      );
+    }
+
+    const allocatedTotal = targets.reduce((sum, t) => sum + t.amount, 0);
+    if (Math.abs(allocatedTotal - dto.amount) > 0.005) {
+      throw new BadRequestException(
+        `Payment amount must equal the sum of selected items (${allocatedTotal.toFixed(
+          2,
+        )}).`,
+      );
+    }
+
+    // ==========================================
+    // Create Payment in PROCESSING state
+    // ==========================================
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        communityId,
+        paymentNumber: await this.nextPaymentNumber(communityId),
+        residentId: dto.residentId,
+        amount: dto.amount,
+        paymentDate: new Date(),
+        method: PaymentMethod.ONLINE,
+        referenceNumber: dto.referenceNumber,
+        remarks: dto.remarks,
+        chargeTypeId: chargeTypeId ?? dto.chargeTypeId,
+        status: PaymentStatus.PROCESSING,
+        gatewayProvider: 'paymongo',
+        allocations: {
+          create: targets.map((target) => ({
+            communityId,
+            assessmentId: target.assessmentId,
+            allocatedAmount: target.amount,
+          })),
+        },
+      },
+    });
+
+    // ==========================================
+    // Create gateway checkout session
+    // ==========================================
+
+    const checkout = await this.gateway.createCheckout({
+      amount: Number(dto.amount),
+      currency: 'PHP',
+      description: 'HOA dues payment',
+      metadata: {
+        paymentId: payment.id,
+        communityId,
+        type: 'payment',
+      },
+    });
+
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        gatewayId: checkout.gatewayId,
+        checkoutUrl: checkout.checkoutUrl,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Checkout created. Redirect the resident to the checkout URL.',
+      data: {
+        paymentId: payment.id,
+        checkoutUrl: checkout.checkoutUrl,
+        gatewayId: checkout.gatewayId,
+      },
+    };
+  }
+
+  // ==========================================
+  // Gateway webhook transitions (verified by gateway module)
+  // ==========================================
+
+  async markGatewaySucceeded(gatewayId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { gatewayId: gatewayId, deletedAt: null },
+    });
+
+    if (!payment) {
+      return { success: false, reason: 'NOT_FOUND' };
+    }
+    if (payment.status !== PaymentStatus.PROCESSING) {
+      return { success: false, reason: 'ALREADY_FINAL' };
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.VERIFIED,
+        paidAt: new Date(),
+      },
+      include: {
+        allocations: true,
+        resident: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    await this.syncLinkedAssessments(payment.communityId, payment.id);
+    await this.notifyResident(
+      payment.communityId,
+      payment.residentId,
+      `Payment ${payment.paymentNumber} verified`,
+      `Your online payment of ${Number(payment.amount)} was successful.`,
+      `/payments/${payment.id}`,
+    );
+
+    return { success: true, payment: updated };
+  }
+
+  async markGatewayFailed(gatewayId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { gatewayId: gatewayId, deletedAt: null },
+    });
+    if (!payment) {
+      return { success: false, reason: 'NOT_FOUND' };
+    }
+    if (payment.status !== PaymentStatus.PROCESSING) {
+      return { success: false, reason: 'ALREADY_FINAL' };
+    }
+
+    await this.reverseAllocations(payment.communityId, payment.id);
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: PaymentStatus.FAILED },
+    });
+    await this.syncLinkedAssessments(payment.communityId, payment.id);
+
+    return { success: true };
+  }
+
+  async markGatewayExpired(gatewayId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { gatewayId: gatewayId, deletedAt: null },
+    });
+    if (!payment) {
+      return { success: false, reason: 'NOT_FOUND' };
+    }
+    if (payment.status !== PaymentStatus.PROCESSING) {
+      return { success: false, reason: 'ALREADY_FINAL' };
+    }
+
+    await this.reverseAllocations(payment.communityId, payment.id);
+    await this.prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: PaymentStatus.EXPIRED },
+    });
+    await this.syncLinkedAssessments(payment.communityId, payment.id);
+
+    return { success: true };
   }
 
   // ==========================================

@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  BadRequestException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,9 +14,14 @@ import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { InvoiceQueryDto } from './dto/invoice-query.dto';
 import { MarkPaidInvoiceDto } from './dto/mark-paid.dto';
 
+import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly gateway: PaymentsGatewayService,
+  ) {}
 
   // ==========================================
   // Create Invoice
@@ -246,6 +252,87 @@ export class InvoicesService {
       message: 'Invoice marked as paid.',
       data: updatedInvoice,
     };
+  }
+
+  // ==========================================
+  // Create a Gateway (online) Checkout for a subscription invoice
+  // ==========================================
+
+  async createGatewayCheckout(communityId: string, id: string) {
+    if (!this.gateway.enabled) {
+      throw new BadRequestException(
+        'Online payment gateway is not configured.',
+      );
+    }
+
+    const invoice = await this.findScoped(communityId, id);
+
+    if (invoice.status === InvoiceStatus.PAID) {
+      throw new ConflictException('Paid invoices cannot be checked out.');
+    }
+    if (invoice.status === InvoiceStatus.VOID) {
+      throw new ConflictException('Void invoices cannot be checked out.');
+    }
+
+    const checkout = await this.gateway.createCheckout({
+      amount: Number(invoice.amount),
+      currency: 'PHP',
+      description: `CommunityOS subscription invoice ${invoice.invoiceNumber}`,
+      metadata: {
+        invoiceId: invoice.id,
+        communityId,
+        type: 'invoice',
+      },
+    });
+
+    await this.prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: InvoiceStatus.PROCESSING,
+        gatewayProvider: 'paymongo',
+        gatewayInvoiceId: checkout.gatewayId,
+        checkoutUrl: checkout.checkoutUrl,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Checkout created. Redirect to the checkout URL.',
+      data: {
+        invoiceId: invoice.id,
+        checkoutUrl: checkout.checkoutUrl,
+        gatewayId: checkout.gatewayId,
+      },
+    };
+  }
+
+  // ==========================================
+  // Gateway webhook transition (verified by gateway module)
+  // ==========================================
+
+  async markGatewayPaidByGateway(gatewayInvoiceId: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { gatewayInvoiceId, deletedAt: null },
+    });
+
+    if (!invoice) {
+      return { success: false, reason: 'NOT_FOUND' };
+    }
+
+    if (invoice.status !== InvoiceStatus.PROCESSING) {
+      return { success: false, reason: 'ALREADY_FINAL' };
+    }
+
+    const updatedInvoice = await this.prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: InvoiceStatus.PAID,
+        paidAt: new Date(),
+        paymentMethod: 'ONLINE',
+      },
+    });
+
+    return { success: true, invoice: updatedInvoice };
   }
 
   // ==========================================

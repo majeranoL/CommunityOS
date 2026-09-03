@@ -33,10 +33,17 @@ import { NotificationsModule } from '../notifications/notifications.module';
 
 import { FeaturesModule } from '../features/features.module';
 
+import { PaymentsGatewayModule } from '../payments-gateway/payments-gateway.module';
+
 import { FinanceTransparencyGuard } from '../../common/guards/finance-transparency.guard';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, FeaturesModule],
+  imports: [
+    PrismaModule,
+    NotificationsModule,
+    FeaturesModule,
+    PaymentsGatewayModule,
+  ],
   controllers: [
     AssessmentsController,
     PaymentsController,
