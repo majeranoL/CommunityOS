@@ -7,6 +7,7 @@ import {
   CreditCard,
   RefreshCcw,
   Sparkles,
+  Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,12 +39,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { KpiCard } from '@/features/dashboard/components/kpi-card'
+import { ActivePaymentMethods } from '@/features/finance/components/payment-methods-manager'
 import {
   useBillingSummary,
   useCancelSubscription,
   useInvoices,
+  useMarkInvoicePaid,
   usePlansList,
+  usePlatformPaymentMethods,
   useRenewSubscription,
   useSubscribeToPlan,
   useSubscription,
@@ -52,6 +63,12 @@ import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
+
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'GCASH', label: 'GCash' },
+  { value: 'MAYA', label: 'Maya' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+] as const
 
 function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
   const { data: plans, isLoading } = usePlansList()
@@ -154,6 +171,68 @@ function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
   )
 }
 
+function MarkInvoicePaidDialog({
+  invoiceId,
+  invoiceNumber,
+}: {
+  invoiceId: string
+  invoiceNumber: string
+}) {
+  const markPaid = useMarkInvoicePaid()
+  const [method, setMethod] = useState<string>('')
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          Mark as paid
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Confirm payment</DialogTitle>
+          <DialogDescription>
+            Select how you paid invoice <strong>{invoiceNumber}</strong>.
+          </DialogDescription>
+        </DialogHeader>
+        <Select value={method} onValueChange={setMethod}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select payment method" />
+          </SelectTrigger>
+          <SelectContent>
+            {PAYMENT_METHOD_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <DialogFooter>
+          <Button
+            variant="ghost"
+            onClick={() => setOpen(false)}
+            disabled={markPaid.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={!method || markPaid.isPending}
+            onClick={() => {
+              markPaid.mutate(
+                { id: invoiceId, paymentMethod: method },
+                { onSuccess: () => setOpen(false) },
+              )
+            }}
+          >
+            {markPaid.isPending ? 'Confirming…' : 'Confirm payment'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function BillingPage() {
   const { data: summary, isLoading: summaryLoading } = useBillingSummary()
   const { data: subscription, isLoading: subscriptionLoading } =
@@ -164,6 +243,11 @@ export default function BillingPage() {
   const hasManage = useHasPermission(PERMISSIONS.subscriptionManage)
   const outstanding = summary?.invoices.outstandingAmount
   const hasOutstanding = Number(outstanding ?? 0) > 0
+  const { data: platformMethods, isLoading: platformMethodsLoading } =
+    usePlatformPaymentMethods()
+  const unpaidInvoices = invoices?.filter(
+    (inv) => inv.status !== 'PAID' && inv.status !== 'VOID' && inv.status !== 'WAIVED',
+  )
 
   return (
     <div className="space-y-6">
@@ -221,6 +305,32 @@ export default function BillingPage() {
           loading={summaryLoading}
         />
       </div>
+
+      {unpaidInvoices && unpaidInvoices.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              How to pay
+            </CardTitle>
+            <CardDescription>
+              Send your subscription payment using one of the methods below, then
+              mark the invoice as paid.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {platformMethodsLoading ? (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-20" />
+                ))}
+              </div>
+            ) : (
+              <ActivePaymentMethods methods={platformMethods} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -404,28 +514,44 @@ export default function BillingPage() {
                   <TableHead>Cycle</TableHead>
                   <TableHead>Due date</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">
-                      {invoice.invoiceNumber}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={invoice.status} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {invoice.billingCycle === 'YEARLY' ? 'Yearly' : 'Monthly'}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(invoice.dueDate)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(invoice.amount)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {invoices.map((invoice) => {
+                  const isPayable =
+                    invoice.status !== 'PAID' &&
+                    invoice.status !== 'VOID' &&
+                    invoice.status !== 'WAIVED'
+
+                  return (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">
+                        {invoice.invoiceNumber}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={invoice.status} />
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {invoice.billingCycle === 'YEARLY' ? 'Yearly' : 'Monthly'}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(invoice.dueDate)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(invoice.amount)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isPayable ? (
+                          <MarkInvoicePaidDialog
+                            invoiceId={invoice.id}
+                            invoiceNumber={invoice.invoiceNumber}
+                          />
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           ) : (

@@ -9,8 +9,11 @@ import * as bcrypt from 'bcrypt';
 
 import {
   AccountStatus,
+  BillingCycle,
   CommunityStatus,
   HouseholdStatus,
+  InvoiceStatus,
+  Prisma,
   ResidentStatus,
   ResidentType,
   SubscriptionStatus,
@@ -741,6 +744,14 @@ export class CommunitiesService {
         endsAt: Date;
       } | null = null;
 
+      let invoice: {
+        id: string;
+        invoiceNumber: string;
+        amount: number | Prisma.Decimal;
+        status: InvoiceStatus;
+        dueDate: Date;
+      } | null = null;
+
       if (plan) {
         const startsAt = new Date();
         const trialEndsAt = addDays(startsAt, PROVISION_TRIAL_DAYS);
@@ -762,6 +773,42 @@ export class CommunitiesService {
             endsAt: true,
           },
         });
+
+        // ---------- Issue first invoice for the plan (unless exempt) ----------
+
+        if (Number(plan.price) > 0) {
+          const invoiceCount = await tx.invoice.count({
+            where: { communityId: community.id },
+          });
+
+          const now = new Date();
+          const isExempt = await tx.billingExemption.findFirst({
+            where: {
+              communityId: community.id,
+              startDate: { lte: now },
+              OR: [{ endDate: null }, { endDate: { gte: now } }],
+            },
+          });
+
+          invoice = await tx.invoice.create({
+            data: {
+              communityId: community.id,
+              subscriptionId: subscription.id,
+              invoiceNumber: `INV-${String(invoiceCount + 1).padStart(6, '0')}`,
+              amount: isExempt ? 0 : Number(plan.price),
+              billingCycle: plan.billingCycle ?? BillingCycle.MONTHLY,
+              status: isExempt ? InvoiceStatus.WAIVED : InvoiceStatus.ISSUED,
+              dueDate: trialEndsAt,
+            },
+            select: {
+              id: true,
+              invoiceNumber: true,
+              amount: true,
+              status: true,
+              dueDate: true,
+            },
+          });
+        }
       }
 
       // ---------- Owner Account + User ----------
@@ -892,7 +939,7 @@ export class CommunitiesService {
         },
       });
 
-      return { community, subscription, user };
+      return { community, subscription, invoice, user };
     });
 
     await this.featuresService.assignStandardFeaturesToCommunity(
@@ -913,6 +960,7 @@ export class CommunitiesService {
       data: {
         community: result.community,
         subscription: result.subscription,
+        invoice: result.invoice,
         owner: {
           id: result.user.id,
           firstName: result.user.firstName,

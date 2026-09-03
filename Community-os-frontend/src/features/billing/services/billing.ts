@@ -7,6 +7,7 @@ import type {
   Subscription,
   SubscriptionPlan,
 } from '@/types/api'
+import type { ActivePaymentMethod } from '@/features/finance/types/finance'
 
 export async function fetchBillingSummary() {
   const { data } = await api.get<ApiEnvelope<BillingSummary>>('/billing/summary')
@@ -50,5 +51,19 @@ export async function cancelSubscription(id: string) {
 
 export async function generateInvoice(id: string) {
   const { data } = await api.post<ApiEnvelope<Invoice>>(`/subscriptions/${id}/generate-invoice`)
+  return data.data
+}
+
+export async function fetchPlatformPaymentMethods() {
+  const { data } = await api.get<ApiEnvelope<ActivePaymentMethod[]>>(
+    '/payment-methods/platform',
+  )
+  return data.data
+}
+
+export async function markInvoicePaid(id: string, paymentMethod?: string) {
+  const { data } = await api.post<ApiEnvelope<Invoice>>(`/invoices/${id}/mark-paid`, {
+    paymentMethod,
+  })
   return data.data
 }

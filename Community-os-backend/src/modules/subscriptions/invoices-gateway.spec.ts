@@ -6,6 +6,7 @@ import { InvoicesService } from './invoices.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+import { FeaturesService } from '../features/features.service';
 
 describe('InvoicesService gateway invoice flow', () => {
   let service: InvoicesService;
@@ -41,6 +42,10 @@ describe('InvoicesService gateway invoice flow', () => {
         InvoicesService,
         { provide: PrismaService, useValue: prisma },
         { provide: PaymentsGatewayService, useValue: gateway },
+        {
+          provide: FeaturesService,
+          useValue: { syncFeaturesFromPlan: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -90,5 +95,100 @@ describe('InvoicesService gateway invoice flow', () => {
 
     expect(result.success).toBe(false);
     expect(result.reason).toBe('NOT_FOUND');
+  });
+});
+
+describe('InvoicesService markPaid trial activation', () => {
+  let service: InvoicesService;
+  let prisma: any;
+  const featuresService = {
+    syncFeaturesFromPlan: jest.fn().mockResolvedValue(undefined),
+  };
+
+  beforeEach(async () => {
+    featuresService.syncFeaturesFromPlan.mockClear();
+    prisma = {
+      invoice: {
+        findFirst: jest.fn(),
+        update: jest.fn().mockImplementation((args) => ({
+          ...args.data,
+          subscription: { plan: { price: '1000' }, status: 'TRIAL' },
+        })),
+      },
+      subscriptionPlan: {
+        findFirst: jest.fn(),
+      },
+      subscription: {
+        update: jest.fn().mockImplementation((args) => args.data),
+      },
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        InvoicesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: PaymentsGatewayService, useValue: { enabled: true } },
+        { provide: FeaturesService, useValue: featuresService },
+      ],
+    }).compile();
+
+    service = module.get<InvoicesService>(InvoicesService);
+  });
+
+  it('activates a TRIAL subscription when its invoice is marked paid', async () => {
+    prisma.invoice.findFirst.mockResolvedValue({
+      id: 'inv-1',
+      status: InvoiceStatus.ISSUED,
+      paymentMethod: null,
+      deletedAt: null,
+      subscription: {
+        id: 'sub-1',
+        status: 'TRIAL',
+        planId: 'plan-1',
+        endsAt: new Date(Date.now() + 86400000),
+      },
+    });
+    prisma.subscriptionPlan.findFirst.mockResolvedValue({
+      id: 'plan-1',
+      name: 'Standard',
+      price: '1000',
+      billingCycle: 'MONTHLY',
+    });
+
+    await service.markPaid('community-1', 'inv-1', {});
+
+    expect(prisma.subscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'sub-1' },
+        data: expect.objectContaining({
+          status: 'ACTIVE',
+          autoRenew: true,
+        }),
+      }),
+    );
+    expect(featuresService.syncFeaturesFromPlan).toHaveBeenCalledWith(
+      'community-1',
+      'plan-1',
+    );
+  });
+
+  it('does not activate a subscription for a non-TRIAL invoice', async () => {
+    prisma.invoice.findFirst.mockResolvedValue({
+      id: 'inv-2',
+      status: InvoiceStatus.ISSUED,
+      paymentMethod: null,
+      deletedAt: null,
+      subscription: {
+        id: 'sub-2',
+        status: 'ACTIVE',
+        planId: 'plan-1',
+        endsAt: new Date(Date.now() + 86400000),
+      },
+    });
+
+    await service.markPaid('community-1', 'inv-2', {});
+
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+    expect(featuresService.syncFeaturesFromPlan).not.toHaveBeenCalled();
   });
 });

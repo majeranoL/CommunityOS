@@ -43,6 +43,8 @@ import {
   InvoiceStatus,
   PollStatus,
   FeatureType,
+  PaymentMethodConfigMethod,
+  PaymentMethodConfigDisplay,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { mkdir, rm, writeFile } from 'fs/promises';
@@ -1647,6 +1649,68 @@ async function main() {
 
     console.log('✅ Subscription & invoices created');
   }
+
+  // =====================================================
+  // PLATFORM-WIDE PAYMENT METHODS (subscription payments)
+  // =====================================================
+
+  const platformPaymentMethods = [
+    {
+      method: PaymentMethodConfigMethod.GCASH,
+      accountName: 'CommunityOS Philippines',
+      accountNumber: '0917 123 4567',
+      displayMode: PaymentMethodConfigDisplay.BOTH,
+      instructions:
+        'Send your subscription payment to the GCash number above, then select the invoice and mark it as paid.',
+    },
+    {
+      method: PaymentMethodConfigMethod.MAYA,
+      accountName: 'CommunityOS Philippines',
+      accountNumber: '0918 765 4321',
+      displayMode: PaymentMethodConfigDisplay.BOTH,
+      instructions:
+        'Send your subscription payment to the Maya number above, then select the invoice and mark it as paid.',
+    },
+    {
+      method: PaymentMethodConfigMethod.BANK_TRANSFER,
+      accountName: 'CommunityOS Philippines',
+      accountNumber: '0001-2345-6789',
+      displayMode: PaymentMethodConfigDisplay.NUMBER,
+      instructions:
+        'Transfer your subscription payment to the bank account above, then select the invoice and mark it as paid.',
+    },
+  ];
+
+  for (const config of platformPaymentMethods) {
+    const existing = await prisma.paymentMethodConfig.findFirst({
+      where: { communityId: null, method: config.method },
+    });
+
+    const data = {
+      accountName: config.accountName,
+      accountNumber: config.accountNumber,
+      displayMode: config.displayMode,
+      instructions: config.instructions,
+      isActive: true,
+    };
+
+    if (existing) {
+      await prisma.paymentMethodConfig.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      await prisma.paymentMethodConfig.create({
+        data: {
+          communityId: null,
+          method: config.method,
+          ...data,
+        },
+      });
+    }
+  }
+
+  console.log('✅ Platform payment methods configured');
 
   // =====================================================
   // LOGIN INFO

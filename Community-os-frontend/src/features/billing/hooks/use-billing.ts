@@ -6,9 +6,11 @@ import {
   fetchBillingLimits,
   fetchBillingSummary,
   fetchInvoices,
+  fetchPlatformPaymentMethods,
   fetchSubscription,
   fetchSubscriptionPlans,
   generateInvoice,
+  markInvoicePaid,
   renewSubscription,
   subscribeToPlan,
 } from '@/features/billing/services/billing'
@@ -111,6 +113,29 @@ export function useGenerateInvoice() {
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Failed to generate invoice.'))
+    },
+  })
+}
+
+export function usePlatformPaymentMethods() {
+  return useQuery({
+    queryKey: ['billing', 'platform-payment-methods'],
+    queryFn: fetchPlatformPaymentMethods,
+  })
+}
+
+export function useMarkInvoicePaid() {
+  const invalidate = useInvalidateBilling()
+
+  return useMutation({
+    mutationFn: ({ id, paymentMethod }: { id: string; paymentMethod?: string }) =>
+      markInvoicePaid(id, paymentMethod),
+    onSuccess: () => {
+      toast.success('Invoice marked as paid.')
+      invalidate()
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Failed to mark invoice as paid.'))
     },
   })
 }

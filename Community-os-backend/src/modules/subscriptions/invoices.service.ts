@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { BillingCycle, InvoiceStatus, Prisma } from '@prisma/client';
+import {
+  BillingCycle,
+  InvoiceStatus,
+  Prisma,
+  SubscriptionStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -15,12 +20,14 @@ import { InvoiceQueryDto } from './dto/invoice-query.dto';
 import { MarkPaidInvoiceDto } from './dto/mark-paid.dto';
 
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+import { FeaturesService } from '../features/features.service';
 
 @Injectable()
 export class InvoicesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: PaymentsGatewayService,
+    private readonly featuresService: FeaturesService,
   ) {}
 
   // ==========================================
@@ -225,7 +232,20 @@ export class InvoicesService {
   // ==========================================
 
   async markPaid(communityId: string, id: string, dto: MarkPaidInvoiceDto) {
-    const invoice = await this.findScoped(communityId, id);
+    const invoice = await this.prisma.invoice.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+      include: {
+        subscription: true,
+      },
+    });
+
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found.');
+    }
 
     if (invoice.status === InvoiceStatus.VOID) {
       throw new ConflictException('Void invoices cannot be marked as paid.');
@@ -246,6 +266,41 @@ export class InvoicesService {
         },
       },
     });
+
+    // ==========================================
+    // Activate a trial subscription on first payment
+    // ==========================================
+
+    const subscription = invoice.subscription;
+    if (
+      subscription?.status === SubscriptionStatus.TRIAL &&
+      subscription.planId
+    ) {
+      const plan = await this.prisma.subscriptionPlan.findFirst({
+        where: { id: subscription.planId, deletedAt: null },
+      });
+
+      if (plan) {
+        const newEndsAt = this.addCycle(
+          new Date(subscription.endsAt) > new Date()
+            ? subscription.endsAt
+            : new Date(),
+          plan.billingCycle ?? BillingCycle.MONTHLY,
+        );
+
+        await this.prisma.subscription.update({
+          where: { id: subscription.id },
+          data: {
+            status: SubscriptionStatus.ACTIVE,
+            endsAt: newEndsAt,
+            cancelledAt: null,
+            autoRenew: true,
+          },
+        });
+
+        await this.featuresService.syncFeaturesFromPlan(communityId, plan.id);
+      }
+    }
 
     return {
       success: true,
@@ -398,5 +453,15 @@ export class InvoicesService {
     }
 
     return invoice;
+  }
+
+  private addCycle(date: Date, cycle: BillingCycle): Date {
+    const result = new Date(date);
+    if (cycle === BillingCycle.MONTHLY) {
+      result.setMonth(result.getMonth() + 1);
+    } else {
+      result.setFullYear(result.getFullYear() + 1);
+    }
+    return result;
   }
 }
