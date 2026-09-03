@@ -10,7 +10,7 @@ const community = {
   description: '',
   email: 'hoa@example.com',
   contactNumber: '09171234567',
-  address: 'Quezon City',
+  address: '123 Sampaguita St., Brgy. San Isidro, Antipolo City, Rizal',
   planId: 'plan-1',
   password: 'Password1',
   confirmPassword: 'Password1',
@@ -42,6 +42,14 @@ describe('get-started validation schemas', () => {
     const result = communityStepSchema.safeParse({
       ...community,
       email: undefined,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects the community step when the community address is too short', () => {
+    const result = communityStepSchema.safeParse({
+      ...community,
+      address: 'QC City',
     })
     expect(result.success).toBe(false)
   })

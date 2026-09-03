@@ -40,7 +40,11 @@ const provisionSchema = z
       .optional()
       .or(z.literal('')),
     contactNumber: z.string().optional(),
-    address: z.string().optional(),
+    address: z
+      .string()
+      .trim()
+      .min(10, 'Please provide a complete community address (street, city, and province).')
+      .max(255),
     planId: z.string().min(1, 'Please select a plan'),
     firstName: z.string().min(1, 'First name is required'),
     lastName: z.string().min(1, 'Last name is required'),
@@ -200,19 +204,22 @@ export default function AdminProvisionPage() {
                   )}
                 />
               </div>
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address</FormLabel>
-                    <FormControl>
-                      <Input placeholder="City or barangay (optional)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               <FormField
+                 control={form.control}
+                 name="address"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel>Community address</FormLabel>
+                     <FormControl>
+                       <Input placeholder="123 Sampaguita St., Brgy. San Isidro, Antipolo City, Rizal" {...field} />
+                     </FormControl>
+                     <FormDescription>
+                       Full address of the association, including street, city, and province.
+                     </FormDescription>
+                     <FormMessage />
+                   </FormItem>
+                 )}
+               />
 
               <FormItem>
                 <FormLabel>Plan</FormLabel>

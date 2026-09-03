@@ -128,7 +128,7 @@ async function main() {
       displayName: 'CommunityOS Demo HOA',
       email: 'hoa@communityosdemo.com',
       contactNumber: '09123456789',
-      address: '123 Sampaguita Street, Barangay San Isidro, Antipolo City',
+      address: '123 Sampaguita Street, Barangay San Isidro, Antipolo City, Rizal',
       status: CommunityStatus.ACTIVE,
     },
   });

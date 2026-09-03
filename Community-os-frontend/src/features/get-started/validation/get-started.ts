@@ -5,7 +5,11 @@ const communityFields = {
   description: z.string().optional(),
   email: z.string().email('Invalid email address'),
   contactNumber: z.string().optional(),
-  address: z.string().optional(),
+  address: z
+    .string()
+    .trim()
+    .min(10, 'Please provide a complete community address (street, city, and province).')
+    .max(255),
   planId: z.string().min(1, 'Please select a plan'),
   password: z
     .string()

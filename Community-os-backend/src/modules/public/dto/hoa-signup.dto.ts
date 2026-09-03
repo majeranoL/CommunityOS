@@ -6,6 +6,7 @@ import {
   IsString,
   IsUUID,
   MaxLength,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 
@@ -87,9 +88,14 @@ export class HoaSignupDto {
   @MaxLength(20)
   contactNumber?: string;
 
-  @IsOptional()
   @IsString()
-  address?: string;
+  @IsNotEmpty({ message: 'Community address is required.' })
+  @MinLength(10, {
+    message:
+      'Please provide a complete community address (street, city, and province).',
+  })
+  @MaxLength(255)
+  address!: string;
 
   @IsOptional()
   @IsString()

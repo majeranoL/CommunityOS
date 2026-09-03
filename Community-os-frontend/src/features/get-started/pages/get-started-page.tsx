@@ -238,10 +238,13 @@ export default function GetStartedPage() {
                       name="address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Address</FormLabel>
+                          <FormLabel>Community address</FormLabel>
                           <FormControl>
-                            <Input placeholder="City or barangay (optional)" {...field} />
+                            <Input placeholder="123 Sampaguita St., Brgy. San Isidro, Antipolo City, Rizal" {...field} />
                           </FormControl>
+                          <FormDescription>
+                            Full address of the association, including street, city, and province.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
