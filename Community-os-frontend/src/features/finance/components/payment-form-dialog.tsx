@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useQuery } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2, Upload, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -52,6 +53,8 @@ import type {
 } from '@/features/finance/types/finance'
 import { formatCurrency, formatDateTime, toTitleCase } from '@/lib/format'
 import { SummaryConfirmDialog } from '@/components/shared/summary-confirm-dialog'
+import { paymentMethodsService } from '@/features/finance/services/finance'
+import { ActivePaymentMethods } from '@/features/finance/components/payment-methods-manager'
 
 interface PaymentFormDialogProps {
   open: boolean
@@ -167,6 +170,16 @@ function PaymentFormDialogContent({
       proofFileId: payment?.proofFileId ?? '',
       proofUrl: payment?.proofUrl ?? '',
     },
+  })
+
+  const selectedMethod = form.watch('method')
+
+  const showWalletInstructions = selectedMethod === 'GCASH' || selectedMethod === 'MAYA'
+
+  const { data: walletMethods } = useQuery({
+    queryKey: ['payment-methods', 'active'],
+    queryFn: () => paymentMethodsService.listActive(),
+    enabled: showWalletInstructions,
   })
 
   // Eligible items for the resident's household
@@ -355,6 +368,14 @@ function PaymentFormDialogContent({
                 )}
               />
             </div>
+            {showWalletInstructions && (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="mb-2 text-sm font-medium">
+                  How to pay via {selectedMethod === 'GCASH' ? 'GCash' : 'Maya'}
+                </p>
+                <ActivePaymentMethods methods={walletMethods} />
+              </div>
+            )}
             <FormField
               control={form.control}
               name="residentId"

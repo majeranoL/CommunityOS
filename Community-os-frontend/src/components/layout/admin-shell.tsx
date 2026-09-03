@@ -11,6 +11,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -36,6 +37,7 @@ const ADMIN_NAV = [
   { label: 'Features', href: '/admin/features', icon: Puzzle },
   { label: 'System Health', href: '/admin/monitoring', icon: ShieldCheck },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'Payment methods', href: '/admin/payment-methods', icon: Wallet },
   { label: 'Provision', href: '/admin/communities/new', icon: Users },
 ]
 

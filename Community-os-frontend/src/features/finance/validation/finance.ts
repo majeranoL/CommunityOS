@@ -108,6 +108,7 @@ export const PAYMENT_METHODS = [
   'CASH',
   'BANK_TRANSFER',
   'GCASH',
+  'MAYA',
   'CREDIT_CARD',
   'CHEQUE',
   'OTHER',

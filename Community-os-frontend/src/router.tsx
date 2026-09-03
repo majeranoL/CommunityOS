@@ -111,6 +111,9 @@ const AdminFeaturesPage = lazy(
 const AdminPlatformSettingsPage = lazy(
   () => import('@/features/admin/pages/admin-platform-settings-page'),
 )
+const AdminPaymentMethodsPage = lazy(
+  () => import('@/features/admin/pages/admin-payment-methods-page'),
+)
 const AdminMonitoringPage = lazy(
   () => import('@/features/admin/pages/admin-monitoring-page'),
 )
@@ -406,6 +409,10 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: withSuspense(<AdminPlatformSettingsPage />),
+      },
+      {
+        path: 'payment-methods',
+        element: withSuspense(<AdminPaymentMethodsPage />),
       },
       {
         path: 'monitoring',

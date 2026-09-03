@@ -18,6 +18,7 @@ export type PaymentMethod =
   | 'CASH'
   | 'BANK_TRANSFER'
   | 'GCASH'
+  | 'MAYA'
   | 'CREDIT_CARD'
   | 'CHEQUE'
   | 'OTHER'
@@ -230,6 +231,42 @@ export interface UpdatePaymentInput {
   proofFileId?: string
   proofUrl?: string
   chargeTypeId?: string
+}
+
+export type PaymentMethodConfigMethod = 'GCASH' | 'MAYA' | 'BANK_TRANSFER'
+
+export type PaymentMethodConfigDisplay = 'QR' | 'NUMBER' | 'BOTH'
+
+export interface PaymentMethodConfig {
+  method: PaymentMethodConfigMethod
+  displayMode: PaymentMethodConfigDisplay
+  accountName?: string | null
+  accountNumber?: string | null
+  qrFileId?: string | null
+  qrUrl?: string | null
+  instructions?: string | null
+  isActive: boolean
+  configured: boolean
+}
+
+export interface PaymentMethodConfigInput {
+  method: PaymentMethodConfigMethod
+  displayMode?: PaymentMethodConfigDisplay
+  accountName?: string
+  accountNumber?: string
+  qrFileId?: string
+  qrUrl?: string
+  instructions?: string
+  isActive?: boolean
+}
+
+export interface ActivePaymentMethod {
+  method: PaymentMethodConfigMethod
+  displayMode: PaymentMethodConfigDisplay
+  accountName?: string | null
+  accountNumber?: string | null
+  qrUrl?: string | null
+  instructions?: string | null
 }
 
 export interface ResidentOption {

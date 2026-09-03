@@ -43,6 +43,8 @@ import { UtilityBillingModule } from './modules/utility-billing/utility-billing.
 import { S3Module } from './common/s3/s3.module';
 import { PaymentsGatewayModule } from './modules/payments-gateway/payments-gateway.module';
 import { GatewayWebhookModule } from './modules/gateway-webhook/gateway-webhook.module';
+import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -57,6 +59,7 @@ import { GatewayWebhookModule } from './modules/gateway-webhook/gateway-webhook.
     S3Module,
     PaymentsGatewayModule,
     GatewayWebhookModule,
+    PaymentMethodsModule,
     UsersModule,
     AuthModule,
     ResidentModule,

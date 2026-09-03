@@ -122,6 +122,20 @@ export class PaymentsService {
     }
 
     // ==========================================
+    // Require proof for wallet payments
+    // ==========================================
+
+    if (
+      (dto.method === 'GCASH' || dto.method === 'MAYA') &&
+      !dto.proofFileId &&
+      !dto.proofUrl
+    ) {
+      throw new BadRequestException(
+        'A proof screenshot is required for GCash/Maya payments.',
+      );
+    }
+
+    // ==========================================
     // Create Payment + Allocations
     // ==========================================
 
@@ -790,6 +804,19 @@ export class PaymentsService {
     if (dto.proofFileId !== undefined) data.proofFileId = dto.proofFileId;
     if (dto.proofUrl !== undefined) data.proofUrl = dto.proofUrl;
     if (chargeTypeId !== undefined) data.chargeTypeId = chargeTypeId;
+
+    const targetMethod = dto.method ?? payment.method;
+    const proofFileId = data.proofFileId ?? payment.proofFileId;
+    const proofUrl = data.proofUrl ?? payment.proofUrl;
+    if (
+      (targetMethod === 'GCASH' || targetMethod === 'MAYA') &&
+      !proofFileId &&
+      !proofUrl
+    ) {
+      throw new BadRequestException(
+        'A proof screenshot is required for GCash/Maya payments.',
+      );
+    }
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },

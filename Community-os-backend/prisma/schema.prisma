@@ -261,10 +261,23 @@ enum PaymentMethod {
   CASH
   BANK_TRANSFER
   GCASH
+  MAYA
   CREDIT_CARD
   CHEQUE
   OTHER
   ONLINE
+}
+
+enum PaymentMethodConfigMethod {
+  GCASH
+  MAYA
+  BANK_TRANSFER
+}
+
+enum PaymentMethodConfigDisplay {
+  QR
+  NUMBER
+  BOTH
 }
 
 enum FinanceCategory {
@@ -464,6 +477,7 @@ model Community {
   polls              Poll[]
   auditLogs          AuditLog[]
   settings           Setting[]
+  paymentMethodConfigs PaymentMethodConfig[]
   uploads            Upload[]
   communityFeatures  CommunityFeature[]
   featureAuditLogs   FeatureAuditLog[]
@@ -2200,6 +2214,32 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 
   @@index([group])
+}
+
+/////////////////////////////////////////////////////
+// PAYMENT METHOD CONFIG (QR image OR account number)
+/////////////////////////////////////////////////////
+
+model PaymentMethodConfig {
+  id          String                    @id @default(uuid()) @db.Uuid
+  communityId String?                   @db.Uuid
+  community   Community?                @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  // null communityId = platform-wide (superadmin-managed), used for subscription payments
+  method        PaymentMethodConfigMethod
+  displayMode   PaymentMethodConfigDisplay @default(QR)
+  accountName   String?                   @db.VarChar(120)
+  accountNumber String?                   @db.VarChar(60)
+  qrFileId      String?                   @db.Uuid
+  qrUrl         String?
+  instructions  String?                   @db.Text
+  isActive      Boolean                   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, method])
+  @@index([communityId, isActive])
 }
 
 /////////////////////////////////////////////////////

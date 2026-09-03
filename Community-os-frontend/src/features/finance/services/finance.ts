@@ -1,6 +1,7 @@
 import api from '@/lib/api'
 import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
 import type {
+  ActivePaymentMethod,
   Assessment,
   AssessmentListItem,
   BillingPeriod,
@@ -29,6 +30,8 @@ import type {
   IncomeStatement,
   Payment,
   PaymentListItem,
+  PaymentMethodConfig,
+  PaymentMethodConfigInput,
   PaymentReceipt,
   ResidentOption,
   UpdateAssessmentInput,
@@ -181,8 +184,49 @@ export const paymentsService = {
     return data.data
   },
 
-  async cancel(id: string) {
+async cancel(id: string) {
     const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/cancel`)
+    return data.data
+  },
+}
+
+export const paymentMethodsService = {
+  // Resident read: active payment methods shown in the pay dialog
+  async listActive() {
+    const { data } = await api.get<ApiEnvelope<ActivePaymentMethod[]>>(
+      '/payment-methods/active',
+    )
+    return data.data
+  },
+
+  // Officer manage
+  async listAdmin() {
+    const { data } = await api.get<ApiEnvelope<PaymentMethodConfig[]>>(
+      '/payment-methods/admin',
+    )
+    return data.data
+  },
+
+  async save(input: PaymentMethodConfigInput) {
+    const { data } = await api.post<ApiEnvelope<PaymentMethodConfig>>(
+      '/payment-methods/admin',
+      input,
+    )
+    return data.data
+  },
+
+  async update(method: string, input: PaymentMethodConfigInput) {
+    const { data } = await api.put<ApiEnvelope<PaymentMethodConfig>>(
+      `/payment-methods/admin/${method}`,
+      input,
+    )
+    return data.data
+  },
+
+  async remove(method: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(
+      `/payment-methods/admin/${method}`,
+    )
     return data.data
   },
 }

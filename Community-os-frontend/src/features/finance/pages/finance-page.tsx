@@ -40,6 +40,8 @@ import {
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { toast } from '@/components/ui/sonner'
+import { PaymentMethodsManager } from '@/features/finance/components/payment-methods-manager'
+import { paymentMethodsService } from '@/features/finance/services/finance'
 import {
   useAssessments,
   usePayments,
@@ -131,6 +133,21 @@ const PAYMENT_STATUSES: Array<{ value: PaymentStatus | 'ALL'; label: string }> =
   { value: 'CANCELLED', label: 'Cancelled' },
 ]
 
+function PaymentMethodsConfigTab() {
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title="Payment methods"
+        description="Configure how residents can pay the association online (GCash / Maya / bank)."
+      />
+      <PaymentMethodsManager
+        service={paymentMethodsService}
+        queryKey={['payment-methods', 'admin']}
+      />
+    </div>
+  )
+}
+
 export default function FinancePage() {
   const canCreateAssessment = useHasPermission(PERMISSIONS.assessmentCreate)
   const canViewAll = useHasPermission(PERMISSIONS.financeViewAll)
@@ -152,8 +169,9 @@ export default function FinancePage() {
   const showExpenses = isManager || (financeTransparencyEnabled && (canViewExpenses || canViewIncomeStatement))
   const showUtilities = isManager || (financeTransparencyEnabled && (canViewExpenses || canViewIncomeStatement))
   const showReports = isManager || (financeTransparencyEnabled && canViewIncomeStatement)
+  const showPaymentMethodsConfig = canManage
   const showSettingsMenu =
-    (showChargeTypes || showBillingPeriods || showImportExport || showMonthlyDues) &&
+    (showChargeTypes || showBillingPeriods || showImportExport || showMonthlyDues || showPaymentMethodsConfig) &&
     isManager
 
   const tabs: Array<{ value: string; label: string }> = []
@@ -213,6 +231,11 @@ export default function FinancePage() {
               {showImportExport ? (
                 <DropdownMenuItem onClick={() => setActiveTab('import-export')}>
                   Import / export
+                </DropdownMenuItem>
+              ) : null}
+              {showPaymentMethodsConfig ? (
+                <DropdownMenuItem onClick={() => setActiveTab('payment-methods-config')}>
+                  Payment methods
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -285,6 +308,11 @@ export default function FinancePage() {
         {showImportExport ? (
           <TabsContent value="import-export">
             <ImportExportPanel />
+          </TabsContent>
+        ) : null}
+        {showPaymentMethodsConfig ? (
+          <TabsContent value="payment-methods-config">
+            <PaymentMethodsConfigTab />
           </TabsContent>
         ) : null}
         {showMonthlyDues ? (
