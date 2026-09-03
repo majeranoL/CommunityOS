@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { UploadsService } from './uploads.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { S3Service } from '../../common/s3/s3.service';
 
 jest.mock('fs', () => {
   const actual = jest.requireActual('fs');
@@ -57,7 +58,14 @@ describe('UploadsService file gating', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [UploadsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        UploadsService,
+        { provide: PrismaService, useValue: prisma },
+        {
+          provide: S3Service,
+          useValue: { enabled: false, put: jest.fn(), get: jest.fn() },
+        },
+      ],
     }).compile();
 
     service = module.get<UploadsService>(UploadsService);
@@ -114,5 +122,101 @@ describe('UploadsService file gating', () => {
         buildFile({ buffer: Buffer.alloc(0), size: 0 }),
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('UploadsService S3 storage', () => {
+  let service: UploadsService;
+  let prisma: {
+    upload: {
+      create: jest.Mock;
+      findFirst: jest.Mock;
+      delete: jest.Mock;
+    };
+  };
+  let s3: {
+    enabled: boolean;
+    put: jest.Mock;
+    get: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      upload: {
+        create: jest.fn().mockResolvedValue({
+          id: 'upload-id',
+          filename: 'c1/uuid.png',
+          originalName: 'photo.png',
+          mimetype: 'image/png',
+          size: PNG_BYTES.length,
+        }),
+        findFirst: jest.fn(),
+        delete: jest.fn(),
+      },
+    };
+
+    s3 = {
+      enabled: true,
+      put: jest.fn().mockResolvedValue(undefined),
+      get: jest.fn().mockResolvedValue(Buffer.alloc(0)),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UploadsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: S3Service, useValue: s3 },
+      ],
+    }).compile();
+
+    service = module.get<UploadsService>(UploadsService);
+  });
+
+  it('writes the file to S3 keyed by communityId/filename', async () => {
+    await service.uploadFile('c1', 'u1', buildFile());
+
+    expect(s3.put).toHaveBeenCalledTimes(1);
+    const [key] = s3.put.mock.calls[0];
+    expect(key).toMatch(/^c1\/[a-f0-9-]+\.png$/);
+    expect(prisma.upload.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes the object from S3 when removing', async () => {
+    prisma.upload.findFirst.mockResolvedValue({
+      id: 'upload-id',
+      filename: 'c1/uuid.png',
+    });
+
+    await service.removeUploadForCommunity('c1', 'upload-id');
+
+    expect(s3.delete).toHaveBeenCalledWith('c1/uuid.png');
+    expect(prisma.upload.delete).toHaveBeenCalledWith({
+      where: { id: 'upload-id' },
+    });
+  });
+
+  it('reads a file body from S3', async () => {
+    s3.get.mockResolvedValue(Buffer.from('file-bytes'));
+
+    const body = await service.readFile({
+      communityId: 'c1',
+      filename: 'c1/uuid.png',
+    });
+
+    expect(s3.get).toHaveBeenCalledWith('c1/uuid.png');
+    expect(body?.toString()).toBe('file-bytes');
+  });
+
+  it('returns null when the S3 object is missing', async () => {
+    s3.get.mockRejectedValue(new Error('NoSuchKey'));
+
+    const body = await service.readFile({
+      communityId: 'c1',
+      filename: 'c1/missing.png',
+    });
+
+    expect(body).toBeNull();
   });
 });

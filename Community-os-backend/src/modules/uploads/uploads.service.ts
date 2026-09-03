@@ -10,6 +10,7 @@ import { randomUUID } from 'crypto';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { validateFile } from '../../common/utils/file-validation';
+import { S3Service } from '../../common/s3/s3.service';
 
 export interface UploadedFileResponse {
   id: string;
@@ -22,7 +23,10 @@ export interface UploadedFileResponse {
 
 @Injectable()
 export class UploadsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly s3: S3Service,
+  ) {}
 
   private toResponse(record: {
     id: string;
@@ -42,13 +46,21 @@ export class UploadsService {
   }
 
   private async persistFile(
+    communityId: string,
     buffer: Buffer,
     originalName: string,
+    mimetype: string,
   ): Promise<string> {
     const extension = extname(originalName).toLowerCase();
     const filename = `${randomUUID()}${extension}`;
-    const dir = join(process.cwd(), 'uploads');
+    const key = `${communityId}/${filename}`;
 
+    if (this.s3.enabled) {
+      await this.s3.put(key, buffer, mimetype);
+      return key;
+    }
+
+    const dir = join(process.cwd(), 'uploads');
     await fsPromises.mkdir(dir, { recursive: true });
     await fsPromises.writeFile(join(dir, filename), buffer);
 
@@ -81,7 +93,12 @@ export class UploadsService {
   ) {
     const validation = this.validate(file);
 
-    const filename = await this.persistFile(file.buffer, file.originalname);
+    const filename = await this.persistFile(
+      communityId,
+      file.buffer,
+      file.originalname,
+      validation.mimetype,
+    );
 
     const record = await this.prisma.upload.create({
       data: {
@@ -120,7 +137,12 @@ export class UploadsService {
       const file = files[index];
       const validation = validated[index];
 
-      const filename = await this.persistFile(file.buffer, file.originalname);
+      const filename = await this.persistFile(
+        communityId,
+        file.buffer,
+        file.originalname,
+        validation.mimetype,
+      );
 
       records.push(
         await this.prisma.upload.create({
@@ -182,14 +204,40 @@ export class UploadsService {
       return { success: true };
     }
 
-    await fsPromises
-      .unlink(join(process.cwd(), 'uploads', record.filename))
-      .catch(() => undefined);
+    if (this.s3.enabled) {
+      await this.s3.delete(record.filename).catch(() => undefined);
+    } else {
+      await fsPromises
+        .unlink(join(process.cwd(), 'uploads', record.filename))
+        .catch(() => undefined);
+    }
 
     await this.prisma.upload.delete({
       where: { id: record.id },
     });
 
     return { success: true };
+  }
+
+  // Reads the file bytes for a stored upload. Returns null when the object
+  // is missing (404), mirroring the previous on-disk "File missing" case.
+  async readFile(record: {
+    communityId: string;
+    filename: string;
+  }): Promise<Buffer | null> {
+    if (this.s3.enabled) {
+      try {
+        return await this.s3.get(record.filename);
+      } catch {
+        return null;
+      }
+    }
+
+    const filePath = join(process.cwd(), 'uploads', record.filename);
+    try {
+      return await fsPromises.readFile(filePath);
+    } catch {
+      return null;
+    }
   }
 }

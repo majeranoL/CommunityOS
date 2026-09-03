@@ -40,6 +40,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { HealthModule } from './modules/health/health.module';
 import { ImportExportModule } from './modules/import-export/import-export.module';
 import { UtilityBillingModule } from './modules/utility-billing/utility-billing.module';
+import { S3Module } from './common/s3/s3.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -51,6 +52,7 @@ import { UtilityBillingModule } from './modules/utility-billing/utility-billing.
       },
     ]),
     PrismaModule,
+    S3Module,
     UsersModule,
     AuthModule,
     ResidentModule,

@@ -16,8 +16,6 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 
 import { memoryStorage } from 'multer';
-import { existsSync, createReadStream } from 'fs';
-import { join } from 'path';
 
 import { UploadsService } from './uploads.service';
 
@@ -140,9 +138,9 @@ export class UploadsController {
       }
     }
 
-    const filePath = join(process.cwd(), 'uploads', record.filename);
+    const body = await this.uploadsService.readFile(record);
 
-    if (!existsSync(filePath)) {
+    if (!body) {
       res.status(404).json({
         success: false,
         statusCode: 404,
@@ -160,6 +158,6 @@ export class UploadsController {
         : `attachment; filename="${record.originalName}"`,
     );
 
-    createReadStream(filePath).pipe(res);
+    res.send(body);
   }
 }
