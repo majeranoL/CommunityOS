@@ -95,7 +95,7 @@ function removeBrandingStyle() {
 
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const status = useAuthStore((state) => state.status)
-  const { data: branding } = useBranding()
+  const { data: branding } = useBranding(status === 'authenticated')
 
   useEffect(() => {
     if (status !== 'authenticated' || !branding) return

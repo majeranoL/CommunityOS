@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/public/']
+const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/me', '/public/']
 
 function isPublicPath(url: string) {
   return PUBLIC_PATHS.some((path) => url.startsWith(path))
