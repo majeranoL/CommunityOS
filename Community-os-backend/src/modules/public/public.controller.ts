@@ -17,7 +17,7 @@ import { GoodStandingService } from '../good-standing/good-standing.service';
 import { setRefreshTokenCookie } from '../auth/auth-cookies';
 
 import { PublicCommunitiesQueryDto } from './dto/public-communities-query.dto';
-import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
+import { HoaSignupDto } from './dto/hoa-signup.dto';
 
 @Controller('public')
 export class PublicController {
@@ -50,7 +50,7 @@ export class PublicController {
   signup(
     @Request() req: any,
     @Res({ passthrough: true }) res: Response,
-    @Body() dto: ProvisionCommunityDto,
+    @Body() dto: HoaSignupDto,
   ) {
     return this.publicService
       .signup(dto, req.ip, req.headers?.['user-agent'])

@@ -4,8 +4,8 @@ import type {
   AdminCommunity,
   AdminCommunityDetail,
   AdminOverview,
+  AdminProvisionInput,
   ApiEnvelope,
-  HoaSignupInput,
   HoaSignupResult,
   Pagination,
   Subscription,
@@ -33,7 +33,7 @@ export async function fetchAdminCommunity(id: string) {
   return data.data
 }
 
-export async function provisionCommunity(input: HoaSignupInput) {
+export async function provisionCommunity(input: AdminProvisionInput) {
   const { data } = await api.post<ApiEnvelope<HoaSignupResult>>('/admin/communities', input)
   return data.data
 }

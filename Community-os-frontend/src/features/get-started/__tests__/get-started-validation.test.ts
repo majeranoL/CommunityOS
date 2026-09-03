@@ -1,51 +1,79 @@
 import { describe, expect, it } from 'vitest'
 import {
-  accountStepSchema,
   communityStepSchema,
+  ownerInfoStepSchema,
   getStartedSchema,
 } from '@/features/get-started/validation/get-started'
 
+const community = {
+  displayName: 'Sunrise Village HOA',
+  description: '',
+  email: 'hoa@example.com',
+  contactNumber: '09171234567',
+  address: 'Quezon City',
+  planId: 'plan-1',
+  password: 'Password1',
+  confirmPassword: 'Password1',
+}
+
+const owner = {
+  firstName: 'Juan',
+  lastName: 'Dela Cruz',
+  ownerEmail: '',
+  phoneNumber: '',
+  block: '1',
+  lot: '5',
+  unit: '',
+  homeAddress: '12 Sampaguita St.',
+}
+
 describe('get-started validation schemas', () => {
-  it('allows .pick()-based step schemas to be constructed without throwing', () => {
+  it('constructs step schemas without throwing', () => {
     expect(communityStepSchema).toBeDefined()
-    expect(accountStepSchema).toBeDefined()
+    expect(ownerInfoStepSchema).toBeDefined()
   })
 
-  it('parses a valid community step payload', () => {
+  it('parses a valid community step (with required login email + password)', () => {
+    const result = communityStepSchema.safeParse(community)
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects the community step when the login email is missing', () => {
     const result = communityStepSchema.safeParse({
-      displayName: 'Sunrise Village HOA',
-      email: '',
-      contactNumber: '09171234567',
-      address: 'Quezon City',
-      planId: 'plan-1',
+      ...community,
+      email: undefined,
     })
+    expect(result.success).toBe(false)
+  })
+
+  it('parses a valid owner-information step (with household address)', () => {
+    const result = ownerInfoStepSchema.safeParse(owner)
     expect(result.success).toBe(true)
   })
 
-  it('parses a valid owner-account step payload', () => {
-    const result = accountStepSchema.safeParse({
-      firstName: 'Juan',
-      lastName: 'Dela Cruz',
-      ownerEmail: 'juan@example.com',
-      password: 'Password1',
-      confirmPassword: 'Password1',
+  it('rejects the owner step when no household address is provided', () => {
+    const result = ownerInfoStepSchema.safeParse({
+      ...owner,
+      block: '',
+      lot: '',
+      unit: '',
+      homeAddress: '',
     })
-    expect(result.success).toBe(true)
+    expect(result.success).toBe(false)
   })
 
   it('rejects a full payload with mismatched passwords', () => {
     const result = getStartedSchema.safeParse({
-      displayName: 'Sunrise Village HOA',
-      email: '',
-      contactNumber: '',
-      address: '',
-      planId: 'plan-1',
-      firstName: 'Juan',
-      lastName: 'Dela Cruz',
-      ownerEmail: 'juan@example.com',
+      ...community,
+      ...owner,
       password: 'Password1',
       confirmPassword: 'Password2',
     })
     expect(result.success).toBe(false)
+  })
+
+  it('parses a valid full signup payload', () => {
+    const result = getStartedSchema.safeParse({ ...community, ...owner })
+    expect(result.success).toBe(true)
   })
 })

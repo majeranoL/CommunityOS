@@ -298,6 +298,25 @@ export interface AdminCommunityDetail {
 export interface HoaSignupInput {
   displayName: string
   description?: string
+  email: string
+  contactNumber?: string
+  address?: string
+  logoUrl?: string
+  planId?: string
+  owner: {
+    firstName: string
+    lastName: string
+    phoneNumber?: string
+    block?: string
+    lot?: string
+    unit?: string
+    address?: string
+  }
+}
+
+export interface AdminProvisionInput {
+  displayName: string
+  description?: string
   email?: string
   contactNumber?: string
   address?: string
@@ -308,6 +327,7 @@ export interface HoaSignupInput {
     lastName: string
     email: string
     password: string
+    phoneNumber?: string
     block?: string
     lot?: string
     unit?: string

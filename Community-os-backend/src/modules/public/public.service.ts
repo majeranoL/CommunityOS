@@ -8,7 +8,7 @@ import { CommunitiesService } from '../communities/communities.service';
 import { AuthService } from '../auth/auth.service';
 
 import { PublicCommunitiesQueryDto } from './dto/public-communities-query.dto';
-import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
+import { HoaSignupDto } from './dto/hoa-signup.dto';
 
 @Injectable()
 export class PublicService {
@@ -177,17 +177,16 @@ export class PublicService {
   // HOA Signup (provision community + owner session)
   // ==========================================
 
-  async signup(
-    dto: ProvisionCommunityDto,
-    ipAddress?: string,
-    userAgent?: string,
-  ) {
+  async signup(dto: HoaSignupDto, ipAddress?: string, userAgent?: string) {
+    const loginEmail = dto.email.trim().toLowerCase();
+    dto.owner.email = loginEmail;
+
     const provisioned = await this.communitiesService.provision(dto);
 
     const owner = provisioned.data.owner;
 
     const session = await this.authService.login(
-      dto.owner.email.trim().toLowerCase(),
+      loginEmail,
       dto.owner.password,
       ipAddress,
       userAgent,

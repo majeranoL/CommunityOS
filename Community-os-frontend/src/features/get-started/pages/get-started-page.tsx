@@ -31,13 +31,33 @@ import { formatCurrency } from '@/lib/format'
 import { usePageTitle } from '@/lib/use-page-title'
 import { cn } from '@/lib/utils'
 import {
-  communityStepSchema,
-  accountStepSchema,
   getStartedSchema,
   type GetStartedValues,
 } from '@/features/get-started/validation/get-started'
 
-const STEPS = ['Community', 'Owner account']
+const STEPS = ['Community', 'Owner information']
+
+const COMMUNITY_FIELDS: (keyof GetStartedValues)[] = [
+  'displayName',
+  'description',
+  'email',
+  'contactNumber',
+  'address',
+  'planId',
+  'password',
+  'confirmPassword',
+]
+
+const OWNER_FIELDS: (keyof GetStartedValues)[] = [
+  'firstName',
+  'lastName',
+  'ownerEmail',
+  'phoneNumber',
+  'block',
+  'lot',
+  'unit',
+  'homeAddress',
+]
 
 export default function GetStartedPage() {
   const location = useLocation()
@@ -60,6 +80,11 @@ export default function GetStartedPage() {
       firstName: '',
       lastName: '',
       ownerEmail: '',
+      phoneNumber: '',
+      block: '',
+      lot: '',
+      unit: '',
+      homeAddress: '',
       password: '',
       confirmPassword: '',
     },
@@ -68,8 +93,7 @@ export default function GetStartedPage() {
   const watchPlanId = form.watch('planId')
 
   const next = async () => {
-    const schema = step === 0 ? communityStepSchema : accountStepSchema
-    const fields = Object.keys(schema.shape) as (keyof GetStartedValues)[]
+    const fields = step === 0 ? COMMUNITY_FIELDS : OWNER_FIELDS
     const valid = await form.trigger(fields)
     if (valid) setStep((current) => Math.min(current + 1, STEPS.length - 1))
   }
@@ -80,15 +104,18 @@ export default function GetStartedPage() {
     signup.mutate({
       displayName: values.displayName,
       description: values.description || undefined,
-      email: values.email || undefined,
+      email: values.email,
       contactNumber: values.contactNumber || undefined,
       address: values.address || undefined,
       planId: values.planId,
       owner: {
         firstName: values.firstName,
         lastName: values.lastName,
-        email: values.ownerEmail,
-        password: values.password,
+        phoneNumber: values.phoneNumber || undefined,
+        block: values.block || undefined,
+        lot: values.lot || undefined,
+        unit: values.unit || undefined,
+        address: values.homeAddress || undefined,
       },
     })
   }
@@ -137,8 +164,8 @@ export default function GetStartedPage() {
             <CardTitle>{STEPS[step]}</CardTitle>
             <CardDescription>
               {step === 0
-                ? 'Tell us about your community and choose a plan.'
-                : 'Create the account that will manage this community.'}
+                ? 'Tell us about your community, choose a plan, and set your sign-in details.'
+                : 'Who will manage this community and where is their home?'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -184,8 +211,9 @@ export default function GetStartedPage() {
                           <FormItem>
                             <FormLabel>Community email</FormLabel>
                             <FormControl>
-                              <Input type="email" placeholder="hoa@example.com" {...field} />
+                              <Input type="email" placeholder="hoa@example.com" autoComplete="email" {...field} />
                             </FormControl>
+                            <FormDescription>This will be your sign-in email.</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -217,6 +245,35 @@ export default function GetStartedPage() {
                         </FormItem>
                       )}
                     />
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <PasswordInput autoComplete="new-password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirm password</FormLabel>
+                            <FormControl>
+                              <PasswordInput autoComplete="new-password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     <FormItem>
                       <FormLabel>Choose a plan</FormLabel>
@@ -300,29 +357,74 @@ export default function GetStartedPage() {
                         )}
                       />
                     </div>
-                    <FormField
-                      control={form.control}
-                      name="ownerEmail"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="you@example.com" autoComplete="email" {...field} />
-                          </FormControl>
-                          <FormDescription>You&apos;ll use this to sign in.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <div className="grid gap-4 sm:grid-cols-2">
                       <FormField
                         control={form.control}
-                        name="password"
+                        name="ownerEmail"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Password</FormLabel>
+                            <FormLabel>Contact email</FormLabel>
                             <FormControl>
-                              <PasswordInput autoComplete="new-password" {...field} />
+                              <Input type="email" placeholder="owner@example.com" autoComplete="email" {...field} />
+                            </FormControl>
+                            <FormDescription>The owner&apos;s personal email (optional).</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="phoneNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone number</FormLabel>
+                            <FormControl>
+                              <Input placeholder="0917 123 4567" autoComplete="tel" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-3 rounded-lg border p-4">
+                      <div className="text-sm font-medium">Home address (household)</div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FormField
+                          control={form.control}
+                          name="block"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Block</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g. 1" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="lot"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Lot</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g. 5" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <FormField
+                        control={form.control}
+                        name="unit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unit</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. Unit 2" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -330,17 +432,20 @@ export default function GetStartedPage() {
                       />
                       <FormField
                         control={form.control}
-                        name="confirmPassword"
+                        name="homeAddress"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Confirm password</FormLabel>
+                            <FormLabel>Address</FormLabel>
                             <FormControl>
-                              <PasswordInput autoComplete="new-password" {...field} />
+                              <Input placeholder="e.g. 12 Sampaguita St." {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        A household will be created for this home and assigned to the owner.
+                      </p>
                     </div>
                   </>
                 )}

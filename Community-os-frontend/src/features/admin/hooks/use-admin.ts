@@ -16,7 +16,7 @@ import {
   revokeExemption,
   updateCommunityStatus,
 } from '@/features/admin/services/admin'
-import type { HoaSignupInput } from '@/types/api'
+import type { AdminProvisionInput } from '@/types/api'
 
 export function useAdminOverview() {
   return useQuery({
@@ -59,7 +59,7 @@ export function useProvisionCommunity() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (input: HoaSignupInput) => provisionCommunity(input),
+    mutationFn: (input: AdminProvisionInput) => provisionCommunity(input),
     onSuccess: () => {
       toast.success('Community provisioned successfully.')
       queryClient.invalidateQueries({ queryKey: ['admin', 'communities'] })
