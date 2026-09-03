@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { CommunityStatus } from '@prisma/client';
 
@@ -9,6 +13,7 @@ import { AuthService } from '../auth/auth.service';
 
 import { PublicCommunitiesQueryDto } from './dto/public-communities-query.dto';
 import { HoaSignupDto } from './dto/hoa-signup.dto';
+import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
 
 @Injectable()
 export class PublicService {
@@ -179,15 +184,30 @@ export class PublicService {
 
   async signup(dto: HoaSignupDto, ipAddress?: string, userAgent?: string) {
     const loginEmail = dto.email.trim().toLowerCase();
-    dto.owner.email = loginEmail;
+    const ownerPassword = dto.owner.password;
 
-    const provisioned = await this.communitiesService.provision(dto);
+    if (!ownerPassword) {
+      throw new BadRequestException(
+        'A password is required to create the owner account.',
+      );
+    }
+
+    const provisionInput: ProvisionCommunityDto = {
+      ...dto,
+      owner: {
+        ...dto.owner,
+        email: loginEmail,
+        password: ownerPassword,
+      },
+    };
+
+    const provisioned = await this.communitiesService.provision(provisionInput);
 
     const owner = provisioned.data.owner;
 
     const session = await this.authService.login(
       loginEmail,
-      dto.owner.password,
+      ownerPassword,
       ipAddress,
       userAgent,
     );

@@ -306,6 +306,7 @@ export interface HoaSignupInput {
   owner: {
     firstName: string
     lastName: string
+    password?: string
     phoneNumber?: string
     block?: string
     lot?: string

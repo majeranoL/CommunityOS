@@ -111,6 +111,7 @@ export default function GetStartedPage() {
       owner: {
         firstName: values.firstName,
         lastName: values.lastName,
+        password: values.password,
         phoneNumber: values.phoneNumber || undefined,
         block: values.block || undefined,
         lot: values.lot || undefined,
