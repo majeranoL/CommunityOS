@@ -161,4 +161,32 @@ describe('SuspendedInterceptor', () => {
       call(makeCtx('POST', '/api/auth/logout', suspendedUser)),
     ).resolves.toBe('ok');
   });
+
+  it('blocks all access for a deleted community (even reads)', async () => {
+    const deletedUser = {
+      isPlatformAdmin: false,
+      community: {
+        status: CommunityStatus.INACTIVE,
+        suspendedAt: null,
+        deletedAt: new Date(),
+      },
+    };
+    await expect(
+      call(makeCtx('GET', '/api/billing/summary', deletedUser)),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      call(makeCtx('GET', '/api/residents', deletedUser)),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows an active (ACTIVE) community', async () => {
+    await expect(
+      call(
+        makeCtx('GET', '/api/residents', {
+          isPlatformAdmin: false,
+          community: { status: CommunityStatus.ACTIVE, suspendedAt: null },
+        }),
+      ),
+    ).resolves.toBe('ok');
+  });
 });

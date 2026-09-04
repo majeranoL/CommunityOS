@@ -587,7 +587,14 @@ export class AdminService {
 
     const updated = await this.prisma.community.update({
       where: { id },
-      data: { status: dto.status },
+      data:
+        dto.status === CommunityStatus.ACTIVE
+          ? {
+              status: dto.status,
+              suspendedAt: null,
+              suspensionReason: null,
+            }
+          : { status: dto.status },
       select: {
         id: true,
         code: true,
@@ -624,6 +631,23 @@ export class AdminService {
         status: CommunityStatus.INACTIVE,
         deletedAt: new Date(),
       },
+    });
+
+    // Write off any outstanding (unpaid) invoices so deleted communities no
+    // longer inflate the platform's outstanding/revenue figures.
+    await this.prisma.invoice.updateMany({
+      where: {
+        communityId: id,
+        deletedAt: null,
+        status: {
+          in: [
+            InvoiceStatus.ISSUED,
+            InvoiceStatus.OVERDUE,
+            InvoiceStatus.PROCESSING,
+          ],
+        },
+      },
+      data: { status: InvoiceStatus.VOID },
     });
 
     return {
@@ -832,18 +856,20 @@ export class AdminService {
   ) {
     const community = await this.prisma.community.findFirst({
       where: { id: communityId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, status: true, suspendedAt: true },
     });
 
     if (!community) {
       throw new NotFoundException('Community not found.');
     }
 
+    const start = new Date(dto.startDate);
+
     const exemption = await this.prisma.billingExemption.create({
       data: {
         communityId,
         reason: dto.reason,
-        startDate: new Date(dto.startDate),
+        startDate: start,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         grantedById,
       },
@@ -853,6 +879,35 @@ export class AdminService {
         },
       },
     });
+
+    // If the exemption is currently active and the community was auto-suspended
+    // for non-payment, reinstate it and write off its outstanding invoices so
+    // members regain access immediately.
+    if (start <= new Date() && community.status === CommunityStatus.INACTIVE) {
+      await this.prisma.community.update({
+        where: { id: communityId },
+        data: {
+          status: CommunityStatus.ACTIVE,
+          suspendedAt: null,
+          suspensionReason: null,
+        },
+      });
+
+      await this.prisma.invoice.updateMany({
+        where: {
+          communityId,
+          deletedAt: null,
+          status: {
+            in: [
+              InvoiceStatus.ISSUED,
+              InvoiceStatus.OVERDUE,
+              InvoiceStatus.PROCESSING,
+            ],
+          },
+        },
+        data: { status: InvoiceStatus.WAIVED },
+      });
+    }
 
     return {
       success: true,

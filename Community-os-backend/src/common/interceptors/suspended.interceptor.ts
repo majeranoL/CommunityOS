@@ -19,6 +19,7 @@ export class SuspendedInterceptor implements NestInterceptor {
           community?: {
             status: CommunityStatus;
             suspendedAt: Date | null;
+            deletedAt: Date | null;
           } | null;
         }
       | undefined;
@@ -31,6 +32,13 @@ export class SuspendedInterceptor implements NestInterceptor {
     // Platform admins must always retain full access.
     if (user.isPlatformAdmin === true) {
       return next.handle();
+    }
+
+    // Deleted communities are fully disabled — block everything.
+    if (user.community.deletedAt) {
+      throw new ForbiddenException(
+        'This community has been removed and is no longer accessible.',
+      );
     }
 
     // Not suspended → allow.
