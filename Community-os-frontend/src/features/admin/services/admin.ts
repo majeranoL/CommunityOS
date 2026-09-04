@@ -133,3 +133,65 @@ export async function revokeExemption(communityId: string, exemptionId: string) 
   )
   return data.data
 }
+
+// ==========================================
+// Revenue
+// ==========================================
+
+export interface RevenueData {
+  totalCollected: number
+  outstanding: number
+  thisMonth: number
+  lastMonth: number
+  mrr: number
+  revenueByMonth: { month: string; collected: number }[]
+  topCommunities: { communityId: string; communityName: string; totalCollected: number; invoiceCount: number }[]
+}
+
+export async function fetchAdminRevenue() {
+  const { data } = await api.get<ApiEnvelope<RevenueData>>('/admin/revenue')
+  return data.data
+}
+
+// ==========================================
+// Invoices (cross-community)
+// ==========================================
+
+export interface AdminInvoice {
+  id: string
+  communityId: string
+  subscriptionId: string | null
+  invoiceNumber: string
+  amount: string | number
+  billingCycle: string
+  status: string
+  dueDate: string
+  paidAt: string | null
+  paymentMethod: string | null
+  notes: string | null
+  gatewayProvider: string | null
+  checkoutUrl: string | null
+  createdAt: string
+  community: { id: string; displayName: string; slug: string }
+  subscription: {
+    plan: { id: string; name: string; code: string } | null
+  } | null
+}
+
+export interface AdminInvoiceQuery {
+  page?: number
+  limit?: number
+  status?: string
+  communityId?: string
+  search?: string
+  sortBy?: string
+  order?: string
+}
+
+export async function fetchAdminInvoices(query: AdminInvoiceQuery = {}) {
+  const { data } = await api.get<ApiEnvelope<AdminInvoice[]> & { pagination: Pagination }>(
+    '/admin/invoices',
+    { params: query },
+  )
+  return { items: data.data, pagination: data.pagination }
+}

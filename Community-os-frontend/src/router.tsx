@@ -117,6 +117,12 @@ const AdminPaymentMethodsPage = lazy(
 const AdminMonitoringPage = lazy(
   () => import('@/features/admin/pages/admin-monitoring-page'),
 )
+const AdminRevenuePage = lazy(
+  () => import('@/features/admin/pages/admin-revenue-page'),
+)
+const AdminInvoicesPage = lazy(
+  () => import('@/features/admin/pages/admin-invoices-page'),
+)
 
 function withSuspense(element: React.ReactNode) {
   return (
@@ -401,6 +407,14 @@ export const router = createBrowserRouter([
       {
         path: 'plans',
         element: withSuspense(<AdminPlansPage />),
+      },
+      {
+        path: 'revenue',
+        element: withSuspense(<AdminRevenuePage />),
+      },
+      {
+        path: 'invoices',
+        element: withSuspense(<AdminInvoicesPage />),
       },
       {
         path: 'features',

@@ -6,7 +6,9 @@ import {
   fetchAdminAnalytics,
   fetchAdminCommunities,
   fetchAdminCommunity,
+  fetchAdminInvoices,
   fetchAdminOverview,
+  fetchAdminRevenue,
   fetchExemptions,
   fetchPlatformStats,
   fetchSystemHealth,
@@ -15,6 +17,7 @@ import {
   provisionCommunity,
   revokeExemption,
   updateCommunityStatus,
+  type AdminInvoiceQuery,
 } from '@/features/admin/services/admin'
 import type { AdminProvisionInput } from '@/types/api'
 
@@ -162,5 +165,28 @@ export function useRevokeExemption(communityId: string) {
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Failed to revoke exemption.'))
     },
+  })
+}
+
+// ==========================================
+// Revenue
+// ==========================================
+
+export function useAdminRevenue() {
+  return useQuery({
+    queryKey: ['admin', 'revenue'],
+    queryFn: fetchAdminRevenue,
+  })
+}
+
+// ==========================================
+// Invoices (cross-community)
+// ==========================================
+
+export function useAdminInvoices(query: AdminInvoiceQuery = {}) {
+  return useQuery({
+    queryKey: ['admin', 'invoices', query],
+    queryFn: () => fetchAdminInvoices(query),
+    placeholderData: (previous) => previous,
   })
 }

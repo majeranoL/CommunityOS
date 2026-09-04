@@ -81,6 +81,149 @@ export class AdminService {
   }
 
   // ==========================================
+  // Revenue Dashboard
+  // ==========================================
+
+  async revenue() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const [
+      totalCollected,
+      outstanding,
+      thisMonth,
+      lastMonth,
+      mrr,
+      paidInvoices,
+      topCommunitiesRaw,
+    ] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: { deletedAt: null, status: InvoiceStatus.PAID },
+        _sum: { amount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          deletedAt: null,
+          status: {
+            in: [
+              InvoiceStatus.ISSUED,
+              InvoiceStatus.OVERDUE,
+              InvoiceStatus.PROCESSING,
+            ],
+          },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          deletedAt: null,
+          status: InvoiceStatus.PAID,
+          createdAt: { gte: startOfMonth },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: {
+          deletedAt: null,
+          status: InvoiceStatus.PAID,
+          createdAt: { gte: startOfLastMonth, lt: startOfMonth },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.subscriptionPlan.aggregate({
+        where: { isActive: true },
+        _sum: { price: true },
+      }),
+      this.prisma.invoice.findMany({
+        where: {
+          deletedAt: null,
+          status: InvoiceStatus.PAID,
+          createdAt: {
+            gte: new Date(now.getFullYear() - 1, now.getMonth() + 1, 1),
+          },
+        },
+        select: { amount: true, createdAt: true },
+      }),
+      this.prisma.invoice.groupBy({
+        by: ['communityId'],
+        where: { deletedAt: null, status: InvoiceStatus.PAID },
+        _sum: { amount: true },
+        _count: { _all: true },
+        orderBy: { _sum: { amount: 'desc' } },
+        take: 10,
+      }),
+    ]);
+
+    // Build 12-month revenue buckets
+    const monthCount = 12;
+    const bucketStart = new Date(
+      now.getFullYear(),
+      now.getMonth() - (monthCount - 1),
+      1,
+    );
+    const monthKey = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      return `${y}-${m}`;
+    };
+
+    const buckets: string[] = [];
+    const cursor = new Date(bucketStart);
+    for (let i = 0; i < monthCount; i++) {
+      buckets.push(monthKey(cursor));
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    const revenueByMonth = new Map<string, number>();
+    for (const bucket of buckets) revenueByMonth.set(bucket, 0);
+    for (const inv of paidInvoices) {
+      const key = monthKey(inv.createdAt);
+      revenueByMonth.set(
+        key,
+        (revenueByMonth.get(key) ?? 0) + Number(inv.amount ?? 0),
+      );
+    }
+
+    const monthlyData = buckets.map((month) => ({
+      month,
+      collected: revenueByMonth.get(month) ?? 0,
+    }));
+
+    // Resolve community names for top earners
+    const communityIds = topCommunitiesRaw.map((r) => r.communityId);
+    const communities = await this.prisma.community.findMany({
+      where: { id: { in: communityIds } },
+      select: { id: true, displayName: true, slug: true },
+    });
+    const communityMap = new Map(communities.map((c) => [c.id, c]));
+
+    const topCommunities = topCommunitiesRaw.map((row) => {
+      const community = communityMap.get(row.communityId);
+      return {
+        communityId: row.communityId,
+        communityName: community?.displayName ?? community?.slug ?? 'Unknown',
+        totalCollected: Number(row._sum.amount ?? 0),
+        invoiceCount: row._count._all,
+      };
+    });
+
+    return {
+      success: true,
+      message: 'Revenue data retrieved successfully.',
+      data: {
+        totalCollected: Number(totalCollected._sum.amount ?? 0),
+        outstanding: Number(outstanding._sum.amount ?? 0),
+        thisMonth: Number(thisMonth._sum.amount ?? 0),
+        lastMonth: Number(lastMonth._sum.amount ?? 0),
+        mrr: Number(mrr._sum.price ?? 0),
+        revenueByMonth: monthlyData,
+        topCommunities,
+      },
+    };
+  }
+
+  // ==========================================
   // Platform Analytics
   // ==========================================
 
@@ -174,6 +317,74 @@ export class AdminService {
           status: row.status,
           count: row._count._all,
         })),
+      },
+    };
+  }
+
+  // ==========================================
+  // List All Invoices (cross-community)
+  // ==========================================
+
+  async findAllInvoices(query: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    communityId?: string;
+    search?: string;
+    sortBy?: string;
+    order?: string;
+  }) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const sortBy = query.sortBy ?? 'createdAt';
+    const order = query.order ?? 'desc';
+
+    const where: any = { deletedAt: null };
+
+    if (query.status) {
+      where.status = query.status;
+    }
+
+    if (query.communityId) {
+      where.communityId = query.communityId;
+    }
+
+    if (query.search) {
+      where.invoiceNumber = { contains: query.search, mode: 'insensitive' };
+    }
+
+    const [invoices, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: order },
+        include: {
+          community: {
+            select: { id: true, displayName: true, slug: true },
+          },
+          subscription: {
+            include: {
+              plan: { select: { id: true, name: true, code: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Invoices retrieved successfully.',
+      data: invoices,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPreviousPage: page > 1,
       },
     };
   }

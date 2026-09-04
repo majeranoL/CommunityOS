@@ -24,6 +24,7 @@ describe('Auth lifecycle (e2e)', () => {
     const agent = request.agent(app.getHttpServer());
     const res = await agent.post('/api/public/hoa/signup').send({
       displayName: 'Auth Lifecycle HOA',
+      address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Auth',
         lastName: 'Owner',
@@ -45,6 +46,7 @@ describe('Auth lifecycle (e2e)', () => {
     const email = uniqueEmail('linked');
     const res = await agent.post('/api/public/hoa/signup').send({
       displayName: 'Link HOA',
+      address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Link',
         lastName: 'Owner',
@@ -93,6 +95,7 @@ describe('Auth lifecycle (e2e)', () => {
 
     const first = await agent.post('/api/public/hoa/signup').send({
       displayName,
+      address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Slug',
         lastName: 'One',
@@ -105,6 +108,7 @@ describe('Auth lifecycle (e2e)', () => {
 
     const second = await agent.post('/api/public/hoa/signup').send({
       displayName,
+      address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Slug',
         lastName: 'Two',

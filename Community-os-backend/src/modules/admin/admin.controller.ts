@@ -19,6 +19,7 @@ import { PlatformAdminGuard } from '../../common/guards/platform-admin.guard';
 import { PlatformAdmin } from '../../common/decorators/platform-admin.decorator';
 
 import { AdminCommunityQueryDto } from './dto/admin-community-query.dto';
+import { AdminInvoiceQueryDto } from './dto/admin-invoice-query.dto';
 import { UpdateCommunityStatusDto } from './dto/update-community-status.dto';
 import { GrantExemptionDto } from './dto/grant-exemption.dto';
 import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
@@ -41,6 +42,16 @@ export class AdminController {
   @Get('analytics')
   analytics() {
     return this.adminService.analytics();
+  }
+
+  @Get('revenue')
+  revenue() {
+    return this.adminService.revenue();
+  }
+
+  @Get('invoices')
+  findAllInvoices(@Query() query: AdminInvoiceQueryDto) {
+    return this.adminService.findAllInvoices(query);
   }
 
   @Get('communities')
