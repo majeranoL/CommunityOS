@@ -17,6 +17,10 @@ describe('InvoicesService gateway invoice flow', () => {
       update: jest.Mock;
       findScoped: jest.Mock;
     };
+    community: {
+      findFirst: jest.Mock;
+      update: jest.Mock;
+    };
   };
   let gateway: { enabled: boolean; createCheckout: jest.Mock };
 
