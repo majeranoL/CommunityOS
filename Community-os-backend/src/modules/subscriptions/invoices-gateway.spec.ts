@@ -28,6 +28,10 @@ describe('InvoicesService gateway invoice flow', () => {
         update: jest.fn().mockImplementation((args) => args.data),
         findScoped: jest.fn(),
       },
+      community: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+      },
     };
     gateway = {
       enabled: true,
@@ -96,6 +100,32 @@ describe('InvoicesService gateway invoice flow', () => {
     expect(result.success).toBe(false);
     expect(result.reason).toBe('NOT_FOUND');
   });
+
+  it('reactivates a suspended community on gateway success', async () => {
+    prisma.invoice.findFirst.mockResolvedValue({
+      id: 'inv-gw',
+      communityId: 'community-1',
+      status: InvoiceStatus.PROCESSING,
+      gatewayInvoiceId: 'cses_123',
+      deletedAt: null,
+    });
+    prisma.community.findFirst.mockResolvedValue({
+      id: 'community-1',
+      status: 'INACTIVE',
+    });
+
+    const result = await service.markGatewayPaidByGateway('cses_123');
+
+    expect(result.success).toBe(true);
+    expect(prisma.community.update).toHaveBeenCalledWith({
+      where: { id: 'community-1' },
+      data: {
+        status: 'ACTIVE',
+        suspendedAt: null,
+        suspensionReason: null,
+      },
+    });
+  });
 });
 
 describe('InvoicesService markPaid trial activation', () => {
@@ -120,6 +150,10 @@ describe('InvoicesService markPaid trial activation', () => {
       },
       subscription: {
         update: jest.fn().mockImplementation((args) => args.data),
+      },
+      community: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
       },
     };
 
@@ -190,5 +224,31 @@ describe('InvoicesService markPaid trial activation', () => {
 
     expect(prisma.subscription.update).not.toHaveBeenCalled();
     expect(featuresService.syncFeaturesFromPlan).not.toHaveBeenCalled();
+  });
+
+  it('reactivates a suspended community when its invoice is marked paid', async () => {
+    prisma.invoice.findFirst.mockResolvedValue({
+      id: 'inv-3',
+      status: InvoiceStatus.ISSUED,
+      paymentMethod: null,
+      deletedAt: null,
+      subscription: null,
+    });
+    prisma.community.findFirst.mockResolvedValue({
+      id: 'community-1',
+      status: 'INACTIVE',
+      suspensionReason: 'unpaid',
+    });
+
+    await service.markPaid('community-1', 'inv-3', {});
+
+    expect(prisma.community.update).toHaveBeenCalledWith({
+      where: { id: 'community-1' },
+      data: {
+        status: 'ACTIVE',
+        suspendedAt: null,
+        suspensionReason: null,
+      },
+    });
   });
 });

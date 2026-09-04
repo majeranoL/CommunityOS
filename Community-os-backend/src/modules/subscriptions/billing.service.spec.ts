@@ -20,10 +20,14 @@ describe('BillingService.sweep', () => {
         updateMany: jest.fn(),
         create: jest.fn(),
         count: jest.fn(),
+        groupBy: jest.fn().mockResolvedValue([]),
       },
       subscription: {
         findMany: jest.fn(),
         update: jest.fn(),
+      },
+      community: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       billingExemption: {
         findMany: jest.fn().mockResolvedValue([]),
@@ -171,5 +175,47 @@ describe('BillingService.sweep', () => {
         data: expect.objectContaining({ status: SubscriptionStatus.ACTIVE }),
       }),
     );
+  });
+
+  it('suspends communities that have an overdue invoice', async () => {
+    prisma.invoice.updateMany.mockResolvedValue({ count: 1 });
+    prisma.invoice.groupBy.mockResolvedValue([{ communityId: 'c1' }]);
+    prisma.subscription.findMany.mockResolvedValue([]);
+    prisma.community.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await service.sweep();
+
+    expect(result.data).toMatchObject({ suspended: 1 });
+    expect(prisma.community.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: { in: ['c1'] },
+        status: 'ACTIVE',
+        deletedAt: null,
+      },
+      data: {
+        status: 'INACTIVE',
+        suspendedAt: expect.any(Date),
+        suspensionReason: 'unpaid',
+      },
+    });
+  });
+
+  it('does not suspend exempt communities that have an overdue invoice', async () => {
+    prisma.billingExemption.findMany.mockResolvedValue([{ communityId: 'c1' }]);
+    prisma.invoice.updateMany.mockResolvedValue({ count: 0 });
+    prisma.invoice.groupBy.mockResolvedValue([]);
+    prisma.subscription.findMany.mockResolvedValue([]);
+
+    const result = await service.sweep();
+
+    expect(result.data).toMatchObject({ suspended: 0 });
+    expect(prisma.invoice.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          communityId: { notIn: ['c1'] },
+        }),
+      }),
+    );
+    expect(prisma.community.updateMany).not.toHaveBeenCalled();
   });
 });

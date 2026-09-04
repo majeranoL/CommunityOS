@@ -441,6 +441,9 @@ model Community {
 
   status CommunityStatus @default(ACTIVE)
 
+  suspendedAt      DateTime?
+  suspensionReason String? @db.VarChar(50)
+
   roles              Role[]
   users              User[]
   permissions        Permission[]

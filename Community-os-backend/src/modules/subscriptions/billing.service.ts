@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 import {
   BillingCycle,
+  CommunityStatus,
   InvoiceStatus,
   SubscriptionStatus,
 } from '@prisma/client';
@@ -29,7 +30,7 @@ export class BillingService {
     this.logger.log('Running scheduled billing sweep...');
     const result = await this.sweep();
     this.logger.log(
-      `Scheduled sweep done: ${result.data.overdue} overdue, ${result.data.expired} expired, ${result.data.renewed} auto-renewed`,
+      `Scheduled sweep done: ${result.data.overdue} overdue, ${result.data.expired} expired, ${result.data.renewed} auto-renewed, ${result.data.suspended} suspended`,
     );
   }
 
@@ -166,6 +167,41 @@ export class BillingService {
       renewed++;
     }
 
+    // ==========================================
+    // 3. Suspend communities with unpaid (overdue) invoices — skip exempt
+    // ==========================================
+
+    let suspended = 0;
+
+    const communitiesWithOverdue = await this.prisma.invoice.groupBy({
+      by: ['communityId'],
+      where: {
+        status: InvoiceStatus.OVERDUE,
+        deletedAt: null,
+        communityId: { notIn: [...exemptCommunityIds] },
+      },
+    });
+
+    const overdueCommunityIds = communitiesWithOverdue.map(
+      (c) => c.communityId,
+    );
+
+    if (overdueCommunityIds.length > 0) {
+      const result = await this.prisma.community.updateMany({
+        where: {
+          id: { in: overdueCommunityIds },
+          status: CommunityStatus.ACTIVE,
+          deletedAt: null,
+        },
+        data: {
+          status: CommunityStatus.INACTIVE,
+          suspendedAt: now,
+          suspensionReason: 'unpaid',
+        },
+      });
+      suspended = result.count;
+    }
+
     return {
       success: true,
       message: 'Billing sweep completed successfully.',
@@ -173,6 +209,7 @@ export class BillingService {
         overdue: overdueResult.count,
         expired,
         renewed,
+        suspended,
         processed: overdueResult.count + expired + renewed,
         exemptCommunities: exemptCommunityIds.size,
         ranAt: now,

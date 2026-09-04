@@ -7,6 +7,7 @@ import {
 
 import {
   BillingCycle,
+  CommunityStatus,
   InvoiceStatus,
   Prisma,
   SubscriptionStatus,
@@ -231,6 +232,25 @@ export class InvoicesService {
   // Mark Invoice as Paid
   // ==========================================
 
+  private async reactivateCommunityIfSuspended(communityId: string) {
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+    });
+
+    if (!community || community.status !== CommunityStatus.INACTIVE) {
+      return;
+    }
+
+    await this.prisma.community.update({
+      where: { id: communityId },
+      data: {
+        status: CommunityStatus.ACTIVE,
+        suspendedAt: null,
+        suspensionReason: null,
+      },
+    });
+  }
+
   async markPaid(communityId: string, id: string, dto: MarkPaidInvoiceDto) {
     const invoice = await this.prisma.invoice.findFirst({
       where: {
@@ -301,6 +321,8 @@ export class InvoicesService {
         await this.featuresService.syncFeaturesFromPlan(communityId, plan.id);
       }
     }
+
+    await this.reactivateCommunityIfSuspended(communityId);
 
     return {
       success: true,
@@ -386,6 +408,8 @@ export class InvoicesService {
         paymentMethod: 'ONLINE',
       },
     });
+
+    await this.reactivateCommunityIfSuspended(invoice.communityId);
 
     return { success: true, invoice: updatedInvoice };
   }
