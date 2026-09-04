@@ -51,6 +51,7 @@ export async function provisionCommunity(
 
   const res = await agent.post('/api/public/hoa/signup').send({
     displayName,
+    email: owner.email,
     address: '123 Test Street, Test City, Province',
     owner,
   });

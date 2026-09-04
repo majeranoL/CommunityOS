@@ -22,13 +22,14 @@ describe('Auth lifecycle (e2e)', () => {
   });
   it('provisions a community and sets a refresh cookie on the owner session', async () => {
     const agent = request.agent(app.getHttpServer());
+    const email = uniqueEmail('auth');
     const res = await agent.post('/api/public/hoa/signup').send({
       displayName: 'Auth Lifecycle HOA',
+      email,
       address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Auth',
         lastName: 'Owner',
-        email: uniqueEmail('auth'),
         password: PASSWORD,
       },
     });
@@ -46,11 +47,11 @@ describe('Auth lifecycle (e2e)', () => {
     const email = uniqueEmail('linked');
     const res = await agent.post('/api/public/hoa/signup').send({
       displayName: 'Link HOA',
+      email,
       address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Link',
         lastName: 'Owner',
-        email,
         password: PASSWORD,
         block: 'B',
         lot: '7',
@@ -93,26 +94,28 @@ describe('Auth lifecycle (e2e)', () => {
     const displayName = `Metroville Tanza ${Date.now()}`;
     const baseSlug = `metroville-tanza-${Date.now()}`;
 
+    const firstEmail = uniqueEmail('slug1');
     const first = await agent.post('/api/public/hoa/signup').send({
       displayName,
+      email: firstEmail,
       address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Slug',
         lastName: 'One',
-        email: uniqueEmail('slug1'),
         password: PASSWORD,
       },
     });
     expect(first.status).toBe(201);
     expect(first.body.data.community.slug).toBe(baseSlug);
 
+    const secondEmail = uniqueEmail('slug2');
     const second = await agent.post('/api/public/hoa/signup').send({
       displayName,
+      email: secondEmail,
       address: '123 Test Street, Test City, Province',
       owner: {
         firstName: 'Slug',
         lastName: 'Two',
-        email: uniqueEmail('slug2'),
         password: PASSWORD,
       },
     });
