@@ -14,11 +14,18 @@ export interface StickerUserRef {
   lastName: string
 }
 
+export interface StickerAssessmentRef {
+  id: string
+  assessmentNumber: string
+  amount: string
+  status: string
+}
+
 export interface VehicleStickerListItem {
   id: string
-  stickerNumber: string
-  issueDate: string
-  expirationDate: string
+  stickerNumber: string | null
+  issueDate: string | null
+  expirationDate: string | null
   photoUrl: string | null
   status: StickerStatus
   notes: string | null
@@ -28,6 +35,7 @@ export interface VehicleStickerListItem {
   vehicle: StickerVehicleRef
   createdBy: StickerUserRef
   verifiedBy: StickerUserRef | null
+  assessment: StickerAssessmentRef | null
   createdAt: string
 }
 
@@ -38,6 +46,16 @@ export interface CreateStickerInput {
   expirationDate: string
   notes?: string
   photoUrl?: string
+}
+
+export interface RequestStickerInput {
+  vehicleId: string
+  notes?: string
+}
+
+export interface StickerOptions {
+  price: number
+  validityDays: number
 }
 
 export type UpdateStickerInput = Partial<CreateStickerInput> & {

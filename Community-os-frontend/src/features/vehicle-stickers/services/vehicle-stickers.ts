@@ -3,6 +3,8 @@ import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
 import type {
   CreateStickerInput,
   RenewStickerInput,
+  RequestStickerInput,
+  StickerOptions,
   UpdateStickerInput,
   VehicleStickerListItem,
   VerifyStickerInput,
@@ -14,6 +16,16 @@ export interface StickerListResult {
 }
 
 export const vehicleStickersService = {
+  async options() {
+    const { data } = await api.get<ApiEnvelope<StickerOptions>>('/vehicle-stickers/options')
+    return data.data
+  },
+
+  async request(input: RequestStickerInput) {
+    const { data } = await api.post<ApiEnvelope<VehicleStickerListItem>>('/vehicle-stickers/request', input)
+    return data.data
+  },
+
   async list(params: ListQuery = {}) {
     const { data } = await api.get<ApiEnvelope<VehicleStickerListItem[]>>('/vehicle-stickers', { params })
     return { items: data.data, pagination: data.pagination }

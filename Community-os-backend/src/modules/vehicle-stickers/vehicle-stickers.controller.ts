@@ -35,7 +35,34 @@ export class VehicleStickersController {
   ) {}
 
   // ==========================================
-  // Create Sticker
+  // Sticker Request Options (fee preview)
+  // ==========================================
+
+  @Get('options')
+  @Permissions('sticker.view')
+  options(@Request() req: any) {
+    return this.vehicleStickersService.options(req.user.community.id);
+  }
+
+  // ==========================================
+  // Request Sticker (resident self-service)
+  // ==========================================
+
+  @Post('request')
+  @Permissions('sticker.create')
+  request(
+    @Request() req: any,
+    @Body() dto: { vehicleId: string; notes?: string },
+  ) {
+    return this.vehicleStickersService.request(
+      req.user.community.id,
+      req.user,
+      dto,
+    );
+  }
+
+  // ==========================================
+  // Create Sticker (officer direct issue)
   // ==========================================
 
   @Post()
@@ -118,7 +145,12 @@ export class VehicleStickersController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: VerifyStickerDto,
   ) {
-    return this.vehicleStickersService.verify(req.user.community.id, id, dto);
+    return this.vehicleStickersService.verify(
+      req.user.community.id,
+      req.user,
+      id,
+      dto,
+    );
   }
 
   // ==========================================

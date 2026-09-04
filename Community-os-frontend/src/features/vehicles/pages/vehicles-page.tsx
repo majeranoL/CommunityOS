@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { Car, Download, Plus, Search, Upload } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Car, Download, Plus, Search, StickyNote, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { DataTable, type Column } from '@/components/shared/data-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,6 +40,8 @@ import { useDeleteVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useRevalidateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
+import { StickerRequestDialog } from '@/features/vehicle-stickers/components/sticker-request-dialog'
+import { useStickerOptions, useVehicleStickers } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
 import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { VehicleListItem } from '@/features/vehicles/types/vehicle'
@@ -53,6 +57,7 @@ const STATUS_FILTERS = [
 const TYPE_FILTERS = ['ALL', 'CAR', 'MOTORCYCLE', 'TRUCK', 'VAN', 'BICYCLE', 'OTHER'] as const
 
 export default function VehiclesPage() {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<string>('ALL')
   const [type, setType] = useState<string>('ALL')
@@ -62,6 +67,7 @@ export default function VehiclesPage() {
   const [deleteVehicle, setDeleteVehicle] = useState<VehicleListItem | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [buyVehicle, setBuyVehicle] = useState<VehicleListItem | null>(null)
 
   const user = useAuthStore((state) => state.user)
   const myResidentId = user?.resident?.id
@@ -69,6 +75,12 @@ export default function VehiclesPage() {
   const canCreate = useHasPermission(PERMISSIONS.vehicleCreate)
   const canImport = useHasPermission(PERMISSIONS.vehicleImport)
   const canExport = useHasPermission(PERMISSIONS.vehicleExport)
+  const canVerifyStickers = useHasPermission(PERMISSIONS.stickerVerify)
+  const canViewStickers = useHasPermission(PERMISSIONS.stickerView)
+  const canRequestSticker = useHasPermission(PERMISSIONS.stickerCreate)
+
+  const { data: stickerOptions } = useStickerOptions(canViewStickers && canRequestSticker)
+  const { data: pendingStickers } = useVehicleStickers({ status: 'PENDING', page: 1, limit: 1 })
 
   const deleteVehicleMutation = useDeleteVehicle()
   const deactivateVehicle = useDeactivateVehicle()
@@ -138,11 +150,21 @@ export default function VehiclesPage() {
     {
       key: 'sticker',
       header: 'Sticker',
-      cell: (row) => (
-        <span className="text-muted-foreground">
-          {row.parkingStickerNumber || (row.hasSticker ? 'Yes' : '—')}
-        </span>
-      ),
+      cell: (row) => {
+        const latest = row.stickers?.[0]
+        if (!latest) return <span className="text-muted-foreground">—</span>
+        if (latest.status === 'PENDING') {
+          return <Badge variant="warning">Pending</Badge>
+        }
+        if (latest.status === 'ACTIVE') {
+          return (
+            <span className="font-mono text-sm text-muted-foreground">
+              {latest.stickerNumber ?? '—'}
+            </span>
+          )
+        }
+        return <span className="text-muted-foreground">—</span>
+      },
       hideBelow: 'lg',
     },
     {
@@ -162,6 +184,20 @@ export default function VehiclesPage() {
       cell: (row) =>
         isOwnRow(row) ? (
           <div className="flex justify-end gap-1">
+            {['ACTIVE'].includes(row.status) &&
+            canRequestSticker &&
+            canViewStickers &&
+            !row.stickers?.some((s) => ['PENDING', 'ACTIVE'].includes(s.status)) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setBuyVehicle(row)}
+              >
+                <StickyNote className="mr-1 h-3.5 w-3.5" />
+                Buy sticker
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -213,6 +249,13 @@ export default function VehiclesPage() {
         description="Registered vehicles and their residents."
       >
         <div className="flex items-center gap-2">
+          {canVerifyStickers && (pendingStickers?.pagination?.total ?? 0) > 0 ? (
+            <Button variant="outline" onClick={() => navigate('/app/stickers?status=PENDING')}>
+              <StickyNote className="h-4 w-4" />
+              Pending sticker requests
+              <Badge variant="warning">{pendingStickers?.pagination?.total}</Badge>
+            </Button>
+          ) : null}
           {(canImport || canExport) ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -345,6 +388,14 @@ export default function VehiclesPage() {
       </AlertDialog>
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="vehicles" entityLabel="Vehicle" />
       <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="vehicles" entityLabel="Vehicle" />
+      {buyVehicle ? (
+        <StickerRequestDialog
+          open
+          onOpenChange={(open) => !open && setBuyVehicle(null)}
+          vehicle={buyVehicle}
+          price={stickerOptions?.price ?? 0}
+        />
+      ) : null}
     </div>
   )
 }

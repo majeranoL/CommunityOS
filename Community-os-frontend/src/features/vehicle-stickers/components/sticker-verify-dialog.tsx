@@ -19,9 +19,10 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { useVerifySticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
+import { useStickerOptions, useVerifySticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { stickerVerifySchema, type StickerVerifyValues } from '@/features/vehicle-stickers/validation/vehicle-sticker'
 import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
+import { formatCurrency } from '@/lib/format'
 
 interface StickerVerifyDialogProps {
   open: boolean
@@ -35,6 +36,7 @@ export function StickerVerifyDialog({
   sticker,
 }: StickerVerifyDialogProps) {
   const verifySticker = useVerifySticker(() => onOpenChange(false))
+  const { data: options } = useStickerOptions()
 
   const form = useForm<StickerVerifyValues>({
     resolver: zodResolver(stickerVerifySchema),
@@ -54,6 +56,7 @@ export function StickerVerifyDialog({
   }
 
   const pending = verifySticker.isPending
+  const price = options?.price ?? 0
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,10 +65,20 @@ export function StickerVerifyDialog({
           <DialogTitle>Verify sticker</DialogTitle>
           <DialogDescription>
             Review and approve or reject sticker{' '}
-            <span className="font-mono text-foreground">{sticker?.stickerNumber}</span> for{' '}
+            <span className="font-mono text-foreground">{sticker?.stickerNumber ?? 'pending'}</span>{' '}
+            for{' '}
             <span className="font-medium text-foreground">{sticker?.vehicle?.plateNumber}</span>.
           </DialogDescription>
         </DialogHeader>
+
+        {price > 0 ? (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Household will be billed</span>
+              <span className="font-medium">{formatCurrency(price)}</span>
+            </div>
+          </div>
+        ) : null}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">

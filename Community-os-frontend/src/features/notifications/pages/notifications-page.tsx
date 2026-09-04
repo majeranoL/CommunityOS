@@ -13,6 +13,7 @@ import {
   Megaphone,
   MessageSquare,
   MessageSquareWarning,
+  StickyNote,
   UserRound,
   Vote,
   type LucideIcon,
@@ -46,6 +47,7 @@ const TYPE_ICONS: Record<NotificationType, { icon: LucideIcon; className: string
   VISITOR: { icon: UserRound, className: 'bg-primary/10 text-primary' },
   ANNOUNCEMENT: { icon: Megaphone, className: 'bg-primary/10 text-primary' },
   POLL: { icon: Vote, className: 'bg-info/10 text-info' },
+  VEHICLE_STICKER: { icon: StickyNote, className: 'bg-info/10 text-info' },
 }
 
 export default function NotificationsPage() {

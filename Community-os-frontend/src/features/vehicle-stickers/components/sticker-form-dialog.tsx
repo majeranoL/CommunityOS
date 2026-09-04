@@ -19,9 +19,19 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useCreateSticker, useUpdateSticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { stickerFormSchema, type StickerFormValues } from '@/features/vehicle-stickers/validation/vehicle-sticker'
+import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
 import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
+import { useAuthStore, useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
 
 interface StickerFormDialogProps {
   open: boolean
@@ -50,6 +60,17 @@ export function StickerFormDialog({
   const isEditing = Boolean(sticker)
   const createSticker = useCreateSticker(() => onOpenChange(false))
   const updateSticker = useUpdateSticker(() => onOpenChange(false))
+
+  const user = useAuthStore((state) => state.user)
+  const myResidentId = user?.resident?.id
+  const isOfficer = useHasPermission(PERMISSIONS.stickerVerify)
+
+  const { data: vehicles } = useVehicles({
+    page: 1,
+    limit: 100,
+    residentId: isOfficer ? undefined : myResidentId || undefined,
+    status: 'ACTIVE',
+  })
 
   const form = useForm<StickerFormValues>({
     resolver: zodResolver(stickerFormSchema),
@@ -99,10 +120,22 @@ export function StickerFormDialog({
                 name="vehicleId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Vehicle ID</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Vehicle UUID" {...field} />
-                    </FormControl>
+                    <FormLabel>Vehicle</FormLabel>
+                    <Select value={field.value || undefined} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a vehicle" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {vehicles?.items?.map((vehicle) => (
+                          <SelectItem key={vehicle.id} value={vehicle.id}>
+                            {vehicle.plateNumber}
+                            {vehicle.make ? ` · ${vehicle.make}` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

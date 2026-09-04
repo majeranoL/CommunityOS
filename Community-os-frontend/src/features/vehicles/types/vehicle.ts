@@ -15,6 +15,13 @@ export interface VehicleResidentRef {
   lastName: string
 }
 
+export interface VehicleStickerRef {
+  id: string
+  stickerNumber: string | null
+  status: 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'REVOKED'
+  expirationDate: string | null
+}
+
 export interface VehicleListItem {
   id: string
   plateNumber: string
@@ -31,6 +38,7 @@ export interface VehicleListItem {
   verifiedById: string | null
   verifiedAt: string | null
   verificationRemarks: string | null
+  stickers?: VehicleStickerRef[]
   createdAt: string
 }
 

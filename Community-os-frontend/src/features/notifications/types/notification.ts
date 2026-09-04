@@ -10,6 +10,7 @@ export type NotificationType =
   | 'VISITOR'
   | 'ANNOUNCEMENT'
   | 'POLL'
+  | 'VEHICLE_STICKER'
 
 export interface AppNotification {
   id: string

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { StickyNote, Plus, Search } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -19,19 +20,29 @@ import { useVehicleStickers, useDeleteSticker } from '@/features/vehicle-sticker
 import { StickerFormDialog } from '@/features/vehicle-stickers/components/sticker-form-dialog'
 import { StickerVerifyDialog } from '@/features/vehicle-stickers/components/sticker-verify-dialog'
 import { StickerRenewDialog } from '@/features/vehicle-stickers/components/sticker-renew-dialog'
+import { StickerDetailDialog } from '@/features/vehicle-stickers/components/sticker-detail-dialog'
+import { useViewParam } from '@/lib/use-view-param'
 import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatCurrency } from '@/lib/format'
 
 const STATUS_FILTERS = ['ALL', 'PENDING', 'ACTIVE', 'EXPIRED', 'REVOKED'] as const
 
 export default function VehicleStickersPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedStatus = searchParams.get('status') ?? 'ALL'
+
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<string>('ALL')
+  const [status, setStatus] = useState<string>(
+    (STATUS_FILTERS as readonly string[]).includes(requestedStatus) ? requestedStatus : 'ALL',
+  )
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [editSticker, setEditSticker] = useState<VehicleStickerListItem | null>(null)
   const [verifySticker, setVerifySticker] = useState<VehicleStickerListItem | null>(null)
   const [renewSticker, setRenewSticker] = useState<VehicleStickerListItem | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
+
+  useViewParam((id) => setDetailId(id))
 
   const canCreate = useHasPermission(PERMISSIONS.stickerCreate)
   const canUpdate = useHasPermission(PERMISSIONS.stickerUpdate)
@@ -48,7 +59,7 @@ export default function VehicleStickersPage() {
   })
 
   const isExpired = (sticker: VehicleStickerListItem) => {
-    return new Date(sticker.expirationDate) < new Date()
+    return sticker.expirationDate ? new Date(sticker.expirationDate) < new Date() : false
   }
 
   const columns: Column<VehicleStickerListItem>[] = [
@@ -61,7 +72,9 @@ export default function VehicleStickersPage() {
             <StickyNote className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="leading-tight">
-            <p className="font-mono font-medium">{row.stickerNumber}</p>
+            <p className="font-mono font-medium">
+              {row.stickerNumber ?? 'PENDING'}
+            </p>
             <p className="text-xs text-muted-foreground">
               {row.vehicle?.plateNumber ?? '—'}
             </p>
@@ -86,6 +99,19 @@ export default function VehicleStickersPage() {
         const displayStatus = row.status === 'ACTIVE' && isExpired(row) ? 'EXPIRED' : row.status
         return <StatusBadge status={displayStatus} />
       },
+    },
+    {
+      key: 'fee',
+      header: 'Fee',
+      cell: (row) => {
+        if (!row.assessment) return <span className="text-muted-foreground">—</span>
+        return (
+          <span className="text-muted-foreground">
+            {formatCurrency(row.assessment.amount)}
+          </span>
+        )
+      },
+      hideBelow: 'md',
     },
     {
       key: 'issueDate',
@@ -165,7 +191,7 @@ export default function VehicleStickersPage() {
         {canCreate ? (
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" />
-            Apply for sticker
+            Issue sticker
           </Button>
         ) : null}
       </PageHeader>
@@ -188,6 +214,12 @@ export default function VehicleStickersPage() {
           onValueChange={(value) => {
             setStatus(value)
             setPage(1)
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev)
+              if (value === 'ALL') next.delete('status')
+              else next.set('status', value)
+              return next
+            }, { replace: true })
           }}
         >
           <SelectTrigger className="sm:w-40">
@@ -233,6 +265,11 @@ export default function VehicleStickersPage() {
         open={Boolean(renewSticker)}
         onOpenChange={(open) => !open && setRenewSticker(null)}
         sticker={renewSticker}
+      />
+      <StickerDetailDialog
+        open={Boolean(detailId)}
+        onOpenChange={(open) => !open && setDetailId(null)}
+        stickerId={detailId}
       />
     </div>
   )

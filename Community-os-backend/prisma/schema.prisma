@@ -388,6 +388,7 @@ enum NotificationType {
   VISITOR
   ANNOUNCEMENT
   POLL
+  VEHICLE_STICKER
 }
 
 enum BillingCycle {
@@ -1360,12 +1361,15 @@ model VehicleSticker {
   vehicleId String  @db.Uuid
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
-  stickerNumber  String        @db.VarChar(30)
-  issueDate      DateTime
-  expirationDate DateTime
+  stickerNumber  String?       @db.VarChar(30)
+  issueDate      DateTime?
+  expirationDate DateTime?
   photoUrl       String?       @db.VarChar(500)
   status         StickerStatus @default(PENDING)
   notes          String?       @db.VarChar(500)
+
+  assessmentId String?    @db.Uuid
+  assessment   Assessment? @relation("StickerAssessment", fields: [assessmentId], references: [id], onDelete: SetNull)
 
   verifiedById        String?   @db.Uuid
   verifiedBy          User?     @relation("StickerVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull)
@@ -1383,6 +1387,7 @@ model VehicleSticker {
   @@index([communityId])
   @@index([vehicleId])
   @@index([status])
+  @@index([assessmentId])
 }
 
 /////////////////////////////////////////////////////
@@ -1564,6 +1569,7 @@ model Assessment {
   payments    Payment[]
   allocations PaymentAllocation[]
   itemLoans   FacilityItemLoan[]
+  vehicleStickers VehicleSticker[] @relation("StickerAssessment")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

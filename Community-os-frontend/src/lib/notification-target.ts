@@ -16,6 +16,13 @@ export function notificationTarget(link: string | null): NotificationTarget | nu
     }
   }
 
+  if (module === 'stickers') {
+    return {
+      pathname: '/app/stickers',
+      search: `?view=${encodeURIComponent(id)}`,
+    }
+  }
+
   return {
     pathname: `/${module}`,
     search: `?view=${encodeURIComponent(id)}`,

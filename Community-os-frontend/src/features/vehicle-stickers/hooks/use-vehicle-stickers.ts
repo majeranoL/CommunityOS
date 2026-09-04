@@ -5,6 +5,7 @@ import { vehicleStickersService } from '@/features/vehicle-stickers/services/veh
 import type {
   CreateStickerInput,
   RenewStickerInput,
+  RequestStickerInput,
   UpdateStickerInput,
   VerifyStickerInput,
 } from '@/features/vehicle-stickers/types/vehicle-sticker'
@@ -15,6 +16,29 @@ export const stickerKeys = {
   list: (params: ListQuery) => ['vehicle-stickers', 'list', params] as const,
   detail: (id: string) => ['vehicle-stickers', 'detail', id] as const,
   byVehicle: (vehicleId: string) => ['vehicle-stickers', 'vehicle', vehicleId] as const,
+  options: ['vehicle-stickers', 'options'] as const,
+}
+
+export function useStickerOptions(enabled = true) {
+  return useQuery({
+    queryKey: stickerKeys.options,
+    queryFn: () => vehicleStickersService.options(),
+    enabled,
+  })
+}
+
+export function useRequestSticker(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: RequestStickerInput) => vehicleStickersService.request(input),
+    onSuccess: () => {
+      toast.success('Sticker request submitted.')
+      queryClient.invalidateQueries({ queryKey: stickerKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to submit request.')),
+  })
 }
 
 export function useVehicleStickers(params: ListQuery) {
