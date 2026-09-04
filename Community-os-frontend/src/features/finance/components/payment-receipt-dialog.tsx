@@ -1,5 +1,6 @@
-import { Printer } from 'lucide-react'
+import { AlertTriangle, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -55,6 +56,18 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
           </div>
         ) : payment ? (
           <div className="space-y-6">
+            {payment.status === 'PENDING_VERIFICATION' ? (
+              <Alert variant="warning" className="print:hidden">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Awaiting official approval</AlertTitle>
+                <AlertDescription>
+                  This receipt was generated automatically from your payment
+                  submission. It becomes an official receipt once a finance officer
+                  or the president verifies your payment.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             <div className="flex items-start justify-between gap-4 border-b pb-4">
               <div className="flex items-start gap-3">
                 {community?.logoUrl ? (
@@ -169,7 +182,7 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
                 <div className="mt-8 border-t border-dashed pt-1">
                   {payment.verifiedBy
                     ? `${payment.verifiedBy.firstName} ${payment.verifiedBy.lastName}`
-                    : 'Treasurer'}
+                    : 'Pending officer verification'}
                 </div>
               </div>
             </div>

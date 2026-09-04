@@ -80,6 +80,7 @@ import { FinanceTransparencyGuard } from '../../common/guards/finance-transparen
     FinanceSyncService,
     ChargeTypesService,
     BillingPeriodsService,
+    ExpensesService,
   ],
 })
 export class FinanceModule {}

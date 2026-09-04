@@ -74,7 +74,12 @@ export class InvoicesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: MarkPaidInvoiceDto,
   ) {
-    return this.invoicesService.markPaid(req.user.community.id, id, dto);
+    return this.invoicesService.markPaid(
+      req.user.community.id,
+      id,
+      dto,
+      req.user.id,
+    );
   }
 
   @Post(':id/checkout')

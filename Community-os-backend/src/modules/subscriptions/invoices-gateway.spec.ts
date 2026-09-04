@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
 import { FeaturesService } from '../features/features.service';
+import { ExpensesService } from '../finance/expenses.service';
 
 describe('InvoicesService gateway invoice flow', () => {
   let service: InvoicesService;
@@ -23,6 +24,7 @@ describe('InvoicesService gateway invoice flow', () => {
     };
   };
   let gateway: { enabled: boolean; createCheckout: jest.Mock };
+  let expensesService: { createSubscriptionExpense: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -44,6 +46,11 @@ describe('InvoicesService gateway invoice flow', () => {
         checkoutUrl: 'https://checkout.paymongo.com/abc',
       }),
     };
+    expensesService = {
+      createSubscriptionExpense: jest
+        .fn()
+        .mockResolvedValue({ success: true, data: { id: 'expense-1' } }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -54,6 +61,7 @@ describe('InvoicesService gateway invoice flow', () => {
           provide: FeaturesService,
           useValue: { syncFeaturesFromPlan: jest.fn() },
         },
+        { provide: ExpensesService, useValue: expensesService },
       ],
     }).compile();
 
@@ -63,8 +71,13 @@ describe('InvoicesService gateway invoice flow', () => {
   it('marks a PROCESSING invoice as PAID on gateway success', async () => {
     prisma.invoice.findFirst.mockResolvedValue({
       id: 'inv-1',
+      communityId: 'community-1',
+      invoiceNumber: 'INV-000001',
+      amount: '1000',
       status: InvoiceStatus.PROCESSING,
       gatewayInvoiceId: 'cses_123',
+      paymentMethod: 'ONLINE',
+      paidAt: null,
       deletedAt: null,
     });
 
@@ -77,6 +90,13 @@ describe('InvoicesService gateway invoice flow', () => {
           status: InvoiceStatus.PAID,
           paymentMethod: 'ONLINE',
         }),
+      }),
+    );
+    expect(expensesService.createSubscriptionExpense).toHaveBeenCalledWith(
+      expect.objectContaining({
+        communityId: 'community-1',
+        invoiceId: 'inv-1',
+        invoiceNumber: 'INV-000001',
       }),
     );
   });
@@ -167,6 +187,14 @@ describe('InvoicesService markPaid trial activation', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: PaymentsGatewayService, useValue: { enabled: true } },
         { provide: FeaturesService, useValue: featuresService },
+        {
+          provide: ExpensesService,
+          useValue: {
+            createSubscriptionExpense: jest
+              .fn()
+              .mockResolvedValue({ success: true, data: { id: 'expense-1' } }),
+          },
+        },
       ],
     }).compile();
 
@@ -176,8 +204,12 @@ describe('InvoicesService markPaid trial activation', () => {
   it('activates a TRIAL subscription when its invoice is marked paid', async () => {
     prisma.invoice.findFirst.mockResolvedValue({
       id: 'inv-1',
+      communityId: 'community-1',
+      invoiceNumber: 'INV-000001',
+      amount: '1000',
       status: InvoiceStatus.ISSUED,
       paymentMethod: null,
+      paidAt: null,
       deletedAt: null,
       subscription: {
         id: 'sub-1',
@@ -193,7 +225,7 @@ describe('InvoicesService markPaid trial activation', () => {
       billingCycle: 'MONTHLY',
     });
 
-    await service.markPaid('community-1', 'inv-1', {});
+    await service.markPaid('community-1', 'inv-1', {}, 'user-1');
 
     expect(prisma.subscription.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -213,8 +245,12 @@ describe('InvoicesService markPaid trial activation', () => {
   it('does not activate a subscription for a non-TRIAL invoice', async () => {
     prisma.invoice.findFirst.mockResolvedValue({
       id: 'inv-2',
+      communityId: 'community-1',
+      invoiceNumber: 'INV-000002',
+      amount: '1000',
       status: InvoiceStatus.ISSUED,
       paymentMethod: null,
+      paidAt: null,
       deletedAt: null,
       subscription: {
         id: 'sub-2',
@@ -224,7 +260,7 @@ describe('InvoicesService markPaid trial activation', () => {
       },
     });
 
-    await service.markPaid('community-1', 'inv-2', {});
+    await service.markPaid('community-1', 'inv-2', {}, 'user-1');
 
     expect(prisma.subscription.update).not.toHaveBeenCalled();
     expect(featuresService.syncFeaturesFromPlan).not.toHaveBeenCalled();
@@ -233,8 +269,12 @@ describe('InvoicesService markPaid trial activation', () => {
   it('reactivates a suspended community when its invoice is marked paid', async () => {
     prisma.invoice.findFirst.mockResolvedValue({
       id: 'inv-3',
+      communityId: 'community-1',
+      invoiceNumber: 'INV-000003',
+      amount: '1000',
       status: InvoiceStatus.ISSUED,
       paymentMethod: null,
+      paidAt: null,
       deletedAt: null,
       subscription: null,
     });
@@ -244,7 +284,7 @@ describe('InvoicesService markPaid trial activation', () => {
       suspensionReason: 'unpaid',
     });
 
-    await service.markPaid('community-1', 'inv-3', {});
+    await service.markPaid('community-1', 'inv-3', {}, 'user-1');
 
     expect(prisma.community.update).toHaveBeenCalledWith({
       where: { id: 'community-1' },

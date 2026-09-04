@@ -8,6 +8,16 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseQueryDto } from './dto/expense-query.dto';
 
+export interface CreateSubscriptionExpenseInput {
+  communityId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  paidAt: Date;
+  paymentMethod?: string | null;
+  createdById?: string | null;
+}
+
 @Injectable()
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
@@ -62,6 +72,129 @@ export class ExpensesService {
     return {
       success: true,
       message: 'Expense recorded successfully.',
+      data: expense,
+    };
+  }
+
+  // ==========================================
+  // Create Subscription Expense (auto-generated)
+  // Idempotent: each source invoice maps to at most one expense via the
+  // unique subscriptionInvoiceId column, so webhook retries / duplicate
+  // "mark paid" calls cannot double-record the deduction.
+  // ==========================================
+
+  private isPaymentMethod(
+    value: string | null | undefined,
+  ): value is PaymentMethod {
+    return (
+      typeof value === 'string' &&
+      (Object.values(PaymentMethod) as string[]).includes(value)
+    );
+  }
+
+  private async resolveCreatedById(
+    communityId: string,
+    createdById?: string | null,
+  ): Promise<string> {
+    if (createdById) {
+      return createdById;
+    }
+
+    // Gateway webhooks have no JWT context, so fall back to the first
+    // active finance staff user in the community.
+    const financeUser = await this.prisma.user.findFirst({
+      where: {
+        communityId,
+        deletedAt: null,
+        status: 'ACTIVE',
+        roles: {
+          some: {
+            role: {
+              permissions: {
+                some: { permission: { code: 'finance.verify' } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (financeUser) {
+      return financeUser.id;
+    }
+
+    // Last resort: any active user of the community.
+    const anyUser = await this.prisma.user.findFirst({
+      where: {
+        communityId,
+        deletedAt: null,
+        status: 'ACTIVE',
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (!anyUser) {
+      throw new NotFoundException(
+        'Cannot record subscription expense: no community user found.',
+      );
+    }
+
+    return anyUser.id;
+  }
+
+  async createSubscriptionExpense(input: CreateSubscriptionExpenseInput) {
+    const existing = await this.prisma.expense.findUnique({
+      where: { subscriptionInvoiceId: input.invoiceId },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return {
+        success: true,
+        message: 'Subscription expense already recorded.',
+        data: existing,
+        deduplicated: true,
+      };
+    }
+
+    const paymentMethod = this.isPaymentMethod(input.paymentMethod)
+      ? input.paymentMethod
+      : PaymentMethod.ONLINE;
+
+    const createdById = await this.resolveCreatedById(
+      input.communityId,
+      input.createdById,
+    );
+
+    const expense = await this.prisma.expense.create({
+      data: {
+        communityId: input.communityId,
+        expenseNumber: await this.nextExpenseNumber(input.communityId),
+        title: `CommunityOS subscription ${input.invoiceNumber}`,
+        description: 'Monthly subscription payment for CommunityOS.',
+        category: ExpenseCategory.SUBSCRIPTION,
+        amount: input.amount,
+        expenseDate: input.paidAt,
+        paymentMethod,
+        payee: 'CommunityOS',
+        referenceNumber: input.invoiceNumber,
+        notes: 'Auto-recorded from a paid subscription invoice.',
+        subscriptionInvoiceId: input.invoiceId,
+        createdById,
+      },
+      include: {
+        createdBy: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Subscription expense recorded successfully.',
       data: expense,
     };
   }

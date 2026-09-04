@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { FeaturesModule } from '../features/features.module';
 import { PaymentsGatewayModule } from '../payments-gateway/payments-gateway.module';
+import { FinanceModule } from '../finance/finance.module';
 
 import { BillingController } from './billing.controller';
 import { BillingService } from './billing.service';
@@ -14,7 +15,7 @@ import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsService } from './subscriptions.service';
 
 @Module({
-  imports: [PrismaModule, FeaturesModule, PaymentsGatewayModule],
+  imports: [PrismaModule, FeaturesModule, PaymentsGatewayModule, FinanceModule],
   controllers: [
     SubscriptionPlansController,
     SubscriptionsController,

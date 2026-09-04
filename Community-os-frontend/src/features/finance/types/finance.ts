@@ -538,6 +538,7 @@ export type ExpenseCategory =
   | 'TAXES'
   | 'INSURANCE'
   | 'TRANSPORTATION'
+  | 'SUBSCRIPTION'
   | 'OTHER'
 
 export interface CreatedByRef {

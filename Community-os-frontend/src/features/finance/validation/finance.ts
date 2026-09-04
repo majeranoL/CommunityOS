@@ -160,6 +160,7 @@ export const EXPENSE_CATEGORIES = [
   'TAXES',
   'INSURANCE',
   'TRANSPORTATION',
+  'SUBSCRIPTION',
   'OTHER',
 ] as const
 

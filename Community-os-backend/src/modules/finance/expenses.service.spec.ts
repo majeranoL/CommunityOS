@@ -141,3 +141,99 @@ describe('ExpensesService', () => {
     expect(result.message).toBe('Expense deleted successfully.');
   });
 });
+
+describe('ExpensesService createSubscriptionExpense', () => {
+  const expiryDb = {
+    expense: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
+    user: {
+      findFirst: jest.fn(),
+    },
+  };
+
+  const service = new ExpensesService(expiryDb as any);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('creates a SUBSCRIPTION expense and resolves a fallback creator', async () => {
+    expiryDb.expense.findUnique.mockResolvedValue(null);
+    expiryDb.expense.findFirst.mockResolvedValue(null);
+    expiryDb.user.findFirst.mockResolvedValue({ id: 'finance-user' });
+    expiryDb.expense.create.mockImplementation(({ data }) =>
+      Promise.resolve({ id: 'exp-9', ...data }),
+    );
+
+    const result = await service.createSubscriptionExpense({
+      communityId: 'community-1',
+      invoiceId: 'inv-1',
+      invoiceNumber: 'INV-000001',
+      amount: 1000,
+      paidAt: new Date('2026-09-01T00:00:00Z'),
+      paymentMethod: 'ONLINE',
+    });
+
+    expect(expiryDb.user.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ communityId: 'community-1' }),
+      }),
+    );
+    expect(expiryDb.expense.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          communityId: 'community-1',
+          category: 'SUBSCRIPTION',
+          title: 'CommunityOS subscription INV-000001',
+          payee: 'CommunityOS',
+          referenceNumber: 'INV-000001',
+          subscriptionInvoiceId: 'inv-1',
+          expenseNumber: 'EXP-000001',
+          paymentMethod: 'ONLINE',
+          createdById: 'finance-user',
+        }),
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('deduplicates when an expense already exists for the invoice', async () => {
+    expiryDb.expense.findUnique.mockResolvedValue({ id: 'exp-existing' });
+
+    const result = await service.createSubscriptionExpense({
+      communityId: 'community-1',
+      invoiceId: 'inv-1',
+      invoiceNumber: 'INV-000001',
+      amount: 1000,
+      paidAt: new Date(),
+      paymentMethod: 'GCASH',
+    });
+
+    expect(result.deduplicated).toBe(true);
+    expect(expiryDb.expense.create).not.toHaveBeenCalled();
+  });
+
+  it('falls back to ONLINE method for unknown payment methods', async () => {
+    expiryDb.expense.findUnique.mockResolvedValue(null);
+    expiryDb.expense.findFirst.mockResolvedValue(null);
+    expiryDb.user.findFirst.mockResolvedValue({ id: 'user-1' });
+    expiryDb.expense.create.mockImplementation(({ data }) =>
+      Promise.resolve({ id: 'exp-10', ...data }),
+    );
+
+    await service.createSubscriptionExpense({
+      communityId: 'community-1',
+      invoiceId: 'inv-2',
+      invoiceNumber: 'INV-000002',
+      amount: 500,
+      paidAt: new Date(),
+      paymentMethod: 'SOME_ODD_METHOD',
+    });
+
+    const createCall = expiryDb.expense.create.mock.calls[0][0];
+    expect(createCall.data.paymentMethod).toBe('ONLINE');
+  });
+});

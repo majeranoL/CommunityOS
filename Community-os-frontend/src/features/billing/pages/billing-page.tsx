@@ -52,6 +52,7 @@ import {
   useBillingSummary,
   useCancelSubscription,
   useInvoices,
+  useInvoiceCheckout,
   useMarkInvoicePaid,
   usePlansList,
   usePlatformPaymentMethods,
@@ -63,6 +64,7 @@ import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import type { Invoice } from '@/types/api'
 
 const PAYMENT_METHOD_OPTIONS = [
   { value: 'GCASH', label: 'GCash' },
@@ -171,63 +173,123 @@ function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
   )
 }
 
-function MarkInvoicePaidDialog({
-  invoiceId,
-  invoiceNumber,
-}: {
-  invoiceId: string
-  invoiceNumber: string
-}) {
+function PayInvoiceDialog({ invoice }: { invoice: Invoice }) {
+  const checkout = useInvoiceCheckout()
   const markPaid = useMarkInvoicePaid()
-  const [method, setMethod] = useState<string>('')
   const [open, setOpen] = useState(false)
+  const [method, setMethod] = useState('')
+  const [showManual, setShowManual] = useState(false)
+
+  const processing = invoice.status === 'PROCESSING'
+  const resumeUrl = invoice.checkoutUrl
+
+  const handleOnlinePay = () => {
+    if (resumeUrl) {
+      window.open(resumeUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+    checkout.mutate(invoice.id, {
+      onSuccess: (result) => {
+        window.open(result.checkoutUrl, '_blank', 'noopener,noreferrer')
+      },
+    })
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) {
+          setShowManual(false)
+          setMethod('')
+        }
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
-          Mark as paid
+          <Wallet className="mr-2 h-4 w-4" />
+          Pay now
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Confirm payment</DialogTitle>
+          <DialogTitle>Pay invoice {invoice.invoiceNumber}</DialogTitle>
           <DialogDescription>
-            Select how you paid invoice <strong>{invoiceNumber}</strong>.
+            Amount due: <strong>{formatCurrency(invoice.amount)}</strong>. Complete your
+            payment online, or confirm a manual GCash / Maya / bank transfer below.
           </DialogDescription>
         </DialogHeader>
-        <Select value={method} onValueChange={setMethod}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select payment method" />
-          </SelectTrigger>
-          <SelectContent>
-            {PAYMENT_METHOD_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <DialogFooter>
+
+        {(processing || checkout.isPending) ? (
+          <Alert variant="info">
+            <RefreshCcw className="h-4 w-4" />
+            <AlertTitle>{processing ? 'Payment in progress' : 'Starting payment…'}</AlertTitle>
+            <AlertDescription>
+              {processing
+                ? 'A checkout session is already open for this invoice. Resume it to complete your payment.'
+                : 'You will be redirected to our secure payment page.'}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div className="space-y-3">
           <Button
-            variant="ghost"
-            onClick={() => setOpen(false)}
-            disabled={markPaid.isPending}
+            className="w-full"
+            onClick={handleOnlinePay}
+            disabled={checkout.isPending}
           >
-            Cancel
+            <CreditCard className="mr-2 h-4 w-4" />
+            {resumeUrl
+              ? 'Resume online payment'
+              : 'Pay online with GCash / Maya / Card'}
           </Button>
+
           <Button
-            disabled={!method || markPaid.isPending}
-            onClick={() => {
-              markPaid.mutate(
-                { id: invoiceId, paymentMethod: method },
-                { onSuccess: () => setOpen(false) },
-              )
-            }}
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setShowManual((value) => !value)}
           >
-            {markPaid.isPending ? 'Confirming…' : 'Confirm payment'}
+            {showManual
+              ? 'Hide manual payment'
+              : 'I already paid via GCash / Maya / Bank'}
           </Button>
-        </DialogFooter>
+
+          {showManual ? (
+            <div className="space-y-3 rounded-lg border p-4">
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                className="w-full"
+                variant="outline"
+                disabled={!method || markPaid.isPending}
+                onClick={() => {
+                  markPaid.mutate(
+                    { id: invoice.id, paymentMethod: method },
+                    { onSuccess: () => setOpen(false) },
+                  )
+                }}
+              >
+                {markPaid.isPending ? 'Confirming…' : 'Confirm manual payment'}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Once confirmed, this payment is recorded as an expense in your
+                community finances.
+              </p>
+            </div>
+          ) : null}
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -314,8 +376,9 @@ export default function BillingPage() {
               How to pay
             </CardTitle>
             <CardDescription>
-              Send your subscription payment using one of the methods below, then
-              mark the invoice as paid.
+              You can pay instantly online with a card or e-wallet from the invoice
+              row (Pay now) — or send your subscription payment using one of the
+              methods below.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -542,12 +605,7 @@ export default function BillingPage() {
                         {formatCurrency(invoice.amount)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isPayable ? (
-                          <MarkInvoicePaidDialog
-                            invoiceId={invoice.id}
-                            invoiceNumber={invoice.invoiceNumber}
-                          />
-                        ) : null}
+                        {isPayable ? <PayInvoiceDialog invoice={invoice} /> : null}
                       </TableCell>
                     </TableRow>
                   )

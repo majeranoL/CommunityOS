@@ -124,6 +124,7 @@ export interface SubscriptionPlan {
 
 export interface Invoice {
   id: string
+  subscriptionId: string | null
   invoiceNumber: string
   amount: string | number
   billingCycle: 'MONTHLY' | 'YEARLY'
@@ -132,6 +133,8 @@ export interface Invoice {
   paidAt: string | null
   paymentMethod: string | null
   notes: string | null
+  gatewayProvider: string | null
+  checkoutUrl: string | null
   createdAt: string
 }
 

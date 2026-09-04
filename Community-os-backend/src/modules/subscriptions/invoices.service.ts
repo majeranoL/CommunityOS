@@ -8,6 +8,7 @@ import {
 import {
   BillingCycle,
   CommunityStatus,
+  Invoice,
   InvoiceStatus,
   Prisma,
   SubscriptionStatus,
@@ -22,6 +23,7 @@ import { MarkPaidInvoiceDto } from './dto/mark-paid.dto';
 
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
 import { FeaturesService } from '../features/features.service';
+import { ExpensesService } from '../finance/expenses.service';
 
 @Injectable()
 export class InvoicesService {
@@ -29,6 +31,7 @@ export class InvoicesService {
     private readonly prisma: PrismaService,
     private readonly gateway: PaymentsGatewayService,
     private readonly featuresService: FeaturesService,
+    private readonly expensesService: ExpensesService,
   ) {}
 
   // ==========================================
@@ -251,7 +254,12 @@ export class InvoicesService {
     });
   }
 
-  async markPaid(communityId: string, id: string, dto: MarkPaidInvoiceDto) {
+  async markPaid(
+    communityId: string,
+    id: string,
+    dto: MarkPaidInvoiceDto,
+    userId: string,
+  ) {
     const invoice = await this.prisma.invoice.findFirst({
       where: {
         id,
@@ -271,12 +279,14 @@ export class InvoicesService {
       throw new ConflictException('Void invoices cannot be marked as paid.');
     }
 
+    const resolvedPaymentMethod = dto.paymentMethod ?? invoice.paymentMethod;
+
     const updatedInvoice = await this.prisma.invoice.update({
       where: { id },
       data: {
         status: InvoiceStatus.PAID,
         paidAt: new Date(),
-        paymentMethod: dto.paymentMethod ?? invoice.paymentMethod,
+        paymentMethod: resolvedPaymentMethod,
       },
       include: {
         subscription: {
@@ -323,6 +333,11 @@ export class InvoicesService {
     }
 
     await this.reactivateCommunityIfSuspended(communityId);
+
+    await this.recordSubscriptionExpense(
+      { ...invoice, paymentMethod: resolvedPaymentMethod },
+      userId,
+    );
 
     return {
       success: true,
@@ -411,6 +426,11 @@ export class InvoicesService {
 
     await this.reactivateCommunityIfSuspended(invoice.communityId);
 
+    await this.recordSubscriptionExpense({
+      ...invoice,
+      paymentMethod: 'ONLINE',
+    });
+
     return { success: true, invoice: updatedInvoice };
   }
 
@@ -477,6 +497,33 @@ export class InvoicesService {
     }
 
     return invoice;
+  }
+
+  // ==========================================
+  // Record the paid subscription as a community expense so officers can
+  // see the platform spend in the community finances. Idempotent.
+  // ==========================================
+
+  private async recordSubscriptionExpense(invoice: Invoice, userId?: string) {
+    try {
+      await this.expensesService.createSubscriptionExpense({
+        communityId: invoice.communityId,
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        amount: Number(invoice.amount),
+        paidAt: invoice.paidAt ?? new Date(),
+        paymentMethod: invoice.paymentMethod,
+        createdById: userId,
+      });
+    } catch (error) {
+      // A subscription expense is informational (transparency in the
+      // community finance ledger); a failure must not break the payment.
+
+      console.error(
+        `Failed to record subscription expense for invoice ${invoice.invoiceNumber}:`,
+        error,
+      );
+    }
   }
 
   private addCycle(date: Date, cycle: BillingCycle): Date {

@@ -53,8 +53,10 @@ import type {
 } from '@/features/finance/types/finance'
 import { formatCurrency, formatDateTime, toTitleCase } from '@/lib/format'
 import { SummaryConfirmDialog } from '@/components/shared/summary-confirm-dialog'
+import { toast } from '@/components/ui/sonner'
 import { paymentMethodsService } from '@/features/finance/services/finance'
 import { ActivePaymentMethods } from '@/features/finance/components/payment-methods-manager'
+import { PaymentReceiptDialog } from '@/features/finance/components/payment-receipt-dialog'
 
 interface PaymentFormDialogProps {
   open: boolean
@@ -129,6 +131,8 @@ function PaymentFormDialogContent({
   const [pending, setPending] = useState<{ input: CreatePaymentInput } | null>(
     null,
   )
+  const [receiptId, setReceiptId] = useState<string | null>(null)
+  const [receiptOpen, setReceiptOpen] = useState(false)
   const [proof, setProof] = useState<{
     fileId: string
     url: string
@@ -314,9 +318,20 @@ function PaymentFormDialogContent({
       )
     } else {
       createPayment.mutate(pending.input, {
-        onSuccess: () => {
+        onSuccess: (createdPayment) => {
           setConfirmOpen(false)
           onOpenChange(false)
+          if (createdPayment?.id) {
+            setReceiptId(createdPayment.id)
+            toast.success('Payment recorded and awaiting verification.', {
+              action: {
+                label: 'View receipt',
+                onClick: () => setReceiptOpen(true),
+              },
+            })
+          } else {
+            toast.success('Payment recorded and awaiting verification.')
+          }
         },
       })
     }
@@ -623,6 +638,12 @@ function PaymentFormDialogContent({
           },
           { label: 'Proof', value: proof ? 'Attached' : 'None' },
         ]}
+      />
+
+      <PaymentReceiptDialog
+        paymentId={receiptId}
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
       />
     </>
   )

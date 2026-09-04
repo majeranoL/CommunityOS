@@ -304,6 +304,7 @@ enum ExpenseCategory {
   TAXES
   INSURANCE
   TRANSPORTATION
+  SUBSCRIPTION
   OTHER
 }
 
@@ -1674,6 +1675,8 @@ model Expense {
 
   receiptFileId String? @db.Uuid
   receiptUrl    String?
+
+  subscriptionInvoiceId String? @db.Uuid @unique
 
   createdById String @db.Uuid
   createdBy   User   @relation(fields: [createdById], references: [id], onDelete: Cascade)

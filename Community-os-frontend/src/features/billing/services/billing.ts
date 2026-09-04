@@ -67,3 +67,16 @@ export async function markInvoicePaid(id: string, paymentMethod?: string) {
   })
   return data.data
 }
+
+export interface InvoiceCheckoutResult {
+  invoiceId: string
+  checkoutUrl: string
+  gatewayId: string
+}
+
+export async function checkoutInvoice(id: string) {
+  const { data } = await api.post<ApiEnvelope<InvoiceCheckoutResult>>(
+    `/invoices/${id}/checkout`,
+  )
+  return data.data
+}

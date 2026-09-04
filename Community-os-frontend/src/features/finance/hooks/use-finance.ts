@@ -283,7 +283,6 @@ export function useCreatePayment(onSuccess?: () => void) {
   return useMutation({
     mutationFn: (input: CreatePaymentInput) => paymentsService.create(input),
     onSuccess: () => {
-      toast.success('Payment recorded and awaiting verification.')
       invalidatePayments(queryClient)
       onSuccess?.()
     },

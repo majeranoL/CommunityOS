@@ -3,6 +3,7 @@ import { toast } from '@/components/ui/sonner'
 import { apiErrorMessage } from '@/lib/api'
 import {
   cancelSubscription,
+  checkoutInvoice,
   fetchBillingLimits,
   fetchBillingSummary,
   fetchInvoices,
@@ -136,6 +137,20 @@ export function useMarkInvoicePaid() {
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Failed to mark invoice as paid.'))
+    },
+  })
+}
+
+export function useInvoiceCheckout() {
+  const invalidate = useInvalidateBilling()
+
+  return useMutation({
+    mutationFn: (id: string) => checkoutInvoice(id),
+    onSuccess: () => {
+      invalidate()
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Failed to start online payment.'))
     },
   })
 }
