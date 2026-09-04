@@ -1,10 +1,4 @@
-import {
-  IsDateString,
-  IsIn,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AdminInvoiceQueryDto {
