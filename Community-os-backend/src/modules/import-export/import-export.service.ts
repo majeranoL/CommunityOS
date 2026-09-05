@@ -339,7 +339,7 @@ export class ImportExportService {
 
     const allRows = Array.from(validated.values()).map(({ row, errors }) => ({
       ...row,
-      errors: errors as string[],
+      errors,
     }));
     const validRows = allRows.filter((r) => !r.errors.length);
     const invalidRows = allRows.filter((r) => r.errors.length);
