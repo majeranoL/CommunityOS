@@ -1,14 +1,6 @@
 import type { CookieOptions, Request, Response } from 'express';
-import ms, { StringValue } from 'ms';
 
 export const REFRESH_TOKEN_COOKIE = 'refresh_token';
-
-function refreshMaxAge(): number {
-  return (
-    ms((process.env.REFRESH_EXPIRES_IN as StringValue | undefined) ?? '7d') ??
-    604800000
-  );
-}
 
 function isSecure(): boolean {
   if (process.env.COOKIE_SECURE !== undefined) {
@@ -23,7 +15,6 @@ function refreshCookieOptions(): CookieOptions {
     secure: isSecure(),
     sameSite: 'strict',
     path: '/api/auth',
-    maxAge: refreshMaxAge(),
   };
 }
 
