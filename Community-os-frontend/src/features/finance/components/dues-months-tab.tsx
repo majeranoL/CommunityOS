@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { FileDown, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,15 +11,20 @@ import {
 } from '@/features/finance/hooks/use-finance'
 import { CreateDuesMonthDialog } from '@/features/finance/components/create-dues-month-dialog'
 import { DuesMonthDetailDialog } from '@/features/finance/components/dues-month-detail-dialog'
+import { ImportExportDialog } from '@/features/finance/components/import-export-dialog'
 import { formatCurrency, formatDate } from '@/lib/format'
 
 export function DuesMonthsTab() {
   const canCreate = useHasPermission(PERMISSIONS.assessmentCreate)
+  const canImport = useHasPermission(PERMISSIONS.financeImport)
+  const canExport = useHasPermission(PERMISSIONS.financeExport)
+  const canImportExport = canImport || canExport
   const { data: months, isLoading } = useDuesMonths()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [importExportOpen, setImportExportOpen] = useState(false)
 
   const openDetail = (periodKey: string) => {
     setSelectedPeriod(periodKey)
@@ -32,12 +37,20 @@ export function DuesMonthsTab() {
         <p className="text-sm text-muted-foreground">
           One entry per month. Click a month to see which households paid.
         </p>
-        {canCreate ? (
-          <Button className="shrink-0" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" />
-            New monthly dues
-          </Button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-2">
+          {canImportExport ? (
+            <Button variant="outline" onClick={() => setImportExportOpen(true)}>
+              <FileDown className="h-4 w-4" />
+              Import / export
+            </Button>
+          ) : null}
+          {canCreate ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              New monthly dues
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {isLoading ? (
@@ -147,6 +160,11 @@ export function DuesMonthsTab() {
           setDetailOpen(open)
           if (!open) setSelectedPeriod(null)
         }}
+      />
+      <ImportExportDialog
+        open={importExportOpen}
+        onOpenChange={setImportExportOpen}
+        initialKind="assessments"
       />
     </div>
   )

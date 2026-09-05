@@ -13,7 +13,7 @@ import type { ImportKind } from '@/features/finance/types/finance'
 
 const IMPORT_KIND_OPTIONS: Array<{ value: ImportKind; label: string }> = [
   { value: 'payments', label: 'Payments' },
-  { value: 'assessments', label: 'Assessments / charges' },
+  { value: 'assessments', label: 'Assessments / monthly dues' },
   { value: 'expenses', label: 'Expenses' },
   { value: 'utility-readings', label: 'Utility meter readings' },
 ]
