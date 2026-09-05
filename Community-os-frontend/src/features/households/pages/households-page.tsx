@@ -417,7 +417,17 @@ function OfficerHouseholdsView() {
         }}
       />
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="households" entityLabel="Household" />
-      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="households" entityLabel="Household" />
+      <ModuleExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        module="households"
+        entityLabel="Household"
+        filters={{
+          ...(search ? { search } : {}),
+          ...(status !== 'ALL' ? { status } : {}),
+          ...(block !== 'ALL' ? { block } : {}),
+        }}
+      />
     </>
   )
 }

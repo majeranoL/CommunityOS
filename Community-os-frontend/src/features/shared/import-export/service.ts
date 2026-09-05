@@ -1,10 +1,15 @@
 import api from '@/lib/api';
 import type { ApiEnvelope } from '@/types/api';
-import type { ImportBatch, ImportPreviewResult, ImportConfirmResult, ModuleInfo } from './types';
+import type { ImportBatch, ImportPreviewResult, ImportConfirmResult, ImportDetectResult, ModuleInfo, ModuleSchema } from './types';
 
 export const importExportService = {
   async getModules(): Promise<ModuleInfo[]> {
     const { data } = await api.get<ApiEnvelope<ModuleInfo[]>>('/import-export/modules');
+    return data.data;
+  },
+
+  async getSchema(module: string): Promise<ModuleSchema> {
+    const { data } = await api.get<ApiEnvelope<ModuleSchema>>(`/import-export/schemas/${module}`);
     return data.data;
   },
 
@@ -16,13 +21,13 @@ export const importExportService = {
     return response.data;
   },
 
-  async preview(module: string, file: File, columnMapping?: Record<string, string>): Promise<ImportPreviewResult> {
+  async preview(module: string, file: File, columnMapping?: Record<string, string>): Promise<ImportPreviewResult | ImportDetectResult> {
     const formData = new FormData();
     formData.append('file', file);
     if (columnMapping) {
       formData.append('columnMapping', JSON.stringify(columnMapping));
     }
-    const { data } = await api.post<ApiEnvelope<ImportPreviewResult>>(
+    const { data } = await api.post<ApiEnvelope<ImportPreviewResult | ImportDetectResult>>(
       `/import-export/import/${module}/preview`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } },
@@ -30,9 +35,10 @@ export const importExportService = {
     return data.data;
   },
 
-  async confirm(batchId: string): Promise<ImportConfirmResult> {
+  async confirm(batchId: string, rowIndices?: number[]): Promise<ImportConfirmResult> {
     const { data } = await api.post<ApiEnvelope<ImportConfirmResult>>(
       `/import-export/import/${batchId}/confirm`,
+      { rowIndices },
     );
     return data.data;
   },
@@ -51,9 +57,13 @@ export const importExportService = {
     return data.data;
   },
 
-  async exportData(module: string, format: string, columns?: string[]): Promise<Blob> {
+  async exportData(module: string, format: string, columns?: string[], filters?: Record<string, any>): Promise<Blob> {
+    const params: Record<string, any> = { format, columns: columns?.join(',') };
+    if (filters && Object.keys(filters).length > 0) {
+      Object.assign(params, filters);
+    }
     const response = await api.get(`/import-export/export/${module}`, {
-      params: { format, columns: columns?.join(',') },
+      params,
       responseType: 'blob',
     });
     return response.data;

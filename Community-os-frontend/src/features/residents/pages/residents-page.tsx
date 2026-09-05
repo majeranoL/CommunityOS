@@ -323,7 +323,17 @@ export default function ResidentsPage() {
         }}
       />
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="residents" entityLabel="Resident" />
-      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="residents" entityLabel="Resident" />
+      <ModuleExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        module="residents"
+        entityLabel="Resident"
+        filters={{
+          ...(search ? { search } : {}),
+          ...(status !== 'ALL' ? { status } : {}),
+          ...(gender !== 'ALL' ? { gender } : {}),
+        }}
+      />
     </div>
   )
 }

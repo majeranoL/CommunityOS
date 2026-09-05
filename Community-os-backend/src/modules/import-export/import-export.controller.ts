@@ -30,7 +30,12 @@ export class ImportExportController {
 
   @Get('modules')
   getModules() {
-    return this.registry.list();
+    return { success: true, data: this.registry.list() };
+  }
+
+  @Get('schemas/:module')
+  getSchema(@Param('module') module: string) {
+    return { success: true, data: this.importExportService.schema(module) };
   }
 
   @Get('template/:module')
@@ -69,29 +74,30 @@ export class ImportExportController {
       file.buffer,
       file.originalname,
       mapping,
+      req.user.id,
     );
-
-    await this.importExportService['prisma'].importBatch.update({
-      where: { id: result.batchId },
-      data: { importedById: req.user.id },
-    });
 
     return {
       success: true,
       message:
-        result.invalidRows > 0
+        'batchId' in result && result.invalidRows > 0
           ? `File parsed with ${result.invalidRows} row(s) to review.`
-          : 'File parsed successfully. Ready to import.',
+          : 'File parsed successfully.',
       data: result,
     };
   }
 
   @Post('import/:batchId/confirm')
-  async confirm(@Param('batchId') batchId: string, @Request() req: any) {
+  async confirm(
+    @Param('batchId') batchId: string,
+    @Request() req: any,
+    @Body('rowIndices') rowIndices?: number[],
+  ) {
     return this.importExportService.confirm(
       req.user.community.id,
       batchId,
       req.user.id,
+      rowIndices,
     );
   }
 

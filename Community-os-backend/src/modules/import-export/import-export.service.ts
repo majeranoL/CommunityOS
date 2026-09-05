@@ -9,7 +9,12 @@ import * as ExcelJS from 'exceljs';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { ModuleRegistry } from './module-registry';
-import type { ExportFormat, ImportPreviewResult } from './import-export.types';
+import type {
+  ExportFormat,
+  ImportDetectResult,
+  ImportPreviewResult,
+  ModuleSchema,
+} from './import-export.types';
 
 @Injectable()
 export class ImportExportService {
@@ -243,7 +248,24 @@ export class ImportExportService {
   }
 
   // ==========================================
-  // PREVIEW (parse + validate + detect duplicates)
+  // SCHEMA
+  // ==========================================
+
+  schema(module: string): ModuleSchema {
+    const config = this.registry.getSchema(module);
+    if (
+      !config ||
+      (!config.templateFields.length && !config.exportColumns.length)
+    ) {
+      throw new BadRequestException(
+        `Module "${module}" does not support import or export.`,
+      );
+    }
+    return config;
+  }
+
+  // ==========================================
+  // PREVIEW (detect + parse + validate + detect duplicates)
   // ==========================================
 
   async preview(
@@ -251,8 +273,9 @@ export class ImportExportService {
     module: string,
     buffer: Buffer,
     filename: string,
-    columnMapping?: Record<string, string>,
-  ): Promise<ImportPreviewResult> {
+    columnMapping: Record<string, string> | undefined,
+    userId: string,
+  ): Promise<ImportPreviewResult | ImportDetectResult> {
     const config = this.registry.getImportConfig(module);
     if (!config) {
       throw new BadRequestException(
@@ -265,51 +288,75 @@ export class ImportExportService {
       throw new BadRequestException('The uploaded file contains no data rows.');
     }
 
-    let rows = rawRows;
-    if (columnMapping) {
-      rows = this.mapColumns(rawRows, columnMapping);
+    const sourceHeaders = Object.keys(rawRows[0]).filter((k) => k !== '_row');
+    const autoMapping = this.autoMapColumns(
+      sourceHeaders,
+      config.templateFields.map((f) => f.key),
+    );
+
+    // Column mapping step: return detection info only, no batch is created.
+    if (!columnMapping) {
+      return {
+        sourceHeaders,
+        autoMapping,
+        sample: rawRows.slice(0, 5),
+        totalRows: rawRows.length,
+        templateFields: config.templateFields,
+      };
     }
 
-    const valid: Record<string, any>[] = [];
-    const invalid: Record<string, any>[] = [];
+    const rows = this.mapColumns(rawRows, columnMapping);
 
+    const validated = new Map<
+      number,
+      { row: Record<string, any>; errors: string[] }
+    >();
     for (const row of rows) {
-      const errors = config.validateRow(row);
-      if (errors.length) {
-        invalid.push({ ...row, errors });
+      const entry = validated.get(row._row);
+      if (!entry) {
+        validated.set(row._row, { row, errors: config.validateRow(row) });
+      } else {
+        entry.errors = config.validateRow(row);
       }
-      valid.push({ ...row, errors });
     }
 
     let duplicates: { row: number; message: string }[] = [];
     if (config.checkDuplicates && config.duplicateKeys?.length) {
+      const cleanRows = Array.from(validated.values())
+        .filter((e) => !e.errors.length)
+        .map((e) => e.row);
       duplicates = await config.checkDuplicates(
         communityId,
-        valid,
+        cleanRows,
         this.prisma,
       );
       for (const dup of duplicates) {
-        const row = valid.find((r) => r._row === dup.row);
-        if (row) {
-          row.errors = [...(row.errors || []), `Duplicate: ${dup.message}`];
-          if (!invalid.includes(row)) invalid.push(row);
-        }
+        const entry = validated.get(dup.row);
+        if (entry)
+          entry.errors = [...entry.errors, `Duplicate: ${dup.message}`];
       }
     }
+
+    const allRows = Array.from(validated.values()).map(({ row, errors }) => ({
+      ...row,
+      errors: errors as string[],
+    }));
+    const validRows = allRows.filter((r) => !r.errors.length);
+    const invalidRows = allRows.filter((r) => r.errors.length);
 
     const batch = await this.prisma.importBatch.create({
       data: {
         communityId,
         module,
         fileName: filename,
-        importedById: '', // set by controller
+        importedById: userId,
         status: ImportBatchStatus.PROCESSING,
         canRollback: true,
-        data: rows as any,
+        data: allRows as any,
         resultCounts: {
           total: rows.length,
-          valid: valid.length,
-          invalid: invalid.length,
+          valid: validRows.length,
+          invalid: invalidRows.length,
         },
       },
     });
@@ -317,10 +364,18 @@ export class ImportExportService {
     return {
       batchId: batch.id,
       totalRows: rows.length,
-      validRows: valid.length - duplicates.length,
-      invalidRows: invalid.length,
-      preview: valid.filter((r) => !r.errors?.length).slice(0, 20),
-      invalid: invalid.slice(0, 50),
+      validRows: validRows.length,
+      invalidRows: invalidRows.length,
+      sourceHeaders,
+      autoMapping,
+      columns: config.templateFields.map((f) => ({
+        key: f.key,
+        label: f.label,
+        required: f.required,
+      })),
+      rows: allRows,
+      preview: validRows.slice(0, 20),
+      invalid: invalidRows.slice(0, 50),
       duplicates,
     };
   }
@@ -329,7 +384,12 @@ export class ImportExportService {
   // CONFIRM
   // ==========================================
 
-  async confirm(communityId: string, batchId: string, userId: string) {
+  async confirm(
+    communityId: string,
+    batchId: string,
+    userId: string,
+    rowIndices?: number[],
+  ) {
     const batch = await this.prisma.importBatch.findFirst({
       where: { id: batchId, communityId },
     });
@@ -348,10 +408,27 @@ export class ImportExportService {
     const rows = (batch.data as any[]) ?? [];
     const validRows = rows.filter((row: any) => !row.errors?.length);
 
-    const created = await config.applyRows(communityId, batch.id, validRows, {
-      prisma: this.prisma,
-      userId,
-    });
+    let rowsToImport = validRows;
+    if (rowIndices !== undefined) {
+      const selected = new Set(rowIndices);
+      rowsToImport = validRows.filter((row: any) => selected.has(row._row));
+    }
+
+    if (!rowsToImport.length) {
+      throw new BadRequestException(
+        'No valid rows selected. Select at least one row to import.',
+      );
+    }
+
+    const created = await config.applyRows(
+      communityId,
+      batch.id,
+      rowsToImport,
+      {
+        prisma: this.prisma,
+        userId,
+      },
+    );
 
     await this.prisma.importBatch.update({
       where: { id: batch.id },
@@ -362,14 +439,19 @@ export class ImportExportService {
           total: rows.length,
           valid: validRows.length,
           imported: created,
+          selected: rowsToImport.length,
         },
       },
     });
 
     return {
       success: true,
-      message: `Imported ${created} of ${validRows.length} valid row${validRows.length === 1 ? '' : 's'}.`,
-      data: { created, total: validRows.length, batchId: batch.id },
+      message: `Imported ${created} of ${rowsToImport.length} selected valid row${rowsToImport.length === 1 ? '' : 's'}.`,
+      data: {
+        created,
+        total: rowsToImport.length,
+        batchId: batch.id,
+      },
     };
   }
 
@@ -531,6 +613,10 @@ export class ImportExportService {
           processedAt: true,
           rolledBackAt: true,
           createdAt: true,
+          importedById: true,
+          importedBy: {
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
       }),
       this.prisma.importBatch.count({ where }),

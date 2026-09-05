@@ -17,6 +17,14 @@ export function useImportExportModules() {
   });
 }
 
+export function useImportSchema(module: string) {
+  return useQuery({
+    queryKey: [...importExportKeys.all, 'schema', module] as const,
+    queryFn: () => importExportService.getSchema(module),
+    enabled: Boolean(module),
+  });
+}
+
 export function useImportPreview(module: string) {
   return useMutation({
     mutationFn: ({ file, columnMapping }: { file: File; columnMapping?: Record<string, string> }) =>
@@ -29,7 +37,8 @@ export function useImportPreview(module: string) {
 export function useConfirmImport(onSuccess?: () => void) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (batchId: string) => importExportService.confirm(batchId),
+    mutationFn: (params: { batchId: string; rowIndices?: number[] }) =>
+      importExportService.confirm(params.batchId, params.rowIndices),
     onSuccess: (result: ImportConfirmResult) => {
       toast.success(`Import complete. ${result.created} of ${result.total} records created.`);
       queryClient.invalidateQueries({ queryKey: importExportKeys.all });
@@ -70,8 +79,8 @@ export function useRollbackImport(onSuccess?: () => void) {
 
 export function useExportModule() {
   return useMutation({
-    mutationFn: ({ module: mod, format, columns }: { module: string; format: string; columns?: string[] }) =>
-      importExportService.exportData(mod, format, columns),
+    mutationFn: ({ module: mod, format, columns, filters }: { module: string; format: string; columns?: string[]; filters?: Record<string, any> }) =>
+      importExportService.exportData(mod, format, columns, filters),
     onSuccess: (blob: Blob, vars) => {
       const ext = vars.format === 'xlsx' ? 'xlsx' : 'csv';
       const url = URL.createObjectURL(blob);

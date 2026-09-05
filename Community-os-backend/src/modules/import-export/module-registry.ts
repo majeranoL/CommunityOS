@@ -3,6 +3,8 @@ import {
   ModuleConfig,
   ModuleImportConfig,
   ModuleExportConfig,
+  ModuleInfo,
+  ModuleSchema,
 } from './import-export.types';
 
 @Injectable()
@@ -25,8 +27,24 @@ export class ModuleRegistry {
     return this.modules.get(module)?.export;
   }
 
-  list(): string[] {
-    return Array.from(this.modules.keys());
+  list(): ModuleInfo[] {
+    return Array.from(this.modules.values()).map((config) => ({
+      module: config.module,
+      entityLabel: config.entityLabel ?? config.module,
+      hasImport: Boolean(config.import),
+      hasExport: Boolean(config.export),
+    }));
+  }
+
+  getSchema(module: string): ModuleSchema | undefined {
+    const config = this.modules.get(module);
+    if (!config) return undefined;
+    return {
+      module: config.module,
+      entityLabel: config.entityLabel ?? config.module,
+      templateFields: config.import?.templateFields ?? [],
+      exportColumns: config.export?.columns ?? [],
+    };
   }
 
   hasImport(module: string): boolean {

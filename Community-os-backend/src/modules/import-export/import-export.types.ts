@@ -54,11 +54,37 @@ export interface ModuleConfig {
   export?: ModuleExportConfig;
 }
 
+export interface ModuleInfo {
+  module: string;
+  entityLabel: string;
+  hasImport: boolean;
+  hasExport: boolean;
+}
+
+export interface ModuleSchema {
+  module: string;
+  entityLabel: string;
+  templateFields: TemplateField[];
+  exportColumns: { key: string; header: string }[];
+}
+
+export interface ImportDetectResult {
+  sourceHeaders: string[];
+  autoMapping: Record<string, string>;
+  sample: Record<string, any>[];
+  totalRows: number;
+  templateFields: TemplateField[];
+}
+
 export interface ImportPreviewResult {
   batchId: string;
   totalRows: number;
   validRows: number;
   invalidRows: number;
+  sourceHeaders: string[];
+  autoMapping: Record<string, string>;
+  columns: { key: string; label: string; required: boolean }[];
+  rows: Record<string, any>[];
   preview: Record<string, any>[];
   invalid: Record<string, any>[];
   duplicates: { row: number; message: string }[];
@@ -68,4 +94,8 @@ export interface ImportConfirmResult {
   created: number;
   total: number;
   batchId: string;
+}
+
+export interface ImportConfirmInput {
+  rowIndices?: number[];
 }

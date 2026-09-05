@@ -128,8 +128,21 @@ export const householdsImportConfig: ModuleConfig = {
       { key: 'createdAt', header: 'Created At' },
     ],
     fetchRows: async (communityId, filters, prisma) => {
+      const where: any = { communityId, deletedAt: null };
+      const search = filters?.search;
+      if (search) {
+        where.OR = [
+          { block: { contains: search, mode: 'insensitive' } },
+          { lot: { contains: search, mode: 'insensitive' } },
+          { unit: { contains: search, mode: 'insensitive' } },
+          { address: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+      if (filters?.status) where.status = filters.status;
+      if (filters?.block) where.block = filters.block;
+
       const households = await prisma.household.findMany({
-        where: { communityId, deletedAt: null },
+        where,
         include: {
           _count: { select: { residents: { where: { deletedAt: null } } } },
         },

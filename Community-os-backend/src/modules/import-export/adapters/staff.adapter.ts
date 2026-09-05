@@ -198,9 +198,24 @@ export const staffImportConfig: ModuleConfig = {
       { key: 'status', header: 'Status' },
       { key: 'createdAt', header: 'Created At' },
     ],
-    fetchRows: async (communityId, _filters, prisma) => {
+    fetchRows: async (communityId, filters, prisma) => {
+      const where: any = { communityId, deletedAt: null };
+      const search = filters?.search;
+      if (search) {
+        where.OR = [
+          { staffNumber: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { middleName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { phoneNumber: { contains: search } },
+        ];
+      }
+      if (filters?.role) where.role = filters.role;
+      if (filters?.status) where.status = filters.status;
+
       const staff = await prisma.staff.findMany({
-        where: { communityId, deletedAt: null },
+        where,
         orderBy: { createdAt: 'desc' },
       });
       return staff.map((s: any) => ({

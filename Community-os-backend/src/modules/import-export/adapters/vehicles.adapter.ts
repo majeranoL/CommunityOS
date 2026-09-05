@@ -181,9 +181,30 @@ export const vehiclesImportConfig: ModuleConfig = {
       { key: 'lot', header: 'Lot' },
       { key: 'createdAt', header: 'Created At' },
     ],
-    fetchRows: async (communityId, _filters, prisma) => {
+    fetchRows: async (communityId, filters, prisma) => {
+      const where: any = { communityId, deletedAt: null };
+      const search = filters?.search;
+      if (search) {
+        where.OR = [
+          { plateNumber: { contains: search, mode: 'insensitive' } },
+          { make: { contains: search, mode: 'insensitive' } },
+          { model: { contains: search, mode: 'insensitive' } },
+          { color: { contains: search, mode: 'insensitive' } },
+          {
+            resident: {
+              OR: [
+                { firstName: { contains: search, mode: 'insensitive' } },
+                { lastName: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          },
+        ];
+      }
+      if (filters?.type) where.type = filters.type;
+      if (filters?.status) where.status = filters.status;
+
       const vehicles = await prisma.vehicle.findMany({
-        where: { communityId, deletedAt: null },
+        where,
         include: {
           resident: {
             select: {

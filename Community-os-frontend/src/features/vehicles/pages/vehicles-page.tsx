@@ -387,7 +387,17 @@ export default function VehiclesPage() {
         </AlertDialogContent>
       </AlertDialog>
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="vehicles" entityLabel="Vehicle" />
-      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="vehicles" entityLabel="Vehicle" />
+      <ModuleExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        module="vehicles"
+        entityLabel="Vehicle"
+        filters={{
+          ...(search ? { search } : {}),
+          ...(status !== 'ALL' ? { status } : {}),
+          ...(type !== 'ALL' ? { type } : {}),
+        }}
+      />
       {buyVehicle ? (
         <StickerRequestDialog
           open

@@ -345,7 +345,17 @@ export default function PetsPage() {
         }
       />
       <ModuleImportDialog open={importOpen} onOpenChange={setImportOpen} module="pets" entityLabel="Pet" />
-      <ModuleExportDialog open={exportOpen} onOpenChange={setExportOpen} module="pets" entityLabel="Pet" />
+      <ModuleExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        module="pets"
+        entityLabel="Pet"
+        filters={{
+          ...(search ? { search } : {}),
+          ...(status !== 'ALL' ? { status } : {}),
+          ...(species !== 'ALL' ? { species } : {}),
+        }}
+      />
     </div>
   )
 }

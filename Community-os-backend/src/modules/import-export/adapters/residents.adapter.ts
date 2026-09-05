@@ -289,9 +289,24 @@ export const residentsImportConfig: ModuleConfig = {
       { key: 'status', header: 'Status' },
       { key: 'createdAt', header: 'Created At' },
     ],
-    fetchRows: async (communityId, _filters, prisma) => {
+    fetchRows: async (communityId, filters, prisma) => {
+      const where: any = { communityId, deletedAt: null };
+      const search = filters?.search;
+      if (search) {
+        where.OR = [
+          { residentNumber: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { middleName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+          { phoneNumber: { contains: search } },
+        ];
+      }
+      if (filters?.status) where.status = filters.status;
+      if (filters?.gender) where.gender = filters.gender;
+
       const residents = await prisma.resident.findMany({
-        where: { communityId, deletedAt: null },
+        where,
         include: {
           household: { select: { block: true, lot: true, unit: true } },
         },

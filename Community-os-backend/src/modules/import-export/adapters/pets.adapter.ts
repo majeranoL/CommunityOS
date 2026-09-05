@@ -249,9 +249,29 @@ export const petsImportConfig: ModuleConfig = {
       { key: 'caretakerName', header: 'Caretaker' },
       { key: 'createdAt', header: 'Created At' },
     ],
-    fetchRows: async (communityId, _filters, prisma) => {
+    fetchRows: async (communityId, filters, prisma) => {
+      const where: any = { communityId, deletedAt: null };
+      const search = filters?.search;
+      if (search) {
+        where.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { breed: { contains: search, mode: 'insensitive' } },
+          { petNumber: { contains: search, mode: 'insensitive' } },
+          {
+            resident: {
+              OR: [
+                { firstName: { contains: search, mode: 'insensitive' } },
+                { lastName: { contains: search, mode: 'insensitive' } },
+              ],
+            },
+          },
+        ];
+      }
+      if (filters?.species) where.species = filters.species;
+      if (filters?.status) where.status = filters.status;
+
       const pets = await prisma.pet.findMany({
-        where: { communityId, deletedAt: null },
+        where,
         include: {
           household: { select: { block: true, lot: true } },
           resident: { select: { firstName: true, lastName: true } },
