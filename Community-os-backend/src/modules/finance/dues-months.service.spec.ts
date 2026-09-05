@@ -13,6 +13,7 @@ describe('DuesMonthsService', () => {
 
   let prismaMock: any;
   let financeSyncMock: any;
+  let notificationsMock: any;
   let service: DuesMonthsService;
 
   beforeEach(() => {
@@ -48,7 +49,15 @@ describe('DuesMonthsService', () => {
       syncPeriod: jest.fn().mockResolvedValue(undefined),
     };
 
-    service = new DuesMonthsService(prismaMock, financeSyncMock);
+    notificationsMock = {
+      dispatchToHousehold: jest.fn().mockResolvedValue(undefined),
+    };
+
+    service = new DuesMonthsService(
+      prismaMock,
+      financeSyncMock,
+      notificationsMock,
+    );
   });
 
   it('creates one assessment per active household for the month', async () => {
@@ -66,6 +75,7 @@ describe('DuesMonthsService', () => {
         billingPeriodId: 'bp-1',
         status: AssessmentStatus.ISSUED,
       }),
+      select: { id: true, householdId: true },
     });
     expect(financeSyncMock.syncPeriod).toHaveBeenCalledWith(
       'community-1',

@@ -140,6 +140,7 @@ function makeService(overrides: Record<string, unknown> = {}) {
       .mockResolvedValue(overrides.officers ?? ['user-officer-1']),
     notifyMany: jest.fn().mockResolvedValue(null),
     notify: jest.fn().mockResolvedValue(null),
+    dispatchToHousehold: jest.fn().mockResolvedValue(null),
   };
 
   const service = new VehicleStickersService(

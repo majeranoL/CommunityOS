@@ -12,6 +12,8 @@ export type NotificationType =
   | 'POLL'
   | 'VEHICLE_STICKER'
 
+export type NotificationChannel = 'IN_APP' | 'PUSH' | 'EMAIL'
+
 export interface AppNotification {
   id: string
   communityId: string
@@ -23,4 +25,15 @@ export interface AppNotification {
   readAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+export interface NotificationPreference {
+  module: NotificationType
+  inAppEnabled: boolean
+  pushEnabled: boolean
+  emailEnabled: boolean
+}
+
+export interface NotificationSettings {
+  preferences: NotificationPreference[]
 }

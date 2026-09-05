@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { AnnouncementStatus } from '@prisma/client';
+import { AnnouncementStatus, NotificationType, UserStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { UpdateAnnouncementDto } from './dto/update-announcement.dto';
@@ -10,7 +12,10 @@ import { AnnouncementQueryDto } from './dto/announcement-query.dto';
 
 @Injectable()
 export class AnnouncementService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // ==========================================
   // Create Announcement
@@ -307,10 +312,39 @@ export class AnnouncementService {
       },
     });
 
+    await this.notifyCommunity(communityId, publishedAnnouncement);
+
     return {
       success: true,
       message: 'Announcement published successfully.',
       data: publishedAnnouncement,
     };
+  }
+
+  private async notifyCommunity(
+    communityId: string,
+    announcement: { id: string; title: string; content: string },
+  ) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        communityId,
+        deletedAt: null,
+        status: UserStatus.ACTIVE,
+      },
+      select: { id: true },
+    });
+
+    if (users.length === 0) return;
+
+    const message = announcement.content.slice(0, 500);
+
+    await this.notificationsService.dispatchMany(
+      communityId,
+      users.map((user) => user.id),
+      NotificationType.ANNOUNCEMENT,
+      announcement.title,
+      message,
+      `/announcements/${announcement.id}`,
+    );
   }
 }

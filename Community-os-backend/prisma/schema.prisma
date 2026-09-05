@@ -476,6 +476,9 @@ model Community {
   documents          Document[]
   events             Event[]
   notifications      Notification[]
+  notificationPreferences NotificationPreference[]
+  pushSubscriptions       PushSubscription[]
+  notificationDeliveries  NotificationDelivery[]
   subscription       Subscription?
   invoices           Invoice[]
   billingExemptions  BillingExemption[]
@@ -681,9 +684,11 @@ model User {
 
   isPlatformAdmin Boolean @default(false)
 
-  roles              UserRole[]
-  assignedComplaints Complaint[]    @relation("ComplaintAssignedTo")
-  notifications      Notification[]
+  roles                  UserRole[]
+  assignedComplaints     Complaint[]           @relation("ComplaintAssignedTo")
+  notifications          Notification[]
+  notificationPreferences NotificationPreference[]
+  pushSubscriptions      PushSubscription[]
 
   uploadedDocuments       Document[]
   organizedEvents         Event[]
@@ -1955,12 +1960,91 @@ model Notification {
 
   readAt DateTime?
 
+  deliveries NotificationDelivery[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([communityId])
   @@index([userId, createdAt])
   @@index([userId, readAt])
+}
+
+/////////////////////////////////////////////////////
+// NOTIFICATION PREFERENCE
+/////////////////////////////////////////////////////
+
+model NotificationPreference {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  module NotificationType @default(SYSTEM)
+
+  inAppEnabled Boolean @default(true)
+  pushEnabled  Boolean @default(false)
+  emailEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, module])
+  @@index([communityId])
+  @@index([userId])
+}
+
+/////////////////////////////////////////////////////
+// PUSH SUBSCRIPTION
+/////////////////////////////////////////////////////
+
+model PushSubscription {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  endpoint  String  @unique
+  p256dh    String  @db.VarChar(255)
+  auth      String  @db.VarChar(255)
+  userAgent String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([communityId])
+}
+
+/////////////////////////////////////////////////////
+// NOTIFICATION DELIVERY
+/////////////////////////////////////////////////////
+
+model NotificationDelivery {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  notificationId String       @db.Uuid
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  userId  String  @db.Uuid
+  channel String  @db.VarChar(20)
+  status  String  @db.VarChar(20)
+  error   String?
+  sentAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([notificationId])
+  @@index([communityId])
 }
 
 /////////////////////////////////////////////////////

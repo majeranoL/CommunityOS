@@ -94,4 +94,85 @@ export class MailService {
       `,
     );
   }
+
+  private wrap(title: string, body: string, communityName?: string) {
+    return `
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 560px; margin: 0 auto; color: #1f2937;">
+        <div style="padding: 24px 24px 8px;">
+          <h2 style="margin: 0 0 4px; color: #111827; font-size: 20px;">${title}</h2>
+          <p style="margin: 0; font-size: 13px; color: #6b7280;">
+            ${communityName ? `${communityName} · ` : ''}CommunityOS
+          </p>
+        </div>
+        <div style="padding: 16px 24px 24px;">
+          ${body}
+        </div>
+        <div style="padding: 0 24px 24px; font-size: 12px; color: #9ca3af;">
+          You received this email because notification preferences on your account allow it.
+          Update your preferences in CommunityOS Settings &gt; Notifications at any time.
+        </div>
+      </div>
+    `;
+  }
+
+  private button(label: string, url: string) {
+    return `
+      <p style="margin: 24px 0 8px;">
+        <a href="${url}" style="display: inline-block; padding: 10px 20px; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600;">
+          ${label}
+        </a>
+      </p>
+    `;
+  }
+
+  /** Generic notification email used for opt-in module alerts. */
+  async sendNotificationEmail(to: string, name: string, data: {
+    subject: string;
+    title: string;
+    message?: string | null;
+    link?: string | null;
+    communityName?: string | null;
+  }) {
+    const body = `
+      <p>Hi ${name},</p>
+      <p style="color: #374151;">${data.message ?? ''}</p>
+      ${data.link ? this.button('View details', data.link) : ''}
+    `;
+    await this.send(
+      to,
+      data.subject,
+      this.wrap(data.title, body, data.communityName ?? undefined),
+    );
+  }
+
+  /** Specialized "dues issued" email for household charges. */
+  async sendDuesIssuedEmail(to: string, name: string, data: {
+    periodLabel: string;
+    amount: string;
+    dueDate: string;
+    communityName?: string | null;
+    link?: string | null;
+  }) {
+    const body = `
+      <p>Hi ${name},</p>
+      <p style="color: #374151;">A new <strong>${data.periodLabel}</strong> has been issued for your household.</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+        <tr>
+          <td style="padding: 8px 12px; border: 1px solid #e5e7eb; color: #4b5563;">Amount due</td>
+          <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-weight: 700;">${data.amount}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; border: 1px solid #e5e7eb; color: #4b5563;">Due date</td>
+          <td style="padding: 8px 12px; border: 1px solid #e5e7eb; font-weight: 700;">${data.dueDate}</td>
+        </tr>
+      </table>
+      <p style="color: #6b7280; font-size: 13px;">Please settle before the due date to keep your household in good standing.</p>
+      ${data.link ? this.button('Pay now', data.link) : ''}
+    `;
+    await this.send(
+      to,
+      `${data.periodLabel} issued for your household`,
+      this.wrap(`${data.periodLabel} issued`, body, data.communityName ?? undefined),
+    );
+  }
 }

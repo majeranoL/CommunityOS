@@ -10,10 +10,13 @@ import {
   ChargeRecurrence,
   FinanceCategory,
   HouseholdStatus,
+  NotificationType,
   PaymentStatus,
 } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+
+import { NotificationsService, NotificationEmailVariant } from '../notifications/notifications.service';
 
 import { FinanceSyncService } from './finance-sync.service';
 
@@ -31,6 +34,7 @@ export class DuesMonthsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financeSyncService: FinanceSyncService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ==========================================
@@ -357,9 +361,14 @@ export class DuesMonthsService {
 
     let nextNumber = await this.nextAssessmentNumber(communityId);
 
+    const createdAssessments: Array<{
+      id: string;
+      householdId: string;
+    }> = [];
+
     for (const household of eligible) {
       nextNumber += 1;
-      await this.prisma.assessment.create({
+      const assessment = await this.prisma.assessment.create({
         data: {
           communityId,
           assessmentNumber: `ASS-${String(nextNumber).padStart(6, '0')}`,
@@ -372,11 +381,24 @@ export class DuesMonthsService {
           billingPeriodId,
           status: AssessmentStatus.ISSUED,
         },
+        select: { id: true, householdId: true },
       });
+      createdAssessments.push(assessment);
     }
 
     if (eligible.length > 0 && billingPeriodId) {
       await this.financeSyncService.syncPeriod(communityId, billingPeriodId);
+    }
+
+    if (createdAssessments.length > 0) {
+      await this.notifyHouseholdsOfIssuedDues(
+        communityId,
+        chargeTypeName,
+        periodKey,
+        input.amount,
+        input.dueDate,
+        createdAssessments.map((a) => a.householdId),
+      );
     }
 
     return {
@@ -428,6 +450,51 @@ export class DuesMonthsService {
     });
 
     return created.id;
+  }
+
+  private async notifyHouseholdsOfIssuedDues(
+    communityId: string,
+    chargeTypeName: string,
+    periodKey: string,
+    amount: number,
+    dueDate: Date,
+    householdIds: string[],
+  ) {
+    const monthLabel = this.monthLabel(periodKey);
+    const amountText = amount.toLocaleString('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+    });
+    const dueText = new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'medium',
+    }).format(dueDate);
+
+    for (const householdId of householdIds) {
+      await this.notificationsService.dispatchToHousehold(
+        communityId,
+        householdId,
+        NotificationType.ASSESSMENT,
+        `${chargeTypeName} issued for ${monthLabel}`,
+        `Your household has a new ${chargeTypeName} of ${amountText} for ${monthLabel}, due on ${dueText}.`,
+        '/finance/my-dues',
+        {
+          emailVariant: NotificationEmailVariant.DUES,
+          emailData: {
+            periodLabel: `${chargeTypeName} — ${monthLabel}`,
+            amount: amountText,
+            dueDate: dueText,
+          },
+        },
+      );
+    }
+  }
+
+  private monthLabel(periodKey: string): string {
+    const [year, month] = periodKey.split('-').map((part) => parseInt(part, 10));
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(year, (month ?? 1) - 1, 1));
   }
 
   private async nextAssessmentNumber(communityId: string): Promise<number> {

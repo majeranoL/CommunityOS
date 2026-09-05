@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 import { BrandingProvider } from '@/components/branding-provider'
 import { useSession } from '@/features/auth/hooks/use-auth'
+import { LiveNotifications } from '@/features/notifications/components/live-notifications'
 import { router } from '@/router'
 import { useAuthStore } from '@/store/auth-store'
 
@@ -33,6 +34,7 @@ function SessionBootstrap() {
     <TooltipProvider delayDuration={300}>
       <BrandingProvider>
         <RouterProvider router={router} />
+        <LiveNotifications />
         <Toaster position="top-right" richColors closeButton />
       </BrandingProvider>
     </TooltipProvider>

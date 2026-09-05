@@ -26,6 +26,7 @@ import { HouseholdDetailsDialog } from '@/features/households/components/househo
 import { CommunitySettings } from '@/features/settings/components/community-settings'
 import { ChangePasswordForm } from '@/features/settings/components/change-password-form'
 import { BrandingSettings } from '@/features/branding/components/branding-settings'
+import { NotificationSettings } from '@/features/settings/components/notification-settings'
 import { useBranding } from '@/features/branding/hooks/use-branding'
 import { initials } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ export default function SettingsPage() {
       <Tabs defaultValue="profile">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="community">Community</TabsTrigger>
           {canBrand ? (
             <TabsTrigger value="branding">Branding</TabsTrigger>
@@ -258,6 +260,10 @@ export default function SettingsPage() {
               </Card>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="mt-6">
+          <NotificationSettings />
         </TabsContent>
 
         <TabsContent value="community" className="mt-6">

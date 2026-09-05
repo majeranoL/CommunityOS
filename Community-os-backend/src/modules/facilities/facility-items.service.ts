@@ -11,11 +11,16 @@ import {
   ChargeRecurrence,
   FacilityItemLoanStatus,
   FinanceCategory,
+  NotificationType,
   Prisma,
 } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { hasAnyPermission } from '../../common/utils/permissions';
+import {
+  NotificationsService,
+  NotificationEmailVariant,
+} from '../notifications/notifications.service';
 
 const ITEM_BORROW_CHARGE_CODE = 'ITEM_BORROW';
 const ITEM_BORROW_CHARGE_NAME = 'Facility Item Borrowing Fee';
@@ -46,7 +51,10 @@ type LoanWithRelations = Prisma.FacilityItemLoanGetPayload<{
 
 @Injectable()
 export class FacilityItemsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   // ==========================================
   // Items
@@ -297,6 +305,31 @@ export class FacilityItemsService {
         include: LOAN_INCLUDE,
       });
     });
+
+    if (approved.assessment?.id && loan.resident.householdId) {
+      const feeAmount = Number(loan.totalFee).toLocaleString('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+      });
+      await this.notificationsService.dispatchToHousehold(
+        communityId,
+        loan.resident.householdId,
+        NotificationType.ASSESSMENT,
+        `${ITEM_BORROW_CHARGE_NAME} billed to your household`,
+        `A ${ITEM_BORROW_CHARGE_NAME} of ${feeAmount} was billed for "${loan.item.name}" (request ${loan.loanNumber}).`,
+        '/finance/my-dues',
+        {
+          emailVariant: NotificationEmailVariant.DUES,
+          emailData: {
+            periodLabel: `${ITEM_BORROW_CHARGE_NAME} — ${loan.item.name}`,
+            amount: feeAmount,
+            dueDate: new Intl.DateTimeFormat('en-US', {
+              dateStyle: 'medium',
+            }).format(loan.neededFrom ?? new Date()),
+          },
+        },
+      );
+    }
 
     return {
       success: true,

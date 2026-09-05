@@ -16,7 +16,7 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { FeaturesService } from '../features/features.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationsService, NotificationEmailVariant } from '../notifications/notifications.service';
 
 import { CreateStickerDto } from './dto/create-sticker.dto';
 import { UpdateStickerDto } from './dto/update-sticker.dto';
@@ -636,6 +636,7 @@ export class VehicleStickersService {
                 assessmentNumber: true,
                 amount: true,
                 status: true,
+                dueDate: true,
               },
             },
           },
@@ -661,6 +662,32 @@ export class VehicleStickersService {
         `Your sticker for ${sticker.vehicle.plateNumber} was approved.${feeText}`,
         `/stickers/${id}`,
       );
+
+      const chargeHouseholdId = sticker.vehicle?.resident?.householdId;
+      if (updated.assessment?.id && chargeHouseholdId) {
+        const chargeAmount = Number(updated.assessment.amount).toLocaleString(
+          'en-PH',
+          { style: 'currency', currency: 'PHP' },
+        );
+        await this.notificationsService.dispatchToHousehold(
+          communityId,
+          chargeHouseholdId,
+          NotificationType.ASSESSMENT,
+          `${STICKER_CHARGE_NAME} billed to your household`,
+          `A ${STICKER_CHARGE_NAME} of ${chargeAmount} was billed for vehicle ${sticker.vehicle.plateNumber}.`,
+          '/finance/my-dues',
+          {
+            emailVariant: NotificationEmailVariant.DUES,
+            emailData: {
+              periodLabel: `${STICKER_CHARGE_NAME} — ${sticker.vehicle.plateNumber}`,
+              amount: chargeAmount,
+              dueDate: new Intl.DateTimeFormat('en-US', {
+                dateStyle: 'medium',
+              }).format(updated.assessment.dueDate ?? new Date()),
+            },
+          },
+        );
+      }
     } else {
       updated = await this.prisma.vehicleSticker.update({
         where: { id },

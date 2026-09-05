@@ -111,7 +111,7 @@ export class ComplaintService {
       'complaint.assign',
     );
 
-    await this.notificationsService.notifyMany(
+    await this.notificationsService.dispatchMany(
       communityId,
       staffUserIds,
       NotificationType.COMPLAINT,
@@ -661,7 +661,7 @@ export class ComplaintService {
     // Notify Assigned User
     // ==========================================
 
-    await this.notificationsService.notify(
+    await this.notificationsService.dispatch(
       communityId,
       dto.assignedToId,
       NotificationType.COMPLAINT,
@@ -680,7 +680,7 @@ export class ComplaintService {
     });
 
     if (residentUser?.user?.id) {
-      await this.notificationsService.notify(
+      await this.notificationsService.dispatch(
         communityId,
         residentUser.user.id,
         NotificationType.COMPLAINT,
@@ -776,7 +776,7 @@ export class ComplaintService {
     // ==========================================
 
     if (complaint.assignedToId) {
-      await this.notificationsService.notify(
+      await this.notificationsService.dispatch(
         communityId,
         complaint.assignedToId,
         NotificationType.COMPLAINT,
@@ -796,7 +796,7 @@ export class ComplaintService {
     });
 
     if (resolveResidentUser?.user?.id) {
-      await this.notificationsService.notify(
+      await this.notificationsService.dispatch(
         communityId,
         resolveResidentUser.user.id,
         NotificationType.COMPLAINT,
@@ -884,7 +884,7 @@ export class ComplaintService {
     // ==========================================
 
     if (complaint.assignedToId) {
-      await this.notificationsService.notify(
+      await this.notificationsService.dispatch(
         communityId,
         complaint.assignedToId,
         NotificationType.COMPLAINT,
@@ -904,7 +904,7 @@ export class ComplaintService {
     });
 
     if (closeResidentUser?.user?.id) {
-      await this.notificationsService.notify(
+      await this.notificationsService.dispatch(
         communityId,
         closeResidentUser.user.id,
         NotificationType.COMPLAINT,

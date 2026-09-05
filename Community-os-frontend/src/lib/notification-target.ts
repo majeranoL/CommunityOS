@@ -5,6 +5,14 @@ interface NotificationTarget {
 
 export function notificationTarget(link: string | null): NotificationTarget | null {
   if (!link) return null
+
+  if (link === '/finance/my-dues' || link.startsWith('/finance/my-dues?') || link === '/my-dues') {
+    return {
+      pathname: '/app/finance',
+      search: '?tab=my-dues',
+    }
+  }
+
   const segments = link.split('/').filter(Boolean)
   const [module, id] = segments
   if (!module || !id) return null

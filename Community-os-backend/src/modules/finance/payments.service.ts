@@ -197,7 +197,7 @@ export class PaymentsService {
         'finance.verify',
       );
 
-    await this.notificationsService.notifyMany(
+    await this.notificationsService.dispatchMany(
       communityId,
       financeUserIds,
       NotificationType.PAYMENT,
@@ -1163,7 +1163,7 @@ export class PaymentsService {
     });
 
     if (user) {
-      await this.notificationsService.notifyMany(
+      await this.notificationsService.dispatchMany(
         communityId,
         [user.id],
         NotificationType.PAYMENT,
