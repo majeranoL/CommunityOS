@@ -38,12 +38,10 @@ describe('NotificationsService', () => {
       },
       user: {
         findMany: jest.fn().mockResolvedValue([]),
-        findUnique: jest
-          .fn()
-          .mockResolvedValue({
-            firstName: 'Juan',
-            account: { email: 'juan@example.com' },
-          }),
+        findUnique: jest.fn().mockResolvedValue({
+          firstName: 'Juan',
+          account: { email: 'juan@example.com' },
+        }),
       },
       community: {
         findUnique: jest
@@ -102,10 +100,24 @@ describe('NotificationsService', () => {
     });
 
     it('does not duplicate users when the same id is listed twice', async () => {
-      await service.notifyMany('c-1', ['u-1', 'u-1'], NotificationType.PAYMENT, 'x');
+      await service.notifyMany(
+        'c-1',
+        ['u-1', 'u-1'],
+        NotificationType.PAYMENT,
+        'x',
+      );
 
       expect(prismaMock.notification.createMany).toHaveBeenCalledWith({
-        data: [{ communityId: 'c-1', userId: 'u-1', type: NotificationType.PAYMENT, title: 'x', message: undefined, link: undefined }],
+        data: [
+          {
+            communityId: 'c-1',
+            userId: 'u-1',
+            type: NotificationType.PAYMENT,
+            title: 'x',
+            message: undefined,
+            link: undefined,
+          },
+        ],
       });
       expect(eventsMock.emitCreated).toHaveBeenCalledTimes(1);
     });
@@ -123,7 +135,8 @@ describe('NotificationsService', () => {
       expect(pushMock.send).not.toHaveBeenCalled();
       expect(mailMock.sendNotificationEmail).not.toHaveBeenCalled();
 
-      const deliveries = prismaMock.notificationDelivery.createMany.mock.calls[0][0].data;
+      const deliveries =
+        prismaMock.notificationDelivery.createMany.mock.calls[0][0].data;
       expect(deliveries.map((d: any) => d.status)).toEqual([
         'SENT',
         'SKIPPED',
@@ -151,9 +164,12 @@ describe('NotificationsService', () => {
 
       expect(pushMock.send).toHaveBeenCalledTimes(2);
 
-      const deliveries = prismaMock.notificationDelivery.createMany.mock.calls[0][0].data;
+      const deliveries =
+        prismaMock.notificationDelivery.createMany.mock.calls[0][0].data;
       expect(
-        deliveries.filter((d: any) => d.channel === 'PUSH').map((d: any) => d.status),
+        deliveries
+          .filter((d: any) => d.channel === 'PUSH')
+          .map((d: any) => d.status),
       ).toEqual(['SENT', 'SENT']);
     });
 
@@ -225,7 +241,10 @@ describe('NotificationsService', () => {
 
   describe('dispatchToHousehold', () => {
     it('notifies every active member of the household', async () => {
-      prismaMock.user.findMany.mockResolvedValue([{ id: 'u-1' }, { id: 'u-2' }]);
+      prismaMock.user.findMany.mockResolvedValue([
+        { id: 'u-1' },
+        { id: 'u-2' },
+      ]);
       prismaMock.notification.create
         .mockResolvedValueOnce({ ...notificationRow, id: 'n-1' })
         .mockResolvedValueOnce({ ...notificationRow, id: 'n-2' });

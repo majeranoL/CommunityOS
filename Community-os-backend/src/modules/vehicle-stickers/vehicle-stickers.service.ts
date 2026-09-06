@@ -16,7 +16,10 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { FeaturesService } from '../features/features.service';
-import { NotificationsService, NotificationEmailVariant } from '../notifications/notifications.service';
+import {
+  NotificationsService,
+  NotificationEmailVariant,
+} from '../notifications/notifications.service';
 
 import { CreateStickerDto } from './dto/create-sticker.dto';
 import { UpdateStickerDto } from './dto/update-sticker.dto';

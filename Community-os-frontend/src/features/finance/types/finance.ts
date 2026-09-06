@@ -233,6 +233,20 @@ export interface UpdatePaymentInput {
   chargeTypeId?: string
 }
 
+export interface PaymentCheckoutInput {
+  residentId: string
+  amount: number
+  allocations?: PaymentAllocationInput[]
+  billingPeriodIds?: string[]
+  paymentDate: string
+}
+
+export interface PaymentCheckoutResult {
+  paymentId: string
+  checkoutUrl: string
+  gatewayId: string
+}
+
 export type PaymentMethodConfigMethod = 'GCASH' | 'MAYA' | 'BANK_TRANSFER'
 
 export type PaymentMethodConfigDisplay = 'QR' | 'NUMBER' | 'BOTH'

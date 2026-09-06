@@ -16,7 +16,10 @@ import {
 
 import { PrismaService } from '../../prisma/prisma.service';
 
-import { NotificationsService, NotificationEmailVariant } from '../notifications/notifications.service';
+import {
+  NotificationsService,
+  NotificationEmailVariant,
+} from '../notifications/notifications.service';
 
 import { FinanceSyncService } from './finance-sync.service';
 
@@ -490,7 +493,9 @@ export class DuesMonthsService {
   }
 
   private monthLabel(periodKey: string): string {
-    const [year, month] = periodKey.split('-').map((part) => parseInt(part, 10));
+    const [year, month] = periodKey
+      .split('-')
+      .map((part) => parseInt(part, 10));
     return new Intl.DateTimeFormat('en-US', {
       month: 'long',
       year: 'numeric',

@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { AnnouncementStatus, NotificationType, UserStatus } from '@prisma/client';
+import {
+  AnnouncementStatus,
+  NotificationType,
+  UserStatus,
+} from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 

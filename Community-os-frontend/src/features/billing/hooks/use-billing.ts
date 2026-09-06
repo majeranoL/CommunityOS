@@ -6,6 +6,7 @@ import {
   checkoutInvoice,
   fetchBillingLimits,
   fetchBillingSummary,
+  fetchGatewayStatus,
   fetchInvoices,
   fetchPlatformPaymentMethods,
   fetchSubscription,
@@ -122,6 +123,13 @@ export function usePlatformPaymentMethods() {
   return useQuery({
     queryKey: ['billing', 'platform-payment-methods'],
     queryFn: fetchPlatformPaymentMethods,
+  })
+}
+
+export function useGatewayStatus() {
+  return useQuery({
+    queryKey: ['billing', 'gateway-status'],
+    queryFn: fetchGatewayStatus,
   })
 }
 

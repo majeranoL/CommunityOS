@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowDownRight,
@@ -111,6 +112,7 @@ import type {
 } from '@/features/finance/types/finance'
 import type { ImportKind } from '@/features/finance/types/finance'
 import { EXPENSE_CATEGORIES, UTILITY_TYPES } from '@/features/finance/validation/finance'
+import { useViewParam } from '@/lib/use-view-param'
 import { formatCurrency, formatDate, toTitleCase } from '@/lib/format'
 
 const ASSESSMENT_STATUSES: Array<{ value: AssessmentStatus | 'ALL'; label: string }> = [
@@ -185,8 +187,23 @@ export default function FinancePage() {
   if (showUtilities) tabs.push({ value: 'utilities', label: 'Utilities' })
   if (showReports) tabs.push({ value: 'reports', label: 'Reports' })
 
+  const [searchParams] = useSearchParams()
+  const urlTab = searchParams.get('tab')
+  const [paymentViewId, setPaymentViewId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string | undefined>(undefined)
-  const currentTab = activeTab ?? tabs[0]?.value ?? 'payments'
+
+  useViewParam((id) => setPaymentViewId(id))
+
+  let resolvedUrlTab: string | undefined
+  if (urlTab) {
+    if (urlTab === 'payments' && !showPayments) {
+      resolvedUrlTab = 'my-payments'
+    } else if (tabs.some((t) => t.value === urlTab)) {
+      resolvedUrlTab = urlTab
+    }
+  }
+
+  const currentTab = activeTab ?? resolvedUrlTab ?? tabs[0]?.value ?? 'payments'
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -321,6 +338,14 @@ export default function FinancePage() {
           </TabsContent>
         ) : null}
       </Tabs>
+
+      <PaymentDetailDialog
+        paymentId={paymentViewId}
+        open={Boolean(paymentViewId)}
+        onOpenChange={(open) => {
+          if (!open) setPaymentViewId(null)
+        }}
+      />
     </div>
   )
 }

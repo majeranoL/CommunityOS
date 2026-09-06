@@ -27,6 +27,7 @@ import type {
   GenerateAssessmentsInput,
   GenerateBillingPeriodsInput,
   ImportKind,
+  PaymentCheckoutInput,
   UpdateAssessmentInput,
   UpdateChargeTypeInput,
   UpdateExpenseInput,
@@ -301,6 +302,19 @@ export function useUpdatePayment(onSuccess?: () => void) {
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update payment.')),
+  })
+}
+
+export function usePaymentCheckout(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: PaymentCheckoutInput) => paymentsService.checkout(input),
+    onSuccess: () => {
+      invalidatePayments(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to start online payment.')),
   })
 }
 

@@ -104,3 +104,31 @@ export function useTransferOwnership(onSuccess?: () => void) {
       toast.error(apiErrorMessage(error, 'Failed to transfer ownership.')),
   })
 }
+
+export function useDeactivateHousehold(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => householdsService.deactivate(id),
+    onSuccess: () => {
+      toast.success('Household deactivated.')
+      queryClient.invalidateQueries({ queryKey: householdKeys.all })
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to deactivate household.')),
+  })
+}
+
+export function useReactivateHousehold(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => householdsService.reactivate(id),
+    onSuccess: () => {
+      toast.success('Household reactivated.')
+      queryClient.invalidateQueries({ queryKey: householdKeys.all })
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to reactivate household.')),
+  })
+}

@@ -5,6 +5,7 @@ import {
   Building2,
   Check,
   CreditCard,
+  Info,
   RefreshCcw,
   Sparkles,
   Wallet,
@@ -51,6 +52,7 @@ import { ActivePaymentMethods } from '@/features/finance/components/payment-meth
 import {
   useBillingSummary,
   useCancelSubscription,
+  useGatewayStatus,
   useInvoices,
   useInvoiceCheckout,
   useMarkInvoicePaid,
@@ -173,7 +175,13 @@ function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
   )
 }
 
-function PayInvoiceDialog({ invoice }: { invoice: Invoice }) {
+function PayInvoiceDialog({
+  invoice,
+  onlineEnabled,
+}: {
+  invoice: Invoice
+  onlineEnabled: boolean
+}) {
   const checkout = useInvoiceCheckout()
   const markPaid = useMarkInvoicePaid()
   const [open, setOpen] = useState(false)
@@ -234,16 +242,28 @@ function PayInvoiceDialog({ invoice }: { invoice: Invoice }) {
         ) : null}
 
         <div className="space-y-3">
-          <Button
-            className="w-full"
-            onClick={handleOnlinePay}
-            disabled={checkout.isPending}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            {resumeUrl
-              ? 'Resume online payment'
-              : 'Pay online with GCash / Maya / Card'}
-          </Button>
+          {!onlineEnabled ? (
+            <Alert variant="warning">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Online payments unavailable</AlertTitle>
+              <AlertDescription>
+                The online payment gateway isn&apos;t configured on this
+                deployment yet. Complete your payment manually below, or contact
+                your administrator.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Button
+              className="w-full"
+              onClick={handleOnlinePay}
+              disabled={checkout.isPending}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              {resumeUrl
+                ? 'Resume online payment'
+                : 'Pay online with GCash / Maya / Card'}
+            </Button>
+          )}
 
           <Button
             type="button"
@@ -307,6 +327,8 @@ export default function BillingPage() {
   const hasOutstanding = Number(outstanding ?? 0) > 0
   const { data: platformMethods, isLoading: platformMethodsLoading } =
     usePlatformPaymentMethods()
+  const { data: gatewayStatus } = useGatewayStatus()
+  const onlineEnabled = gatewayStatus?.configured ?? true
   const unpaidInvoices = invoices?.filter(
     (inv) => inv.status !== 'PAID' && inv.status !== 'VOID' && inv.status !== 'WAIVED',
   )
@@ -376,9 +398,8 @@ export default function BillingPage() {
               How to pay
             </CardTitle>
             <CardDescription>
-              You can pay instantly online with a card or e-wallet from the invoice
-              row (Pay now) — or send your subscription payment using one of the
-              methods below.
+              You can pay from the invoice row (Pay now), or send your
+              subscription payment using one of the methods below.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -605,7 +626,12 @@ export default function BillingPage() {
                         {formatCurrency(invoice.amount)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isPayable ? <PayInvoiceDialog invoice={invoice} /> : null}
+                        {isPayable ? (
+                          <PayInvoiceDialog
+                            invoice={invoice}
+                            onlineEnabled={onlineEnabled}
+                          />
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   )

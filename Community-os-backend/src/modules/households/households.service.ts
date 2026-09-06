@@ -1,6 +1,7 @@
 import {
   Injectable,
   ConflictException,
+  BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -780,6 +781,121 @@ export class HouseholdsService {
     return {
       success: true,
       message: 'Household updated successfully.',
+      data: updatedHousehold,
+    };
+  }
+
+  // ==========================================
+  // Deactivate Household
+  // An inactive household will no longer be
+  // included in recurring dues, utility billing,
+  // or any automated payment generation.
+  // ==========================================
+
+  async deactivate(communityId: string, id: string) {
+    const household = await this.prisma.household.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!household) {
+      throw new NotFoundException('Household not found.');
+    }
+
+    if (household.status === HouseholdStatus.INACTIVE) {
+      throw new BadRequestException('Household is already inactive.');
+    }
+
+    // ==========================================
+    // Deactivate linked member accounts
+    // ==========================================
+
+    await this.deactivateLinkedAccounts(id);
+
+    // ==========================================
+    // Update Household status
+    // ==========================================
+
+    const updatedHousehold = await this.prisma.household.update({
+      where: {
+        id,
+      },
+
+      data: {
+        status: HouseholdStatus.INACTIVE,
+      },
+
+      select: {
+        id: true,
+        block: true,
+        lot: true,
+        unit: true,
+        address: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message:
+        'Household deactivated. It will no longer be included in recurring payments or other assessments.',
+      data: updatedHousehold,
+    };
+  }
+
+  // ==========================================
+  // Reactivate Household
+  // Restores an inactive household so it will
+  // be included again in recurring payments.
+  // ==========================================
+
+  async reactivate(communityId: string, id: string) {
+    const household = await this.prisma.household.findFirst({
+      where: {
+        id,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!household) {
+      throw new NotFoundException('Household not found.');
+    }
+
+    if (household.status === HouseholdStatus.ACTIVE) {
+      throw new BadRequestException('Household is already active.');
+    }
+
+    const updatedHousehold = await this.prisma.household.update({
+      where: {
+        id,
+      },
+
+      data: {
+        status: HouseholdStatus.ACTIVE,
+      },
+
+      select: {
+        id: true,
+        block: true,
+        lot: true,
+        unit: true,
+        address: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message:
+        'Household reactivated. It will be included again in recurring payments.',
       data: updatedHousehold,
     };
   }

@@ -42,10 +42,7 @@ export class NotificationsController {
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Get notification preferences' })
   getPreferences(@Request() req: any) {
-    return this.prefsService.preferences(
-      req.user.community.id,
-      req.user.id,
-    );
+    return this.prefsService.preferences(req.user.community.id, req.user.id);
   }
 
   @Put('preferences')
@@ -72,21 +69,14 @@ export class NotificationsController {
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Register a web push subscription' })
   subscribePush(@Request() req: any, @Body() dto: CreatePushSubscriptionDto) {
-    return this.prefsService.subscribe(
-      req.user.community.id,
-      req.user.id,
-      dto,
-    );
+    return this.prefsService.subscribe(req.user.community.id, req.user.id, dto);
   }
 
   @Delete('push-subscribe/:endpoint')
   @Permissions('notification.view')
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Remove a web push subscription' })
-  unsubscribePush(
-    @Request() req: any,
-    @Param('endpoint') endpoint: string,
-  ) {
+  unsubscribePush(@Request() req: any, @Param('endpoint') endpoint: string) {
     return this.prefsService.unsubscribe(
       req.user.community.id,
       req.user.id,
@@ -99,10 +89,7 @@ export class NotificationsController {
   @ApiBearerAuth()
   @ApiOkResponse({ description: 'Remove all web push subscriptions' })
   unsubscribeAllPush(@Request() req: any) {
-    return this.prefsService.unsubscribe(
-      req.user.community.id,
-      req.user.id,
-    );
+    return this.prefsService.unsubscribe(req.user.community.id, req.user.id);
   }
 
   // ==========================================

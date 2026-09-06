@@ -134,13 +134,7 @@ export class NotificationsService {
       link,
     );
 
-    await this.routeChannels(
-      communityId,
-      userId,
-      type,
-      notification,
-      options,
-    );
+    await this.routeChannels(communityId, userId, type, notification, options);
 
     return notification;
   }
@@ -275,10 +269,7 @@ export class NotificationsService {
         where: { communityId, userId },
       });
 
-      if (
-        subscriptions.length > 0 &&
-        this.pushService.isConfigured
-      ) {
+      if (subscriptions.length > 0 && this.pushService.isConfigured) {
         const payload = JSON.stringify({
           id: notification.id,
           type: notification.type,

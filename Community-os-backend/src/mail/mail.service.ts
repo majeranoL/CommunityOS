@@ -126,13 +126,17 @@ export class MailService {
   }
 
   /** Generic notification email used for opt-in module alerts. */
-  async sendNotificationEmail(to: string, name: string, data: {
-    subject: string;
-    title: string;
-    message?: string | null;
-    link?: string | null;
-    communityName?: string | null;
-  }) {
+  async sendNotificationEmail(
+    to: string,
+    name: string,
+    data: {
+      subject: string;
+      title: string;
+      message?: string | null;
+      link?: string | null;
+      communityName?: string | null;
+    },
+  ) {
     const body = `
       <p>Hi ${name},</p>
       <p style="color: #374151;">${data.message ?? ''}</p>
@@ -146,13 +150,17 @@ export class MailService {
   }
 
   /** Specialized "dues issued" email for household charges. */
-  async sendDuesIssuedEmail(to: string, name: string, data: {
-    periodLabel: string;
-    amount: string;
-    dueDate: string;
-    communityName?: string | null;
-    link?: string | null;
-  }) {
+  async sendDuesIssuedEmail(
+    to: string,
+    name: string,
+    data: {
+      periodLabel: string;
+      amount: string;
+      dueDate: string;
+      communityName?: string | null;
+      link?: string | null;
+    },
+  ) {
     const body = `
       <p>Hi ${name},</p>
       <p style="color: #374151;">A new <strong>${data.periodLabel}</strong> has been issued for your household.</p>
@@ -172,7 +180,11 @@ export class MailService {
     await this.send(
       to,
       `${data.periodLabel} issued for your household`,
-      this.wrap(`${data.periodLabel} issued`, body, data.communityName ?? undefined),
+      this.wrap(
+        `${data.periodLabel} issued`,
+        body,
+        data.communityName ?? undefined,
+      ),
     );
   }
 }

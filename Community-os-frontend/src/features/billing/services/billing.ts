@@ -80,3 +80,14 @@ export async function checkoutInvoice(id: string) {
   )
   return data.data
 }
+
+export interface GatewayStatus {
+  configured: boolean
+}
+
+export async function fetchGatewayStatus() {
+  const { data } = await api.get<ApiEnvelope<GatewayStatus>>(
+    '/payments/gateway-status',
+  )
+  return data.data
+}

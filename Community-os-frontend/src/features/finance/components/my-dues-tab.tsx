@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Loader2, Wallet } from 'lucide-react'
+import { CreditCard, Loader2, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
 import { HouseholdLedger } from '@/features/households/components/household-ledger'
 import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
+import { OnlineCheckoutDialog } from '@/features/finance/components/online-checkout-dialog'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency } from '@/lib/format'
@@ -25,6 +26,7 @@ export function MyDuesTab() {
   const { data: household, isLoading, isError } = useMyHousehold()
   const canPay = useHasPermission(PERMISSIONS.paymentCreate)
   const [payOpen, setPayOpen] = useState(false)
+  const [onlineOpen, setOnlineOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -64,12 +66,24 @@ export function MyDuesTab() {
             <p className="font-medium">{formatCurrency(household.finance?.totalPaid ?? 0)}</p>
           </div>
         </div>
-        {canPay && outstanding > 0 ? (
-          <Button size="sm" onClick={() => setPayOpen(true)}>
-            <Wallet className="h-4 w-4" />
-            Pay now
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {canPay && outstanding > 0 ? (
+            <Button size="sm" onClick={() => setPayOpen(true)}>
+              <Wallet className="h-4 w-4" />
+              Pay now
+            </Button>
+          ) : null}
+          {canPay ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setOnlineOpen(true)}
+            >
+              <CreditCard className="h-4 w-4" />
+              Pay online
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <HouseholdLedger
@@ -79,6 +93,11 @@ export function MyDuesTab() {
       />
 
       <PaymentFormDialog open={payOpen} onOpenChange={setPayOpen} />
+      <OnlineCheckoutDialog
+        open={onlineOpen}
+        onOpenChange={setOnlineOpen}
+        householdId={household.id}
+      />
     </div>
   )
 }

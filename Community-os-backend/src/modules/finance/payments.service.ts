@@ -297,10 +297,17 @@ export class PaymentsService {
     // Create gateway checkout session
     // ==========================================
 
+    const appUrl = (process.env.APP_URL ?? 'http://localhost:5173').replace(
+      /\/+$/,
+      '',
+    );
+
     const checkout = await this.gateway.createCheckout({
       amount: Number(dto.amount),
       currency: 'PHP',
       description: 'HOA dues payment',
+      successUrl: `${appUrl}/app/finance?tab=my-payments`,
+      failureUrl: `${appUrl}/app/finance?tab=my-dues`,
       metadata: {
         paymentId: payment.id,
         communityId,

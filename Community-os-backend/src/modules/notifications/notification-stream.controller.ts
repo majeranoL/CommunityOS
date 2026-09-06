@@ -62,7 +62,9 @@ export class NotificationStreamController {
 
     const unsubscribe = this.events.onCreated((targetUserId, event) => {
       if (targetUserId === userId) {
-        res.write(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
+        res.write(
+          `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`,
+        );
       }
     });
 
@@ -73,9 +75,7 @@ export class NotificationStreamController {
     });
   }
 
-  private async validateStreamToken(
-    token?: string,
-  ): Promise<string | null> {
+  private async validateStreamToken(token?: string): Promise<string | null> {
     if (!token) return null;
 
     try {

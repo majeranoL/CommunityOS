@@ -27,10 +27,28 @@ import { Permissions } from '../../common/decorators/permissions.decorator';
 
 import { hasAnyPermission } from '../../common/utils/permissions';
 
+import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+
 @Controller('payments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly gateway: PaymentsGatewayService,
+  ) {}
+
+  // ==========================================
+  // Gateway Configuration Status
+  // ==========================================
+
+  @Get('gateway-status')
+  gatewayStatus() {
+    return {
+      success: true,
+      message: 'Gateway status retrieved successfully.',
+      data: { configured: this.gateway.enabled },
+    };
+  }
 
   private resolveScope(user: any): string | undefined {
     const isManager = hasAnyPermission(user, [

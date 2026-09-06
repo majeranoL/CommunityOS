@@ -139,11 +139,7 @@ export class NotificationPrefsService {
     };
   }
 
-  async unsubscribe(
-    communityId: string,
-    userId: string,
-    endpoint?: string,
-  ) {
+  async unsubscribe(communityId: string, userId: string, endpoint?: string) {
     if (endpoint) {
       await this.prisma.pushSubscription.deleteMany({
         where: { communityId, userId, endpoint: endpoint.replace(/\/$/, '') },

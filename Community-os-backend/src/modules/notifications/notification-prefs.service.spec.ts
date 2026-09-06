@@ -151,7 +151,11 @@ describe('NotificationPrefsService', () => {
 
       expect(prismaMock.pushSubscription.deleteMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { communityId: 'c-1', userId: 'u-1', endpoint: 'https://push.example/x/y' },
+          where: {
+            communityId: 'c-1',
+            userId: 'u-1',
+            endpoint: 'https://push.example/x/y',
+          },
         }),
       );
     });

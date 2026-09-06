@@ -29,6 +29,8 @@ import type {
   ImportPreviewResult,
   IncomeStatement,
   Payment,
+  PaymentCheckoutInput,
+  PaymentCheckoutResult,
   PaymentListItem,
   PaymentMethodConfig,
   PaymentMethodConfigInput,
@@ -152,8 +154,16 @@ export const paymentsService = {
     return data.data
   },
 
-  async create(input: CreatePaymentInput) {
+async create(input: CreatePaymentInput) {
     const { data } = await api.post<ApiEnvelope<Payment>>('/payments', input)
+    return data.data
+  },
+
+  async checkout(input: PaymentCheckoutInput) {
+    const { data } = await api.post<ApiEnvelope<PaymentCheckoutResult>>(
+      '/payments/checkout',
+      input,
+    )
     return data.data
   },
 

@@ -15,9 +15,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { StatusBadge } from '@/components/shared/status-badge'
 import {
+  useDeactivateHousehold,
   useDeleteHousehold,
   useHousehold,
-  useUpdateHousehold,
+  useReactivateHousehold,
 } from '@/features/households/hooks/use-households'
 import { ResidentFormDialog } from '@/features/residents/components/resident-form-dialog'
 import { CreateRenterDialog } from '@/features/households/components/create-renter-dialog'
@@ -52,7 +53,8 @@ export function HouseholdDetailsDialog({
   onOpenChange,
 }: HouseholdDetailsDialogProps) {
   const { data: household, isLoading } = useHousehold(householdId)
-  const updateHousehold = useUpdateHousehold()
+  const deactivateHousehold = useDeactivateHousehold(() => onOpenChange(false))
+  const reactivateHousehold = useReactivateHousehold()
   const deleteHousehold = useDeleteHousehold(() => onOpenChange(false))
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [renterOpen, setRenterOpen] = useState(false)
@@ -78,7 +80,7 @@ export function HouseholdDetailsDialog({
     if (household.status === 'ACTIVE') {
       setConfirmOpen(true)
     } else {
-      updateHousehold.mutate({ id: household.id, input: { status: 'ACTIVE' } })
+      reactivateHousehold.mutate(household.id)
     }
   }
 
@@ -295,7 +297,7 @@ export function HouseholdDetailsDialog({
               variant="outline"
               className="text-warning hover:text-warning"
               onClick={toggleStatus}
-              disabled={updateHousehold.isPending}
+              disabled={deactivateHousehold.isPending}
             >
               Deactivate unit
             </Button>
@@ -313,7 +315,7 @@ export function HouseholdDetailsDialog({
             <Button
               variant="outline"
               onClick={toggleStatus}
-              disabled={updateHousehold.isPending}
+              disabled={reactivateHousehold.isPending}
             >
               Activate unit
             </Button>
@@ -366,15 +368,16 @@ export function HouseholdDetailsDialog({
             <DialogHeader>
               <DialogTitle>Deactivate this unit?</DialogTitle>
               <DialogDescription>
-                The unit will be freed and the current family's account will be
-                deactivated — they will no longer be able to sign in.
+                This unit will be excluded from recurring dues, utility billing,
+                and any other automated payments. Linked accounts will also be
+                deactivated — members will no longer be able to sign in.
               </DialogDescription>
             </DialogHeader>
             <Alert variant="warning">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                A new family can register into this unit later, inheriting its
-                assessment and payment history.
+                Existing assessments and payment history will be preserved.
+                You can reactivate this unit later to resume payments.
               </AlertDescription>
             </Alert>
             <DialogFooter className="gap-2">
@@ -390,14 +393,11 @@ export function HouseholdDetailsDialog({
                 variant="destructive"
                 onClick={() => {
                   if (household) {
-                    updateHousehold.mutate({
-                      id: household.id,
-                      input: { status: 'INACTIVE' },
-                    })
+                    deactivateHousehold.mutate(household.id)
                   }
                   setConfirmOpen(false)
                 }}
-                disabled={updateHousehold.isPending}
+                disabled={deactivateHousehold.isPending}
               >
                 Deactivate unit
               </Button>

@@ -69,4 +69,18 @@ export const householdsService = {
     )
     return data.data
   },
+
+  async deactivate(id: string) {
+    const { data } = await api.post<ApiEnvelope<HouseholdListItem>>(
+      `/households/${id}/deactivate`,
+    )
+    return data.data
+  },
+
+  async reactivate(id: string) {
+    const { data } = await api.post<ApiEnvelope<HouseholdListItem>>(
+      `/households/${id}/reactivate`,
+    )
+    return data.data
+  },
 }

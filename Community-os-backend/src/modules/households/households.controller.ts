@@ -121,6 +121,26 @@ export class HouseholdsController {
   }
 
   // ==========================================
+  // Deactivate Household
+  // ==========================================
+
+  @Post(':id/deactivate')
+  @Permissions('household.update')
+  deactivate(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.householdsService.deactivate(req.user.community.id, id);
+  }
+
+  // ==========================================
+  // Reactivate Household
+  // ==========================================
+
+  @Post(':id/reactivate')
+  @Permissions('household.update')
+  reactivate(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.householdsService.reactivate(req.user.community.id, id);
+  }
+
+  // ==========================================
   // Delete Household
   // ==========================================
 
