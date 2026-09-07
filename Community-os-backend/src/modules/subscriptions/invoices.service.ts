@@ -366,6 +366,24 @@ export class InvoicesService {
       throw new ConflictException('Void invoices cannot be checked out.');
     }
 
+    // Reuse an active checkout instead of leaving the resident on a
+    // PROCESSING invoice or creating duplicate gateway sessions.
+    if (
+      invoice.status === InvoiceStatus.PROCESSING &&
+      invoice.gatewayInvoiceId &&
+      invoice.checkoutUrl
+    ) {
+      return {
+        success: true,
+        message: 'Checkout already exists. Redirect to the checkout URL.',
+        data: {
+          invoiceId: invoice.id,
+          checkoutUrl: invoice.checkoutUrl,
+          gatewayId: invoice.gatewayInvoiceId,
+        },
+      };
+    }
+
     const checkout = await this.gateway.createCheckout({
       amount: Number(invoice.amount),
       currency: 'PHP',
