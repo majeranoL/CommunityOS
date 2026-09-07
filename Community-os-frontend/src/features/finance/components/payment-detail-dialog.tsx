@@ -1,10 +1,9 @@
-import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { StatusBadge } from '@/components/shared/status-badge'
+import { SecureMediaPreview } from '@/components/shared/secure-image'
 import { usePayment } from '@/features/finance/hooks/use-finance'
-import { documentsService } from '@/features/documents/services/documents'
 import { formatCurrency, formatDate, formatDateTime, toTitleCase } from '@/lib/format'
 
 interface PaymentDetailDialogProps {
@@ -16,14 +15,12 @@ interface PaymentDetailDialogProps {
 function ProofLink({ url }: { url: string | null }) {
   if (!url) return null
   return (
-    <Button
-      type="button"
-      variant="link"
-      className="h-auto p-0"
-      onClick={() => documentsService.openFile({ fileUrl: url })}
-    >
-      View proof
-    </Button>
+    <SecureMediaPreview
+      src={url}
+      alt="Payment proof"
+      fileName="Payment proof"
+      className="mt-2 max-h-48 w-full rounded-md border object-contain"
+    />
   )
 }
 
