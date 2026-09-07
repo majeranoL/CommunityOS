@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { documentsService } from '@/features/documents/services/documents'
-import { SecureImage } from '@/components/shared/secure-image'
+import { SecureMediaPreview } from '@/components/shared/secure-image'
 import { usePet } from '@/features/pets/hooks/use-pets'
 import { formatDate, toTitleCase } from '@/lib/format'
 
@@ -76,19 +76,14 @@ export function PetDetailDialog({ open, onOpenChange, petId }: PetDetailDialogPr
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               {pet.photoUrl ? (
-                <button
-                  type="button"
-                  className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-primary/20 bg-muted hover:opacity-90 transition-opacity shadow-sm"
-                  onClick={() => documentsService.openFile({ fileUrl: pet.photoUrl })}
-                  aria-label="Open pet photo"
-                  title="Click to view full photo"
-                >
-                  <SecureImage
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full border-2 border-primary/20 bg-muted shadow-sm">
+                  <SecureMediaPreview
                     src={pet.photoUrl}
                     alt={pet.name}
+                    fileName={`${pet.name} photo`}
                     className="h-full w-full object-cover"
                   />
-                </button>
+                </div>
               ) : null}
               <div>
                 <p className="text-lg font-semibold">{pet.name}</p>

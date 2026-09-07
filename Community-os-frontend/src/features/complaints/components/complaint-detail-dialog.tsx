@@ -6,7 +6,6 @@ import {
   Paperclip,
   FileText,
   ExternalLink,
-  Image as ImageIcon,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { documentsService } from '@/features/documents/services/documents'
-import { SecureImage, SecureVideo } from '@/components/shared/secure-image'
+import { SecureMediaPreview } from '@/components/shared/secure-image'
 import {
   useAssignComplaint,
   useCloseComplaint,
@@ -176,16 +175,18 @@ export function ComplaintDetailDialog({
                       >
                         {isImg ? (
                           <div className="relative aspect-video w-full overflow-hidden rounded bg-muted flex items-center justify-center">
-                            <SecureImage
+                            <SecureMediaPreview
                               src={att.url}
                               alt={att.originalName}
+                              fileName={att.originalName}
                               className="h-full w-full object-cover"
                             />
-                            <ImageIcon className="h-5 w-5 text-muted-foreground absolute" />
                           </div>
                         ) : isVideo ? (
-                          <SecureVideo
+                          <SecureMediaPreview
                             src={att.url}
+                            mediaType="video"
+                            fileName={att.originalName}
                             className="aspect-video w-full rounded bg-muted object-contain"
                           />
                         ) : (
