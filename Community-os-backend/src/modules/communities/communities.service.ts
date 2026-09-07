@@ -829,7 +829,7 @@ export class CommunitiesService {
 
       let residentId: string | null = null;
 
-      if (requireUnit && hasUnitInfo) {
+      if (hasUnitInfo) {
         const block = owner.block?.trim();
         const lot = owner.lot?.trim();
         const unit = owner.unit?.trim();

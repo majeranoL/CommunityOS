@@ -17,7 +17,6 @@ import { VehicleStickersService } from './vehicle-stickers.service';
 import { CreateStickerDto } from './dto/create-sticker.dto';
 import { UpdateStickerDto } from './dto/update-sticker.dto';
 import { VerifyStickerDto } from './dto/verify-sticker.dto';
-import { StickerQueryDto } from './dto/sticker-query.dto';
 import { RequestStickerDto } from './dto/request-sticker.dto';
 import { RequestQueryDto } from './dto/request-query.dto';
 import { UpdateStickerSettingsDto } from './dto/update-sticker-settings.dto';
