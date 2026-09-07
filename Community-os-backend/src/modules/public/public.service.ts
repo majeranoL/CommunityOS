@@ -201,7 +201,17 @@ export class PublicService {
       },
     };
 
-    const provisioned = await this.communitiesService.provision(provisionInput);
+    const hasOwnerUnitInfo = Boolean(
+      dto.owner.block?.trim() ||
+      dto.owner.lot?.trim() ||
+      dto.owner.unit?.trim() ||
+      dto.owner.address?.trim(),
+    );
+
+    const provisioned = await this.communitiesService.provision(
+      provisionInput,
+      hasOwnerUnitInfo,
+    );
 
     const owner = provisioned.data.owner;
 

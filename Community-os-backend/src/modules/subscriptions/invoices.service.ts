@@ -375,6 +375,8 @@ export class InvoicesService {
         communityId,
         type: 'invoice',
       },
+      successUrl: `${this.appUrl()}/app/billing`,
+      failureUrl: `${this.appUrl()}/app/billing`,
     });
 
     await this.prisma.invoice.update({
@@ -534,5 +536,9 @@ export class InvoicesService {
       result.setFullYear(result.getFullYear() + 1);
     }
     return result;
+  }
+
+  private appUrl(): string {
+    return (process.env.APP_URL ?? 'http://localhost:5173').replace(/\/$/, '');
   }
 }

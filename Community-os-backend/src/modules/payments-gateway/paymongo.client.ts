@@ -47,16 +47,22 @@ export class PayMongoClient {
       params;
 
     const attributes: Record<string, unknown> = {
-      amount: Math.round(amount * 100),
-      currency: currency ?? 'PHP',
-      description: description ?? 'CommunityOS payment',
+      line_items: [
+        {
+          currency: currency ?? 'PHP',
+          amount: Math.round(amount * 100),
+          description: description ?? 'CommunityOS payment',
+          name: description ?? 'CommunityOS payment',
+          quantity: 1,
+        },
+      ],
       send_email_receipt: true,
-      payment_method_types: ['gcash', 'maya', 'card'],
+      payment_method_types: ['gcash', 'paymaya', 'card'],
       metadata,
     };
 
     if (successUrl) attributes.success_url = successUrl;
-    if (failureUrl) attributes.failure_url = failureUrl;
+    if (failureUrl) attributes.cancel_url = failureUrl;
 
     const payload = {
       data: {

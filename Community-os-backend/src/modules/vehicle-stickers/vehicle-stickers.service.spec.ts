@@ -363,7 +363,7 @@ describe('VehicleStickersService.request', () => {
   });
 
   it('forbids requesting a sticker for a vehicle that is not theirs', async () => {
-    const { service, prisma } = makeService({
+    const { service } = makeService({
       vehicle: {
         ...defaultVehicle(),
         residentId: 'res-other',
@@ -419,7 +419,7 @@ describe('VehicleStickersService.request', () => {
 
 describe('VehicleStickersService.requestVerify (approve)', () => {
   it('approves a PENDING request, issues numbered stickers, bills the household, and syncs the vehicle', async () => {
-    const { service, prisma, tx, notificationsService } = makeService({
+    const { service, tx, notificationsService } = makeService({
       requestForVerify: requestFixture(),
       latestAssessment: { assessmentNumber: 'ASS-000042' },
     });
