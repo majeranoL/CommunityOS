@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import {
   CommunityStatus,
@@ -594,7 +598,11 @@ export class AdminService {
               suspendedAt: null,
               suspensionReason: null,
             }
-          : { status: dto.status },
+          : {
+              status: dto.status,
+              suspendedAt: null,
+              suspensionReason: 'manual',
+            },
       select: {
         id: true,
         code: true,
@@ -856,7 +864,7 @@ export class AdminService {
   ) {
     const community = await this.prisma.community.findFirst({
       where: { id: communityId, deletedAt: null },
-      select: { id: true, status: true, suspendedAt: true },
+      select: { id: true, status: true, suspendedAt: true, suspensionReason: true },
     });
 
     if (!community) {
@@ -864,13 +872,24 @@ export class AdminService {
     }
 
     const start = new Date(dto.startDate);
+    const end = dto.endDate ? new Date(dto.endDate) : null;
+
+    if (end && end < start) {
+      throw new BadRequestException(
+        'Exemption end date cannot be before its start date.',
+      );
+    }
+
+    if (end) {
+      end.setHours(23, 59, 59, 999);
+    }
 
     const exemption = await this.prisma.billingExemption.create({
       data: {
         communityId,
         reason: dto.reason,
         startDate: start,
-        endDate: dto.endDate ? new Date(dto.endDate) : null,
+        endDate: end,
         grantedById,
       },
       include: {
@@ -882,8 +901,12 @@ export class AdminService {
 
     // If the exemption is currently active and the community was auto-suspended
     // for non-payment, reinstate it and write off its outstanding invoices so
-    // members regain access immediately.
-    if (start <= new Date() && community.status === CommunityStatus.INACTIVE) {
+    // members regain access immediately. Manual deactivation remains untouched.
+    if (
+      start <= new Date() &&
+      community.status === CommunityStatus.INACTIVE &&
+      community.suspensionReason === 'unpaid'
+    ) {
       await this.prisma.community.update({
         where: { id: communityId },
         data: {

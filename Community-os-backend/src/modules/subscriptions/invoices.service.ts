@@ -240,7 +240,11 @@ export class InvoicesService {
       where: { id: communityId, deletedAt: null },
     });
 
-    if (!community || community.status !== CommunityStatus.INACTIVE) {
+    if (
+      !community ||
+      community.status !== CommunityStatus.INACTIVE ||
+      community.suspensionReason !== 'unpaid'
+    ) {
       return;
     }
 

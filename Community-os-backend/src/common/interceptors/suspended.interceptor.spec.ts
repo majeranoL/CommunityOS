@@ -142,6 +142,20 @@ describe('SuspendedInterceptor', () => {
         ),
       ),
     ).resolves.toBe('ok');
+    await expect(
+      call(makeCtx('POST', '/api/payments/checkout', suspendedUser)),
+    ).resolves.toBe('ok');
+  });
+
+  it('blocks an inactive community even without a suspension timestamp', async () => {
+    await expect(
+      call(
+        makeCtx('POST', '/api/announcements', {
+          isPlatformAdmin: false,
+          community: { status: CommunityStatus.INACTIVE, suspendedAt: null },
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('blocks creating invoices while suspended', async () => {

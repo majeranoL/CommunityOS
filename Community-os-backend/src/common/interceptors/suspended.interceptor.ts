@@ -42,10 +42,7 @@ export class SuspendedInterceptor implements NestInterceptor {
     }
 
     // Not suspended → allow.
-    if (
-      user.community.status !== CommunityStatus.INACTIVE ||
-      !user.community.suspendedAt
-    ) {
+    if (user.community.status !== CommunityStatus.INACTIVE) {
       return next.handle();
     }
 
@@ -77,6 +74,24 @@ export class SuspendedInterceptor implements NestInterceptor {
       return true;
     }
 
+    // Billing data required to calculate and submit dues payments.
+    if (
+      method === 'GET' &&
+      (path === '/api/payments/gateway-status' ||
+        path === '/api/assessments' ||
+        path === '/api/assessments/dues-tracker' ||
+        path === '/api/billing-periods' ||
+        path === '/api/charge-types' ||
+        path === '/api/households/me' ||
+        path === '/api/payments' ||
+        path.match(/^\/api\/payments\/[0-9a-f-]{36}(\/receipt)?$/) ||
+        path.match(/^\/api\/assessments\/[0-9a-f-]{36}$/) ||
+        path.match(/^\/api\/billing-periods\/[0-9a-f-]{36}$/) ||
+        path.match(/^\/api\/charge-types\/[0-9a-f-]{36}$/))
+    ) {
+      return true;
+    }
+
     // View invoices (list + single).
     if (
       method === 'GET' &&
@@ -90,7 +105,8 @@ export class SuspendedInterceptor implements NestInterceptor {
     if (
       method === 'POST' &&
       (path.match(/^\/api\/invoices\/[0-9a-f-]{36}\/checkout$/) ||
-        path.match(/^\/api\/invoices\/[0-9a-f-]{36}\/mark-paid$/))
+        path.match(/^\/api\/invoices\/[0-9a-f-]{36}\/mark-paid$/) ||
+        path === '/api/payments/checkout')
     ) {
       return true;
     }

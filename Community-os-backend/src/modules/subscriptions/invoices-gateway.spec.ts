@@ -193,6 +193,7 @@ describe('InvoicesService gateway invoice flow', () => {
     prisma.community.findFirst.mockResolvedValue({
       id: 'community-1',
       status: 'INACTIVE',
+      suspensionReason: 'unpaid',
     });
 
     const result = await service.markGatewayPaidByGateway('cses_123');

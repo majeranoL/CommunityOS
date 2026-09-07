@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { PaymentStatus } from '@prisma/client';
+import { CommunityStatus, PaymentStatus } from '@prisma/client';
 
 import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -21,6 +21,10 @@ describe('PaymentsService gateway transitions', () => {
     };
     user: {
       findFirst: jest.Mock;
+    };
+    community: {
+      findFirst: jest.Mock;
+      update: jest.Mock;
     };
   };
 
@@ -47,6 +51,10 @@ describe('PaymentsService gateway transitions', () => {
       },
       user: {
         findFirst: jest.fn().mockResolvedValue(null),
+      },
+      community: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
       },
     };
 
@@ -85,6 +93,45 @@ describe('PaymentsService gateway transitions', () => {
         }),
       }),
     );
+  });
+
+  it('reactivates an inactive community after successful dues payment', async () => {
+    prisma.payment.findFirst.mockResolvedValue(
+      buildPayment(PaymentStatus.PROCESSING),
+    );
+    prisma.community.findFirst.mockResolvedValue({
+      id: 'c1',
+      status: CommunityStatus.INACTIVE,
+      suspensionReason: 'unpaid',
+    });
+
+    const result = await service.markGatewaySucceeded('cses_123');
+
+    expect(result.success).toBe(true);
+    expect(prisma.community.update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: {
+        status: CommunityStatus.ACTIVE,
+        suspendedAt: null,
+        suspensionReason: null,
+      },
+    });
+  });
+
+  it('does not reactivate a manually inactive community after payment', async () => {
+    prisma.payment.findFirst.mockResolvedValue(
+      buildPayment(PaymentStatus.PROCESSING),
+    );
+    prisma.community.findFirst.mockResolvedValue({
+      id: 'c1',
+      status: CommunityStatus.INACTIVE,
+      suspensionReason: 'manual',
+    });
+
+    const result = await service.markGatewaySucceeded('cses_123');
+
+    expect(result.success).toBe(true);
+    expect(prisma.community.update).not.toHaveBeenCalled();
   });
 
   it('does not re-verify an already-final payment', async () => {
