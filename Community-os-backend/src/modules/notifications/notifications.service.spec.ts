@@ -28,6 +28,7 @@ describe('NotificationsService', () => {
       notification: {
         create: jest.fn().mockResolvedValue(notificationRow),
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
+        groupBy: jest.fn().mockResolvedValue([]),
       },
       notificationDelivery: {
         createMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -279,6 +280,44 @@ describe('NotificationsService', () => {
       );
 
       expect(prismaMock.notification.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unreadByModule', () => {
+    it('returns unread counts grouped by module for the current user', async () => {
+      prismaMock.notification.groupBy.mockResolvedValue([
+        { type: NotificationType.COMPLAINT, _count: { type: 5 } },
+        { type: NotificationType.RESERVATION, _count: { type: 2 } },
+        { type: NotificationType.ANNOUNCEMENT, _count: { type: 1 } },
+      ]);
+
+      const result = await service.unreadByModule('c-1', 'u-1');
+
+      expect(prismaMock.notification.groupBy).toHaveBeenCalledWith({
+        by: ['type'],
+        where: {
+          communityId: 'c-1',
+          userId: 'u-1',
+          readAt: null,
+        },
+        _count: {
+          type: true,
+        },
+      });
+
+      expect(result.data).toEqual({
+        COMPLAINT: 5,
+        RESERVATION: 2,
+        ANNOUNCEMENT: 1,
+      });
+    });
+
+    it('returns an empty map when the user has no unread notifications', async () => {
+      prismaMock.notification.groupBy.mockResolvedValue([]);
+
+      const result = await service.unreadByModule('c-1', 'u-1');
+
+      expect(result.data).toEqual({});
     });
   });
 });

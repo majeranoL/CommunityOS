@@ -5,13 +5,14 @@ import type {
   RenewStickerInput,
   RequestStickerInput,
   StickerOptions,
+  StickerRequestListItem,
+  StickerSettingsInput,
   UpdateStickerInput,
-  VehicleStickerListItem,
   VerifyStickerInput,
 } from '@/features/vehicle-stickers/types/vehicle-sticker'
 
 export interface StickerListResult {
-  items: VehicleStickerListItem[]
+  items: StickerRequestListItem[]
   pagination?: Pagination
 }
 
@@ -22,34 +23,42 @@ export const vehicleStickersService = {
   },
 
   async request(input: RequestStickerInput) {
-    const { data } = await api.post<ApiEnvelope<VehicleStickerListItem>>('/vehicle-stickers/request', input)
+    const { data } = await api.post<ApiEnvelope<StickerRequestListItem>>(
+      '/vehicle-stickers/request',
+      input,
+    )
     return data.data
   },
 
   async list(params: ListQuery = {}) {
-    const { data } = await api.get<ApiEnvelope<VehicleStickerListItem[]>>('/vehicle-stickers', { params })
+    const { data } = await api.get<ApiEnvelope<StickerRequestListItem[]>>('/vehicle-stickers', {
+      params,
+    })
     return { items: data.data, pagination: data.pagination }
   },
 
   async get(id: string) {
-    const { data } = await api.get<ApiEnvelope<VehicleStickerListItem>>(`/vehicle-stickers/${id}`)
+    const { data } = await api.get<ApiEnvelope<StickerRequestListItem>>(`/vehicle-stickers/${id}`)
     return data.data
   },
 
   async getByVehicle(vehicleId: string) {
-    const { data } = await api.get<ApiEnvelope<VehicleStickerListItem[]>>(
+    const { data } = await api.get<ApiEnvelope<StickerRequestListItem[]>>(
       `/vehicle-stickers/vehicle/${vehicleId}`,
     )
     return data.data
   },
 
   async create(input: CreateStickerInput) {
-    const { data } = await api.post<ApiEnvelope<VehicleStickerListItem>>('/vehicle-stickers', input)
+    const { data } = await api.post<ApiEnvelope<{ stickers: StickerRequestListItem[] }>>(
+      '/vehicle-stickers',
+      input,
+    )
     return data.data
   },
 
   async update(id: string, input: UpdateStickerInput) {
-    const { data } = await api.put<ApiEnvelope<VehicleStickerListItem>>(
+    const { data } = await api.put<ApiEnvelope<StickerRequestListItem>>(
       `/vehicle-stickers/${id}`,
       input,
     )
@@ -61,8 +70,13 @@ export const vehicleStickersService = {
     return data.data
   },
 
+  async cancelRequest(id: string) {
+    const { data } = await api.delete<ApiEnvelope<null>>(`/vehicle-stickers/requests/${id}`)
+    return data.data
+  },
+
   async verify(id: string, input: VerifyStickerInput) {
-    const { data } = await api.post<ApiEnvelope<VehicleStickerListItem>>(
+    const { data } = await api.post<ApiEnvelope<StickerRequestListItem>>(
       `/vehicle-stickers/${id}/verify`,
       input,
     )
@@ -70,8 +84,16 @@ export const vehicleStickersService = {
   },
 
   async renew(id: string, input: RenewStickerInput) {
-    const { data } = await api.post<ApiEnvelope<VehicleStickerListItem>>(
+    const { data } = await api.post<ApiEnvelope<StickerRequestListItem>>(
       `/vehicle-stickers/${id}/renew`,
+      input,
+    )
+    return data.data
+  },
+
+  async updateSettings(input: StickerSettingsInput) {
+    const { data } = await api.put<ApiEnvelope<StickerOptions['cycle']>>(
+      '/vehicle-stickers/settings',
       input,
     )
     return data.data

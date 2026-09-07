@@ -59,7 +59,7 @@ describe('get-started validation schemas', () => {
     expect(result.success).toBe(true)
   })
 
-  it('rejects the owner step when no household address is provided', () => {
+  it('accepts the owner step without household details (Phase 5 optional unit)', () => {
     const result = ownerInfoStepSchema.safeParse({
       ...owner,
       block: '',
@@ -67,7 +67,7 @@ describe('get-started validation schemas', () => {
       unit: '',
       homeAddress: '',
     })
-    expect(result.success).toBe(false)
+    expect(result.success).toBe(true)
   })
 
   it('rejects a full payload with mismatched passwords', () => {

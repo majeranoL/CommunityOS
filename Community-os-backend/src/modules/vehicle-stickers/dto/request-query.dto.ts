@@ -1,0 +1,49 @@
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
+
+import { Type } from 'class-transformer';
+
+import { StickerRequestStatus } from '@prisma/client';
+
+export class RequestQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit: number = 10;
+
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsEnum(StickerRequestStatus)
+  status?: StickerRequestStatus;
+
+  @IsOptional()
+  @IsUUID()
+  vehicleId?: string;
+
+  @IsOptional()
+  @IsIn(['requestNumber', 'createdAt', 'updatedAt'])
+  sortBy: string = 'createdAt';
+
+  @IsOptional()
+  @IsIn(['asc', 'desc'])
+  order: 'asc' | 'desc' = 'desc';
+}

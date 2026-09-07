@@ -22,6 +22,14 @@ export interface VehicleStickerRef {
   expirationDate: string | null
 }
 
+export interface VehicleRequestRef {
+  id: string
+  requestNumber: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  quantity: number
+  createdAt: string
+}
+
 export interface VehicleListItem {
   id: string
   plateNumber: string
@@ -39,6 +47,7 @@ export interface VehicleListItem {
   verifiedAt: string | null
   verificationRemarks: string | null
   stickers?: VehicleStickerRef[]
+  requests?: VehicleRequestRef[]
   createdAt: string
 }
 

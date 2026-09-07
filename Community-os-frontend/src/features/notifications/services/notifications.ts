@@ -4,6 +4,7 @@ import type {
   AppNotification,
   NotificationPreference,
   NotificationSettings,
+  NotificationType,
 } from '@/features/notifications/types/notification'
 
 export interface NotificationListResult {
@@ -31,6 +32,13 @@ export const notificationsService = {
   async unreadCount() {
     const { data } = await api.get<ApiEnvelope<{ count: number }>>('/notifications/unread-count')
     return data.data.count
+  },
+
+  async unreadByModule() {
+    const { data } = await api.get<ApiEnvelope<Record<NotificationType, number>>>(
+      '/notifications/unread-by-module',
+    )
+    return data.data
   },
 
   async markRead(id: string) {

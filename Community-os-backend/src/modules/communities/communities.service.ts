@@ -822,11 +822,14 @@ export class CommunitiesService {
         select: { id: true },
       });
 
-      // ---------- Owner Household + Resident ----------
+      // ---------- Owner Household + Resident (superadmin explicit provisioning) ----------
+      // The initial Community Account exists independently from Household and
+      // Resident records (Phase 5). Household/Resident linkage is only created
+      // here when the caller explicitly provisions them (requireUnit = true).
 
       let residentId: string | null = null;
 
-      if (hasUnitInfo) {
+      if (requireUnit && hasUnitInfo) {
         const block = owner.block?.trim();
         const lot = owner.lot?.trim();
         const unit = owner.unit?.trim();
@@ -924,6 +927,7 @@ export class CommunitiesService {
 
           status: UserStatus.ACTIVE,
           isPlatformAdmin: false,
+          isCommunityAccount: true,
         },
         select: {
           id: true,

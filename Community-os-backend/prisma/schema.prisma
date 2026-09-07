@@ -31,6 +31,26 @@ enum ResidentType {
   RENTER
 }
 
+enum HouseholdRelationshipType {
+  OWNER
+  CO_OWNER
+  RENTER
+  FAMILY
+  OTHER
+}
+
+enum HouseholdMembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ConstructionBondStatus {
+  OPEN
+  ACTIVE
+  REFUNDED
+  FORFEITED
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -185,6 +205,13 @@ enum StickerStatus {
   ACTIVE
   EXPIRED
   REVOKED
+}
+
+enum StickerRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 enum UtilityType {
@@ -450,6 +477,7 @@ model Community {
   users              User[]
   permissions        Permission[]
   residents          Resident[]
+  residentHouseholds ResidentHousehold[]
   announcements      Announcement[]
   complaints         Complaint[]
   facilities         Facility[]
@@ -460,6 +488,8 @@ model Community {
   visitors           Visitor[]
   vehicles           Vehicle[]
   vehicleStickers    VehicleSticker[]
+  stickerRequests    StickerRequest[]
+  sequences          Sequence[]
   pets               Pet[]
   staffMembers       Staff[]
   maintenances       Maintenance[]
@@ -490,6 +520,7 @@ model Community {
   communityFeatures  CommunityFeature[]
   featureAuditLogs   FeatureAuditLog[]
   goodStandingQrs    GoodStandingQR[]
+  constructionBonds  ConstructionBond[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -684,6 +715,8 @@ model User {
 
   isPlatformAdmin Boolean @default(false)
 
+  isCommunityAccount Boolean @default(false)
+
   roles                  UserRole[]
   assignedComplaints     Complaint[]           @relation("ComplaintAssignedTo")
   notifications          Notification[]
@@ -711,10 +744,14 @@ model User {
   createdExpenses         Expense[]
   verifiedStickers        VehicleSticker[]   @relation("StickerVerifiedBy")
   createdStickers         VehicleSticker[]   @relation("StickerCreatedBy")
+  stickerRequestsRequested StickerRequest[]  @relation("StickerRequestRequestedBy")
+  stickerRequestsApproved  StickerRequest[]  @relation("StickerRequestApprovedBy")
   createdUtilityExpenses  UtilityExpense[]   @relation("UtilityExpenseCreatedBy")
   approvedItemLoans       FacilityItemLoan[] @relation("ItemLoanApprovedBy")
   rejectedItemLoans       FacilityItemLoan[] @relation("ItemLoanRejectedBy")
   recordedUtilityReadings UtilityReading[]   @relation("UtilityReadingRecordedBy")
+  bondDepositsRecorded    ConstructionBond[] @relation("BondDepositRecordedBy")
+  bondsResolved           ConstructionBond[] @relation("BondResolvedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -863,8 +900,17 @@ model Resident {
   communityId String    @db.Uuid
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
+  // The ACTIVE (currently selected) household. A resident may belong to
+  // multiple households via ResidentHousehold; this column is the default
+  // context used by the app and can be switched by the resident.
   householdId String?    @db.Uuid
-  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  household   Household? @relation("ResidentActiveHousehold", fields: [householdId], references: [id], onDelete: SetNull)
+
+  // The default/primary home among the resident's household memberships.
+  primaryHouseholdId String?    @db.Uuid
+  primaryHousehold   Household? @relation("ResidentPrimaryHousehold", fields: [primaryHouseholdId], references: [id], onDelete: SetNull)
+
+  householdMemberships ResidentHousehold[]
 
   complaints   Complaint[]
   reservations Reservation[]
@@ -1227,11 +1273,14 @@ model Household {
 
   status HouseholdStatus @default(ACTIVE)
 
-  residents       Resident[]
-  assessments     Assessment[]
-  pets            Pet[]
-  utilityReadings UtilityReading[]
-  goodStandingQrs GoodStandingQR[]
+  residents             Resident[] @relation("ResidentActiveHousehold")
+  primaryResidents      Resident[] @relation("ResidentPrimaryHousehold")
+  residentMemberships   ResidentHousehold[]
+  assessments           Assessment[]
+  pets                  Pet[]
+  utilityReadings       UtilityReading[]
+  goodStandingQrs       GoodStandingQR[]
+  constructionBonds     ConstructionBond[]
 
   isImported    Boolean      @default(false)
   importBatchId String?      @db.Uuid
@@ -1245,6 +1294,91 @@ model Household {
   @@index([block, lot])
   @@index([status])
   @@index([importBatchId])
+}
+
+// Join table allowing one Resident/User to belong to multiple Households.
+// Resident.householdId points at the single ACTIVE household (the default
+// app context); this table keeps the full membership graph (primary home,
+// ownership/occupancy role, and membership dates).
+model ResidentHousehold {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  residentId String   @db.Uuid
+  resident   Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  householdId String   @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  relationshipType HouseholdRelationshipType @default(OWNER)
+  isPrimary        Boolean                    @default(false)
+  startDate        DateTime?
+  endDate          DateTime?
+  status           HouseholdMembershipStatus  @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, residentId, householdId])
+  @@index([communityId])
+  @@index([residentId])
+  @@index([householdId])
+  @@index([communityId, householdId])
+}
+
+/////////////////////////////////////////////////////
+// CONSTRUCTION BOND
+/////////////////////////////////////////////////////
+
+// Money held by the HOA against a household's renovation/construction work.
+// The deposit is the household's money until the bond resolves: on FORFEITED
+// the deposit becomes HOA income (an Assessment+Payment in category BOND), on
+// REFUNDED the deposit is returned and never enters the finance ledger.
+model ConstructionBond {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  householdId String    @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  bondNumber        String @unique @db.VarChar(30)
+  scope             String
+  contractReference String?
+
+  depositAmount Decimal @db.Decimal(10, 2)
+  depositDate   DateTime @default(now())
+
+  status ConstructionBondStatus @default(OPEN)
+
+  depositRecordedById String? @db.Uuid
+  depositRecordedBy   User?   @relation("BondDepositRecordedBy", fields: [depositRecordedById], references: [id], onDelete: SetNull)
+
+  resolvedById String? @db.Uuid
+  resolvedBy   User?   @relation("BondResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+
+  forfeitedAt DateTime?
+  refundedAt  DateTime?
+  refundNotes String?
+
+  remarks String?
+
+  // Finance income entry created when the bond is FORFEITED (deposit becomes HOA income).
+  assessmentId String?      @unique @db.Uuid
+  assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([communityId])
+  @@index([householdId])
+  @@index([status])
+  @@index([communityId, status])
 }
 
 /////////////////////////////////////////////////////
@@ -1325,6 +1459,7 @@ model Vehicle {
 
   visitors Visitor[]
   stickers VehicleSticker[]
+  requests StickerRequest[]
 
   plateNumber          String      @db.VarChar(20)
   make                 String?     @db.VarChar(50)
@@ -1366,6 +1501,9 @@ model VehicleSticker {
   vehicleId String  @db.Uuid
   vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
+  requestId String?        @db.Uuid
+  request   StickerRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
   stickerNumber  String?       @db.VarChar(30)
   issueDate      DateTime?
   expirationDate DateTime?
@@ -1391,8 +1529,76 @@ model VehicleSticker {
   @@unique([communityId, stickerNumber])
   @@index([communityId])
   @@index([vehicleId])
+  @@index([requestId])
   @@index([status])
   @@index([assessmentId])
+}
+
+/////////////////////////////////////////////////////
+// STICKER REQUEST
+/////////////////////////////////////////////////////
+
+model StickerRequest {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  vehicleId String  @db.Uuid
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  requestNumber String @db.VarChar(30)
+  quantity      Int    @default(1)
+  feeTotal      Decimal @db.Decimal(12, 2)
+
+  status StickerRequestStatus @default(PENDING)
+
+  notes String? @db.VarChar(500)
+
+  assessmentId String?    @db.Uuid
+  assessment   Assessment? @relation("StickerRequestAssessment", fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  requestedById String  @db.Uuid
+  requestedBy   User    @relation("StickerRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  approvedById String?  @db.Uuid
+  approvedBy   User?    @relation("StickerRequestApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  reviewRemarks String?
+
+  stickers VehicleSticker[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, requestNumber])
+  @@index([communityId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([assessmentId])
+}
+
+/////////////////////////////////////////////////////
+// SEQUENCE (atomic per-community counters)
+/////////////////////////////////////////////////////
+
+model Sequence {
+  id String @id @default(uuid()) @db.Uuid
+
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  key       String @db.VarChar(50)
+  prefix    String @db.VarChar(20)
+  digits    Int    @default(6)
+  nextValue BigInt @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, key])
+  @@index([communityId])
 }
 
 /////////////////////////////////////////////////////
@@ -1575,6 +1781,8 @@ model Assessment {
   allocations PaymentAllocation[]
   itemLoans   FacilityItemLoan[]
   vehicleStickers VehicleSticker[] @relation("StickerAssessment")
+  stickerRequests  StickerRequest[] @relation("StickerRequestAssessment")
+  constructionBond ConstructionBond?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

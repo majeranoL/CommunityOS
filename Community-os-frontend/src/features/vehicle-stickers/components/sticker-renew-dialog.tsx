@@ -21,12 +21,16 @@ import {
 import { Input } from '@/components/ui/input'
 import { useRenewSticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { stickerRenewSchema, type StickerRenewValues } from '@/features/vehicle-stickers/validation/vehicle-sticker'
-import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
+
+interface StickerRenewTarget {
+  id: string
+  stickerNumber?: string | null
+}
 
 interface StickerRenewDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sticker: VehicleStickerListItem | null
+  sticker: StickerRenewTarget | null
 }
 
 export function StickerRenewDialog({

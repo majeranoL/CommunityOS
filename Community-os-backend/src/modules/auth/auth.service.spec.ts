@@ -55,6 +55,7 @@ const fullAccount = {
     phoneNumber: null,
     avatarUrl: null,
     isPlatformAdmin: false,
+    isCommunityAccount: false,
     community: {
       id: 'community-id',
       code: 'C1',
@@ -71,6 +72,7 @@ const fullAccount = {
         unit: null,
         address: null,
       },
+      householdMemberships: [],
     },
     roles: [{ role: { name: 'Member', permissions: [] } }],
   },

@@ -35,12 +35,9 @@ const ownerFields = {
 
 export const communityStepSchema = z.object(communityFields)
 
-export const ownerInfoStepSchema = z
-  .object(ownerFields)
-  .refine((values) => Boolean(values.block || values.lot || values.unit || values.homeAddress), {
-    message: 'Provide at least one of block, lot, unit, or address',
-    path: ['block'],
-  })
+// Phase 5: the initial Community Account is not automatically linked to a
+// Household/Resident, so unit details are optional.
+export const ownerInfoStepSchema = z.object(ownerFields)
 
 export const getStartedSchema = z
   .object({ ...communityFields, ...ownerFields })

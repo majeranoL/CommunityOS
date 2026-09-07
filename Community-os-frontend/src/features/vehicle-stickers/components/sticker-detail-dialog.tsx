@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { useVerifySticker, useVehicleSticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import type { StickerStatus } from '@/features/vehicle-stickers/types/vehicle-sticker'
+import type { StickerRequestStatus } from '@/features/vehicle-stickers/types/vehicle-sticker'
 import { formatDate, formatCurrency } from '@/lib/format'
 import type { ReactNode } from 'react'
 
@@ -30,17 +30,19 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-const STATUS_VARIANT: Record<StickerStatus, 'warning' | 'success' | 'muted' | 'destructive'> = {
+const STATUS_VARIANT: Record<StickerRequestStatus, 'warning' | 'success' | 'destructive' | 'muted'> = {
   PENDING: 'warning',
-  ACTIVE: 'success',
-  EXPIRED: 'muted',
-  REVOKED: 'destructive',
+  APPROVED: 'success',
+  REJECTED: 'destructive',
+  CANCELLED: 'muted',
 }
 
 export function StickerDetailDialog({ open, onOpenChange, stickerId }: StickerDetailDialogProps) {
   const canVerify = useHasPermission(PERMISSIONS.stickerVerify)
-  const { data: sticker, isLoading } = useVehicleSticker(open ? stickerId : null)
+  const { data: request, isLoading } = useVehicleSticker(open ? stickerId : null)
   const verifySticker = useVerifySticker(() => onOpenChange(false))
+
+  const fee = Number(request?.feeTotal ?? 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,43 +50,62 @@ export function StickerDetailDialog({ open, onOpenChange, stickerId }: StickerDe
         <DialogHeader>
           <DialogTitle>Sticker request</DialogTitle>
           <DialogDescription>
-            {sticker?.status === 'PENDING'
+            {request?.status === 'PENDING'
               ? 'Review the details below before approving or rejecting.'
-              : 'Vehicle sticker details.'}
+              : 'Sticker request details.'}
           </DialogDescription>
         </DialogHeader>
 
-        {isLoading || !sticker ? (
+        {isLoading || !request ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
         ) : (
           <div className="space-y-2.5 rounded-md border bg-muted/40 p-4">
+            <Row label="Request number">
+              <span className="font-mono">{request.requestNumber}</span>
+            </Row>
             <Row label="Vehicle">
-              <span className="font-mono uppercase">{sticker.vehicle.plateNumber}</span>
+              <span className="font-mono uppercase">{request.vehicle.plateNumber}</span>
             </Row>
             <Row label="Status">
-              <Badge variant={STATUS_VARIANT[sticker.status]}>{sticker.status}</Badge>
+              <Badge variant={STATUS_VARIANT[request.status]}>{request.status}</Badge>
             </Row>
-            <Row label="Sticker number">
-              <span className="font-mono">{sticker.stickerNumber ?? '—'}</span>
+            <Row label="Quantity">{request.quantity}</Row>
+            <Row label="Fee">
+              {fee > 0 ? formatCurrency(fee) : 'Free'}
             </Row>
-            <Row label="Issue date">{formatDate(sticker.issueDate)}</Row>
-            <Row label="Expires">{sticker.status === 'ACTIVE' && formatDate(sticker.expirationDate)}</Row>
-            {sticker.assessment ? (
-              <Row label="Fee billed">
-                {formatCurrency(sticker.assessment.amount)}{' '}
-                <span className="text-xs text-muted-foreground">
-                  ({sticker.assessment.assessmentNumber})
+            {request.assessment ? (
+              <Row label="Billed as">
+                <span className="text-right">
+                  {formatCurrency(request.assessment.amount)}
+                  <span className="block font-mono text-xs text-muted-foreground">
+                    {request.assessment.assessmentNumber}
+                  </span>
                 </span>
               </Row>
             ) : null}
-            {sticker.verificationRemarks ? (
-              <Row label="Remarks">{sticker.verificationRemarks}</Row>
+            {request.stickers.length > 0 ? (
+              <div className="flex justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">Sticker(s)</span>
+                <span className="text-right font-mono text-xs">
+                  {request.stickers.map((sticker) => sticker.stickerNumber).join(', ')}
+                </span>
+              </div>
             ) : null}
+            <Row label="Requested by">
+              {request.requestedBy.firstName} {request.requestedBy.lastName}
+            </Row>
+            {request.approvedBy ? (
+              <Row label="Reviewed by">
+                {request.approvedBy.firstName} {request.approvedBy.lastName}
+              </Row>
+            ) : null}
+            {request.reviewRemarks ? <Row label="Remarks">{request.reviewRemarks}</Row> : null}
+            <Row label="Requested at">{formatDate(request.createdAt)}</Row>
           </div>
         )}
 
         <DialogFooter className="gap-2 sm:justify-between">
-          {canVerify && sticker?.status === 'PENDING' ? (
+          {canVerify && request?.status === 'PENDING' ? (
             <div className="flex w-full gap-2">
               <Button
                 type="button"
@@ -92,7 +113,7 @@ export function StickerDetailDialog({ open, onOpenChange, stickerId }: StickerDe
                 className="flex-1"
                 disabled={verifySticker.isPending}
                 onClick={() =>
-                  verifySticker.mutate({ id: sticker.id, input: { approved: false } })
+                  verifySticker.mutate({ id: request.id, input: { approved: false } })
                 }
               >
                 {verifySticker.isPending ? 'Saving…' : 'Reject'}
@@ -102,7 +123,7 @@ export function StickerDetailDialog({ open, onOpenChange, stickerId }: StickerDe
                 className="flex-1"
                 disabled={verifySticker.isPending}
                 onClick={() =>
-                  verifySticker.mutate({ id: sticker.id, input: { approved: true } })
+                  verifySticker.mutate({ id: request.id, input: { approved: true } })
                 }
               >
                 {verifySticker.isPending ? 'Saving…' : 'Approve'}

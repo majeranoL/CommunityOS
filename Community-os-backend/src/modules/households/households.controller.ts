@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -19,6 +20,7 @@ import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
+import { SwitchHouseholdDto } from './dto/switch-household.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -100,6 +102,22 @@ export class HouseholdsController {
     @Body() dto: UpdateHouseholdDto,
   ) {
     return this.householdsService.update(req.user.community.id, id, dto);
+  }
+
+  // ==========================================
+  // Switch My Active Household (self-service)
+  // A member can change their active household
+  // context without household.update.
+  // ==========================================
+
+  @Patch('switch')
+  @Permissions('assessment.view')
+  switchMyHousehold(@Request() req: any, @Body() dto: SwitchHouseholdDto) {
+    return this.householdsService.switchHousehold(
+      req.user.community.id,
+      req.user.id,
+      dto.householdId,
+    );
   }
 
   // ==========================================

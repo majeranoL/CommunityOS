@@ -2,11 +2,13 @@ import {
   Injectable,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 
 import {
   AssessmentStatus,
+  HouseholdMembershipStatus,
   HouseholdStatus,
   PaymentStatus,
   ResidentStatus,
@@ -583,6 +585,92 @@ export class HouseholdsService {
         ...household,
         occupancyHistory,
         finance,
+      },
+    };
+  }
+
+  // ==========================================
+  // Switch Active Household (self-service)
+  // The user's Resident.householdId becomes the
+  // default app context (session) for the next request.
+  // Only ACTIVE memberships on ACTIVE households.
+  // ==========================================
+
+  async switchHousehold(
+    communityId: string,
+    userId: string,
+    householdId: string,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        communityId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        residentId: true,
+      },
+    });
+
+    if (!user?.residentId) {
+      throw new ForbiddenException('No resident is linked to your account.');
+    }
+
+    const membership = await this.prisma.residentHousehold.findFirst({
+      where: {
+        communityId,
+        residentId: user.residentId,
+        householdId,
+        status: HouseholdMembershipStatus.ACTIVE,
+        household: {
+          deletedAt: null,
+        },
+      },
+      include: {
+        household: {
+          select: {
+            id: true,
+            block: true,
+            lot: true,
+            unit: true,
+            address: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException(
+        'You are not an active member of this household.',
+      );
+    }
+
+    if (membership.household.status !== HouseholdStatus.ACTIVE) {
+      throw new ConflictException(
+        'This household is inactive and cannot be selected.',
+      );
+    }
+
+    await this.prisma.resident.update({
+      where: {
+        id: user.residentId,
+      },
+      data: {
+        householdId,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Household switched successfully.',
+      data: {
+        id: membership.household.id,
+        block: membership.household.block,
+        lot: membership.household.lot,
+        unit: membership.household.unit,
+        address: membership.household.address,
       },
     };
   }

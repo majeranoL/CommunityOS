@@ -19,24 +19,19 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { useStickerOptions, useVerifySticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
+import { useVerifySticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { stickerVerifySchema, type StickerVerifyValues } from '@/features/vehicle-stickers/validation/vehicle-sticker'
-import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
+import type { StickerRequestListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
 import { formatCurrency } from '@/lib/format'
 
 interface StickerVerifyDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sticker: VehicleStickerListItem | null
+  request: StickerRequestListItem | null
 }
 
-export function StickerVerifyDialog({
-  open,
-  onOpenChange,
-  sticker,
-}: StickerVerifyDialogProps) {
+export function StickerVerifyDialog({ open, onOpenChange, request }: StickerVerifyDialogProps) {
   const verifySticker = useVerifySticker(() => onOpenChange(false))
-  const { data: options } = useStickerOptions()
 
   const form = useForm<StickerVerifyValues>({
     resolver: zodResolver(stickerVerifySchema),
@@ -48,34 +43,37 @@ export function StickerVerifyDialog({
   }, [open, form])
 
   const handleSubmit = (values: StickerVerifyValues) => {
-    if (!sticker) return
+    if (!request) return
     verifySticker.mutate({
-      id: sticker.id,
+      id: request.id,
       input: { approved: values.approved, remarks: values.remarks || undefined },
     })
   }
 
   const pending = verifySticker.isPending
-  const price = options?.price ?? 0
+  const fee = Number(request?.feeTotal ?? 0)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Verify sticker</DialogTitle>
+          <DialogTitle>Review sticker request</DialogTitle>
           <DialogDescription>
-            Review and approve or reject sticker{' '}
-            <span className="font-mono text-foreground">{sticker?.stickerNumber ?? 'pending'}</span>{' '}
-            for{' '}
-            <span className="font-medium text-foreground">{sticker?.vehicle?.plateNumber}</span>.
+            Approve or reject request{' '}
+            <span className="font-mono text-foreground">{request?.requestNumber}</span> for{' '}
+            <span className="font-medium text-foreground">{request?.vehicle?.plateNumber}</span>.
           </DialogDescription>
         </DialogHeader>
 
-        {price > 0 ? (
-          <div className="rounded-md border bg-muted/40 p-3 text-sm">
+        {fee > 0 ? (
+          <div className="space-y-1 rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Quantity</span>
+              <span className="font-medium">{request?.quantity ?? 1}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Household will be billed</span>
-              <span className="font-medium">{formatCurrency(price)}</span>
+              <span className="font-medium">{formatCurrency(fee)}</span>
             </div>
           </div>
         ) : null}
@@ -115,7 +113,7 @@ export function StickerVerifyDialog({
                 disabled={pending}
                 onClick={() => form.setValue('approved', true)}
               >
-                {pending ? 'Saving…' : 'Approve'}
+                {pending ? 'Saving…' : 'Approve & issue'}
               </Button>
             </DialogFooter>
           </form>

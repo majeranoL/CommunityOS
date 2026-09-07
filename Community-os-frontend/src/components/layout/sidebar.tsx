@@ -1,11 +1,11 @@
 import { NavLink, useLocation, matchPath } from 'react-router-dom'
 import { useAuthStore, useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { NAV_SECTIONS } from '@/components/layout/nav-items'
+import { NAV_SECTIONS, NOTIFICATION_BADGE_TYPES } from '@/components/layout/nav-items'
 import { useEnabledFeatures } from '@/features/features/hooks/use-enabled-features'
 import { useBranding } from '@/features/branding/hooks/use-branding'
 import { SecureImage } from '@/components/shared/secure-image'
-import { useNavBadges } from '@/features/dashboard/hooks/use-dashboard'
+import { useNotificationBadges } from '@/features/notifications/hooks/use-notifications'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { LucideIcon } from 'lucide-react'
@@ -60,13 +60,16 @@ function SidebarContent({ onNavigate }: SidebarProps) {
   const isOfficer = useHasPermission(PERMISSIONS.residentVerify)
   const { data: enabledFeatures } = useEnabledFeatures()
   const { data: branding } = useBranding()
-  const { data: badges } = useNavBadges()
+  const { data: badges } = useNotificationBadges()
   const enabledCodes = new Set((enabledFeatures ?? []).map((feature) => feature.code))
 
-  const badgeMap: Record<string, string | undefined> = {
-    '/app/complaints': badges?.complaints ? String(badges.complaints) : undefined,
-    '/app/facilities': badges?.reservations ? String(badges.reservations) : undefined,
-    '/app/announcements': badges?.announcements ? String(badges.announcements) : undefined,
+  const badgeMap: Record<string, string | undefined> = {}
+  for (const [href, types] of Object.entries(NOTIFICATION_BADGE_TYPES)) {
+    const count = types.reduce(
+      (total, type) => total + (badges?.[type] ?? 0),
+      0,
+    )
+    if (count > 0) badgeMap[href] = String(count)
   }
 
   return (

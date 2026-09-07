@@ -276,6 +276,18 @@ export class VehiclesService {
               expirationDate: true,
             },
           },
+          requests: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              requestNumber: true,
+              status: true,
+              quantity: true,
+              createdAt: true,
+            },
+          },
         },
       }),
 
@@ -329,6 +341,18 @@ export class VehiclesService {
             stickerNumber: true,
             status: true,
             expirationDate: true,
+          },
+        },
+        requests: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            requestNumber: true,
+            status: true,
+            quantity: true,
+            createdAt: true,
           },
         },
       },

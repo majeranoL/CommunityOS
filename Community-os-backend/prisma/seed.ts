@@ -4,11 +4,13 @@ import {
   AccountStatus,
   UserStatus,
   HouseholdStatus,
+  HouseholdRelationshipType,
+  HouseholdMembershipStatus,
   FacilityStatus,
   FacilityType,
   Gender,
   CivilStatus,
-  ResidentStatus,
+  ResidentStatus, 
   VisitorStatus,
   VehicleType,
   VehicleStatus,
@@ -65,6 +67,54 @@ function hoursAfter(iso: string, hours: number): Date {
 }
 
 async function main() {
+  // =====================================================
+  // DESTRUCTIVE SEED GUARD (Phase 6)
+  // =====================================================
+  // This script DELETES ALL DATA and reseeds a demo.
+  // Refuse to run unless the operator explicitly confirms.
+
+  if (process.env.SEED_CONFIRM?.toLowerCase() !== 'yes') {
+    console.error(
+      '\n[Seed Aborted] The seed script WIPES the database and rebuilds demo data.',
+    );
+    console.error(
+      'Re-run with SEED_CONFIRM=yes to acknowledge the reset, e.g.:',
+    );
+    console.error('  SEED_CONFIRM=yes npx prisma db seed');
+    console.error('  SEED_CONFIRM=yes npx prisma migrate reset');
+    process.exit(1);
+  }
+
+  // Production host detection: refuse to seed live/managed databases even
+  // with SEED_CONFIRM set, unless the operator also sets
+  // SEED_ALLOW_PRODUCTION=yes (an explicit, hard override).
+
+  const dbUrl = process.env.DATABASE_URL ?? '';
+  const dbHost = (dbUrl.split('@').pop() ?? '')
+    .split('/')[0]
+    .split(':')[0]
+    .toLowerCase();
+
+  const looksLikeProduction =
+    process.env.NODE_ENV === 'production' ||
+    /^production|\.prod|production\.|supabase\.co|\.railway\.|aws|azure|gcp|cloudsql|elephantsql|aiven\./.test(
+      dbHost,
+    );
+
+  if (looksLikeProduction && process.env.SEED_ALLOW_PRODUCTION !== 'yes') {
+    console.error(
+      '\n[Seed Aborted] This looks like a production/managed database host:',
+    );
+    console.error(`  DATABASE_URL host: "${dbHost}"`);
+    console.error(
+      'Seeding here would destroy live data. If you are absolutely sure this',
+    );
+    console.error(
+      'is the correct environment, re-run with SEED_ALLOW_PRODUCTION=yes.',
+    );
+    process.exit(1);
+  }
+
   // =====================================================
   // CLEAN DATABASE (FK-safe order, children first)
   // =====================================================
@@ -607,6 +657,7 @@ async function main() {
       lastName: 'Administrator',
       status: UserStatus.ACTIVE,
       isPlatformAdmin: true,
+      isCommunityAccount: true,
     },
   });
 
@@ -698,6 +749,43 @@ async function main() {
   }
 
   console.log('✅ Residents created');
+
+  // =====================================================
+  // RESIDENT-HOUSEHOLD MEMBERSHIPS (Phase 4)
+  // =====================================================
+
+  // Every resident gets an ACTIVE PRIMARY membership for their assigned
+  // household, keeping the multi-household graph consistent on fresh seeds.
+  for (let index = 0; index < residentData.length; index++) {
+    const item = residentData[index];
+    await prisma.residentHousehold.create({
+      data: {
+        communityId: community.id,
+        residentId: residents[index].id,
+        householdId: households[item.householdIndex].id,
+        relationshipType: HouseholdRelationshipType.OWNER,
+        isPrimary: true,
+        status: HouseholdMembershipStatus.ACTIVE,
+        startDate: new Date(),
+      },
+    });
+  }
+
+  // Maria Dela Cruz (demo Treasurer) also belongs to a second household so
+  // the topbar household switcher can be demonstrated (Phase 4 item).
+  await prisma.residentHousehold.create({
+    data: {
+      communityId: community.id,
+      residentId: residents[1].id,
+      householdId: households[5].id,
+      relationshipType: HouseholdRelationshipType.FAMILY,
+      isPrimary: false,
+      status: HouseholdMembershipStatus.ACTIVE,
+      startDate: new Date(),
+    },
+  });
+
+  console.log('✅ Resident-household memberships created');
 
   // =====================================================
   // DEMO MEMBER USERS

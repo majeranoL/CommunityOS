@@ -124,6 +124,23 @@ export class NotificationsController {
   }
 
   // ==========================================
+  // Unread counts by module
+  // ==========================================
+
+  @Get('unread-by-module')
+  @Permissions('notification.view')
+  @ApiBearerAuth()
+  @ApiOkResponse({
+    description: 'Unread notification counts grouped by module',
+  })
+  unreadByModule(@Request() req: any) {
+    return this.notificationsService.unreadByModule(
+      req.user.community.id,
+      req.user.id,
+    );
+  }
+
+  // ==========================================
   // Mark all as read
   // ==========================================
 

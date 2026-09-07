@@ -27,6 +27,7 @@ import { useAuthStore } from '@/store/auth-store'
 import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { authService } from '@/features/auth/services/auth'
 import { useUnreadCount } from '@/features/notifications/hooks/use-notifications'
+import { SwitchHouseholdButton } from '@/features/households/components/switch-household-button'
 import { initials } from '@/lib/format'
 
 interface TopbarProps {
@@ -58,7 +59,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-card/80 px-4 shadow-sm backdrop-blur-xl sm:px-6">
-      <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="lg:hidden"
+        onClick={onMenuClick}
+      >
         <Menu className="h-5 w-5" />
         <span className="sr-only">Open navigation</span>
       </Button>
@@ -69,6 +75,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-1">
+        <SwitchHouseholdButton />
         <Button
           variant="ghost"
           size="icon"
@@ -88,7 +95,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           size="icon"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
           <span className="sr-only">Toggle theme</span>
         </Button>
 
@@ -110,9 +121,15 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-0.5">
-                <span className="text-sm font-medium">{user?.firstName} {user?.lastName}</span>
-                <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
-                <span className="text-xs font-normal text-muted-foreground">{user?.referenceNumber}</span>
+                <span className="text-sm font-medium">
+                  {user?.firstName} {user?.lastName}
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  {user?.email}
+                </span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  {user?.referenceNumber}
+                </span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

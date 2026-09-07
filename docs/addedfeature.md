@@ -437,3 +437,17 @@ After implementation, test:
 20. Safely migrating existing household assignments.
 
 Prioritize data integrity, correct permissions, auditability, and simplicity for non-technical HOA users.
+
+
+Below are the current todo and done task check this first before reading everything else
+[✓] Phase 1 schema (StickerRequest/Sequence/StickerRequestStatus + migration)
+[✓] Phase 1 backend service/controller/DTOs (request-centric, officer-gated create, sequence numbering, cycle settings)
+[✓] Phase 1 backend tests + build (24 spec tests, prune build, full jest green)
+[✓] Phase 1 frontend rewrite (requests model, quantity, cycle settings)
+[✓] Phase 1 frontend verification (tsc/vitest/eslint pass, vite build ok)
+[✓] Phase 2 official receipt printing (print-only receipt, hides app shell/portals, page margins, PDF-safe)
+[•] Phase 3 notification sidebar badges (user-specific counts) -> [DONE] GET /notifications/unread-by-module (groupBy type), sidebar badge map to per-user unread per module (complaints/facilities/announcements/events/polls/vehicles/stickers/finance), SSE invalidation, specs + builds green
+[ ] Phase 4 multi-household refactor (ResidentHousehold junction, activeHouseholdId, switch) -> [DONE] ResidentHousehold junction + HouseholdRelationshipType/HouseholdMembershipStatus enums + Resident.primaryHouseholdId; migration + hand-written backfill (existing assignments -> ACTIVE + PRIMARY, verified 14/14, zero missing); session me()/login/refresh now return resident.households (active memberships); PATCH /households/switch (assessment.view, validates ACTIVE membership + ACTIVE household, updates Resident.householdId); POST /residents/:id/households (resident.verify, adds association, first association -> active+primary); topbar SwitchHouseholdButton dropdown (primary badge, clears query cache, reloads dashboard); 4 new switch specs, backend 208 + frontend 42 tests green
+[ ] Phase 5 Community Account (President provisioning, optional unit) -> [DONE] User.isCommunityAccount flag (+ migration add_is_community_account); provision() only links Household/Resident when the caller explicitly requires it (requireUnit=true superadmin path) - self-signup never auto-creates Household/Resident/membership even when unit fields are provided; initial account always created with isCommunityAccount=true + President role; session login/refresh/profile now return isCommunityAccount; get-started owner step no longer requires unit/address (optional); frontend SessionUser.isCommunityAccount; 5 new provision specs (self-signup independent, unit-info ignored, explicit requireUnit links, missing unit 400, duplicate email 409); backend 213 + frontend 42 tests green
+[ ] Phase 6 demo reset/seed guard (SEED_CONFIRM=yes, prod host detection) -> [DONE] prisma/seed.ts now aborts unless SEED_CONFIRM=yes (clear instructions printed), and blocks production/managed hosts (NODE_ENV=production or DATABASE_URL host matching prod patterns incl. .railway./supabase.co/aws/azure/gcp/etc.) unless SEED_ALLOW_PRODUCTION=yes override; demo data completeness: seed now creates ResidentHousehold ACTIVE+PRIMARY memberships for all 14 residents, adds a second FAMILY membership for Maria Dela Cruz (demo Treasurer) to demo the Phase 4 topbar household switcher, and marks the demo community-account President (admin@communityos.com) isCommunityAccount=true; guard smoke-tested (no-confirm abort + prod-host abort, exit 1 before any DB touch), no new lint issues introduced
+[ ] Phase 7 construction/renovation review (ASK USER FOR WORKFLOW FIRST)

@@ -10,9 +10,12 @@ import { UpdateResidentDto } from './dto/update-resident.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateResidentDto } from './dto/create-resident.dto';
 import { VerifyResidentDto } from './dto/verify-resident.dto';
+import { AddHouseholdMembershipDto } from './dto/add-household-membership.dto';
 import { ResidentQueryDto } from './dto/resident-query.dto';
 import {
   AccountStatus,
+  HouseholdMembershipStatus,
+  HouseholdRelationshipType,
   ResidentStatus,
   ResidentType,
   SessionStatus,
@@ -894,6 +897,132 @@ export class ResidentService {
       data: updatedResident,
     };
   }
+  // ==========================================
+  // Add Household Membership
+  // Associates a resident with an additional
+  // household (multi-home/ownership support).
+  // ==========================================
+
+  async addHouseholdMembership(
+    communityId: string,
+    residentId: string,
+    dto: AddHouseholdMembershipDto,
+  ) {
+    const resident = await this.prisma.resident.findFirst({
+      where: {
+        id: residentId,
+        communityId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        householdId: true,
+        primaryHouseholdId: true,
+      },
+    });
+
+    if (!resident) {
+      throw new NotFoundException('Resident not found.');
+    }
+
+    const household = await this.prisma.household.findFirst({
+      where: {
+        id: dto.householdId,
+        communityId,
+        deletedAt: null,
+      },
+    });
+
+    if (!household) {
+      throw new NotFoundException('Household not found.');
+    }
+
+    const existing = await this.prisma.residentHousehold.findUnique({
+      where: {
+        communityId_residentId_householdId: {
+          communityId,
+          residentId,
+          householdId: dto.householdId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException(
+        'Resident is already associated with this household.',
+      );
+    }
+
+    const membership = await this.prisma.$transaction(async (tx) => {
+      if (dto.isPrimary) {
+        await tx.residentHousehold.updateMany({
+          where: {
+            communityId,
+            residentId,
+            status: HouseholdMembershipStatus.ACTIVE,
+          },
+          data: {
+            isPrimary: false,
+          },
+        });
+      }
+
+      const created = await tx.residentHousehold.create({
+        data: {
+          communityId,
+          residentId,
+          householdId: dto.householdId,
+          relationshipType:
+            dto.relationshipType ?? HouseholdRelationshipType.OWNER,
+          isPrimary: dto.isPrimary ?? false,
+          status: HouseholdMembershipStatus.ACTIVE,
+          startDate: new Date(),
+        },
+        select: {
+          id: true,
+          householdId: true,
+          relationshipType: true,
+          isPrimary: true,
+          status: true,
+          startDate: true,
+          createdAt: true,
+        },
+      });
+
+      // First association becomes both the active and primary household.
+      if (!resident.householdId) {
+        await tx.resident.update({
+          where: {
+            id: residentId,
+          },
+          data: {
+            householdId: dto.householdId,
+            ...(!resident.primaryHouseholdId && {
+              primaryHouseholdId: dto.householdId,
+            }),
+          },
+        });
+      } else if (dto.isPrimary && !resident.primaryHouseholdId) {
+        await tx.resident.update({
+          where: {
+            id: residentId,
+          },
+          data: {
+            primaryHouseholdId: dto.householdId,
+          },
+        });
+      }
+
+      return created;
+    });
+
+    return {
+      success: true,
+      message: 'Household association added successfully.',
+      data: membership,
+    };
+  }
+
   async remove(communityId: string, user: any, id: string) {
     const resident = await this.prisma.resident.findFirst({
       where: {

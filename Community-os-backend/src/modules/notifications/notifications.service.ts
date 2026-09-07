@@ -556,6 +556,35 @@ export class NotificationsService {
   }
 
   // ==========================================
+  // Unread counts grouped by module (type)
+  // ==========================================
+
+  async unreadByModule(communityId: string, userId: string) {
+    const grouped = await this.prisma.notification.groupBy({
+      by: ['type'],
+      where: {
+        communityId,
+        userId,
+        readAt: null,
+      },
+      _count: {
+        type: true,
+      },
+    });
+
+    const counts: Partial<Record<NotificationType, number>> = {};
+    for (const row of grouped) {
+      counts[row.type] = row._count.type;
+    }
+
+    return {
+      success: true,
+      message: 'Unread notification counts by module retrieved successfully.',
+      data: counts,
+    };
+  }
+
+  // ==========================================
   // Mark single notification as read
   // ==========================================
 

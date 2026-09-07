@@ -29,10 +29,21 @@ export interface HouseholdSummary {
   address: string | null
 }
 
+export interface HouseholdMembershipSummary {
+  id: string
+  block: string | null
+  lot: string | null
+  unit: string | null
+  address: string | null
+  relationshipType: string
+  isPrimary: boolean
+}
+
 export interface ResidentSummary {
   id: string
   residentNumber: string
   household: HouseholdSummary | null
+  households?: HouseholdMembershipSummary[]
 }
 
 export interface SessionUser {
@@ -46,6 +57,7 @@ export interface SessionUser {
   avatarUrl: string | null
   status?: string
   isPlatformAdmin?: boolean
+  isCommunityAccount?: boolean
   community: CommunitySummary
   resident: ResidentSummary | null
   roles: string[]

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { StickyNote, Plus, Search } from 'lucide-react'
+import { Settings2, Plus, Search, StickyNote } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
@@ -16,16 +16,19 @@ import {
 } from '@/components/ui/select'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
-import { useVehicleStickers, useDeleteSticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
+import {
+  useCancelRequest,
+  useVehicleStickers,
+} from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { StickerFormDialog } from '@/features/vehicle-stickers/components/sticker-form-dialog'
 import { StickerVerifyDialog } from '@/features/vehicle-stickers/components/sticker-verify-dialog'
-import { StickerRenewDialog } from '@/features/vehicle-stickers/components/sticker-renew-dialog'
 import { StickerDetailDialog } from '@/features/vehicle-stickers/components/sticker-detail-dialog'
+import { StickerSettingsDialog } from '@/features/vehicle-stickers/components/sticker-settings-dialog'
 import { useViewParam } from '@/lib/use-view-param'
-import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
+import type { StickerRequestListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
 import { formatDate, formatCurrency } from '@/lib/format'
 
-const STATUS_FILTERS = ['ALL', 'PENDING', 'ACTIVE', 'EXPIRED', 'REVOKED'] as const
+const STATUS_FILTERS = ['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'] as const
 
 export default function VehicleStickersPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -37,19 +40,16 @@ export default function VehicleStickersPage() {
   )
   const [page, setPage] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
-  const [editSticker, setEditSticker] = useState<VehicleStickerListItem | null>(null)
-  const [verifySticker, setVerifySticker] = useState<VehicleStickerListItem | null>(null)
-  const [renewSticker, setRenewSticker] = useState<VehicleStickerListItem | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [verifyRequest, setVerifyRequest] = useState<StickerRequestListItem | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
 
   useViewParam((id) => setDetailId(id))
 
   const canCreate = useHasPermission(PERMISSIONS.stickerCreate)
-  const canUpdate = useHasPermission(PERMISSIONS.stickerUpdate)
   const canVerify = useHasPermission(PERMISSIONS.stickerVerify)
-  const canDelete = useHasPermission(PERMISSIONS.stickerDelete)
 
-  const deleteSticker = useDeleteSticker()
+  const cancelRequest = useCancelRequest()
 
   const { data, isLoading, isFetching } = useVehicleStickers({
     page,
@@ -58,36 +58,30 @@ export default function VehicleStickersPage() {
     status: status === 'ALL' ? undefined : status,
   })
 
-  const isExpired = (sticker: VehicleStickerListItem) => {
-    return sticker.expirationDate ? new Date(sticker.expirationDate) < new Date() : false
-  }
-
-  const columns: Column<VehicleStickerListItem>[] = [
+  const columns: Column<StickerRequestListItem>[] = [
     {
-      key: 'sticker',
-      header: 'Sticker',
+      key: 'request',
+      header: 'Request',
       cell: (row) => (
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
             <StickyNote className="h-4 w-4 text-muted-foreground" />
           </div>
           <div className="leading-tight">
-            <p className="font-mono font-medium">
-              {row.stickerNumber ?? 'PENDING'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {row.vehicle?.plateNumber ?? '—'}
-            </p>
+            <p className="font-mono font-medium">{row.requestNumber}</p>
+            <p className="text-xs text-muted-foreground uppercase">{row.vehicle?.plateNumber}</p>
           </div>
         </div>
       ),
     },
     {
-      key: 'vehicle',
-      header: 'Vehicle',
+      key: 'quantity',
+      header: 'Stickers',
       cell: (row) => (
         <span className="text-muted-foreground">
-          {[row.vehicle?.make, row.vehicle?.model].filter(Boolean).join(' ') || '—'}
+          {row.status === 'APPROVED' && row.stickers.length > 0
+            ? `${row.stickers.length}x issued`
+            : `${row.quantity} requested`}
         </span>
       ),
       hideBelow: 'md',
@@ -95,41 +89,31 @@ export default function VehicleStickersPage() {
     {
       key: 'status',
       header: 'Status',
-      cell: (row) => {
-        const displayStatus = row.status === 'ACTIVE' && isExpired(row) ? 'EXPIRED' : row.status
-        return <StatusBadge status={displayStatus} />
-      },
+      cell: (row) => <StatusBadge status={row.status} />,
     },
     {
       key: 'fee',
       header: 'Fee',
       cell: (row) => {
-        if (!row.assessment) return <span className="text-muted-foreground">—</span>
-        return (
-          <span className="text-muted-foreground">
-            {formatCurrency(row.assessment.amount)}
-          </span>
-        )
+        const fee = Number(row.feeTotal ?? 0)
+        return <span className="text-muted-foreground">{fee > 0 ? formatCurrency(fee) : 'Free'}</span>
       },
       hideBelow: 'md',
     },
     {
-      key: 'issueDate',
-      header: 'Issue Date',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.issueDate)}</span>,
+      key: 'requestedBy',
+      header: 'Requested by',
+      cell: (row) => (
+        <span className="text-muted-foreground">
+          {row.requestedBy.firstName} {row.requestedBy.lastName}
+        </span>
+      ),
       hideBelow: 'lg',
     },
     {
-      key: 'expirationDate',
-      header: 'Expires',
-      cell: (row) => {
-        const expired = isExpired(row)
-        return (
-          <span className={expired ? 'font-medium text-destructive' : 'text-muted-foreground'}>
-            {formatDate(row.expirationDate)}
-          </span>
-        )
-      },
+      key: 'createdAt',
+      header: 'Requested at',
+      cell: (row) => <span className="text-muted-foreground">{formatDate(row.createdAt)}</span>,
       hideBelow: 'lg',
     },
     {
@@ -142,41 +126,29 @@ export default function VehicleStickersPage() {
               type="button"
               variant="default"
               size="sm"
-              onClick={() => setVerifySticker(row)}
+              onClick={() => setVerifyRequest(row)}
             >
               Verify
             </Button>
           ) : null}
-          {canUpdate && row.status === 'ACTIVE' && !isExpired(row) ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setEditSticker(row)}
-            >
-              Edit
-            </Button>
-          ) : null}
-          {canCreate && (row.status === 'ACTIVE' || row.status === 'EXPIRED') ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setRenewSticker(row)}
-            >
-              Renew
-            </Button>
-          ) : null}
-          {canDelete ? (
+          {canCreate && row.status === 'PENDING' ? (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => deleteSticker.mutate(row.id)}
+              onClick={() => cancelRequest.mutate(row.id)}
             >
-              Delete
+              Cancel
             </Button>
           ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDetailId(row.id)}
+          >
+            View
+          </Button>
         </div>
       ),
     },
@@ -186,8 +158,14 @@ export default function VehicleStickersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Vehicle Stickers"
-        description="Manage vehicle sticker applications and renewals."
+        description="Manage vehicle sticker requests, issuance, and renewals."
       >
+        {canVerify ? (
+          <Button variant="outline" onClick={() => setSettingsOpen(true)}>
+            <Settings2 className="h-4 w-4" />
+            Settings
+          </Button>
+        ) : null}
         {canCreate ? (
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" />
@@ -200,7 +178,7 @@ export default function VehicleStickersPage() {
         <div className="relative sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search sticker number or plate…"
+            placeholder="Search request number or plate…"
             className="pl-9"
             value={search}
             onChange={(event) => {
@@ -245,26 +223,17 @@ export default function VehicleStickersPage() {
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
         isLoading={isLoading}
-        emptyMessage="No stickers found."
+        emptyMessage="No sticker requests found."
       />
 
       <Pagination pagination={data?.pagination} onPageChange={setPage} />
 
       <StickerFormDialog open={formOpen} onOpenChange={setFormOpen} />
-      <StickerFormDialog
-        open={Boolean(editSticker)}
-        onOpenChange={(open) => !open && setEditSticker(null)}
-        sticker={editSticker}
-      />
+      <StickerSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <StickerVerifyDialog
-        open={Boolean(verifySticker)}
-        onOpenChange={(open) => !open && setVerifySticker(null)}
-        sticker={verifySticker}
-      />
-      <StickerRenewDialog
-        open={Boolean(renewSticker)}
-        onOpenChange={(open) => !open && setRenewSticker(null)}
-        sticker={renewSticker}
+        open={Boolean(verifyRequest)}
+        onOpenChange={(open) => !open && setVerifyRequest(null)}
+        request={verifyRequest}
       />
       <StickerDetailDialog
         open={Boolean(detailId)}

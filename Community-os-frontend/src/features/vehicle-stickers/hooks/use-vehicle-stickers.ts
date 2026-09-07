@@ -6,6 +6,7 @@ import type {
   CreateStickerInput,
   RenewStickerInput,
   RequestStickerInput,
+  StickerSettingsInput,
   UpdateStickerInput,
   VerifyStickerInput,
 } from '@/features/vehicle-stickers/types/vehicle-sticker'
@@ -69,12 +70,14 @@ export function useCreateSticker(onSuccess?: () => void) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: CreateStickerInput) => vehicleStickersService.create(input),
-    onSuccess: () => {
-      toast.success('Sticker application submitted.')
+    onSuccess: (_result, input) => {
+      const count = input.quantity ?? 1
+      toast.success(`${count > 1 ? `${count} stickers` : 'Sticker'} issued.`)
       queryClient.invalidateQueries({ queryKey: stickerKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to create sticker.')),
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to issue sticker.')),
   })
 }
 
@@ -105,17 +108,32 @@ export function useDeleteSticker(onSuccess?: () => void) {
   })
 }
 
+export function useCancelRequest(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => vehicleStickersService.cancelRequest(id),
+    onSuccess: () => {
+      toast.success('Sticker request cancelled.')
+      queryClient.invalidateQueries({ queryKey: stickerKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to cancel request.')),
+  })
+}
+
 export function useVerifySticker(onSuccess?: () => void) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: VerifyStickerInput }) =>
       vehicleStickersService.verify(id, input),
     onSuccess: () => {
-      toast.success('Sticker verification updated.')
+      toast.success('Sticker request reviewed.')
       queryClient.invalidateQueries({ queryKey: stickerKeys.all })
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
       onSuccess?.()
     },
-    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to verify sticker.')),
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to review request.')),
   })
 }
 
@@ -130,5 +148,18 @@ export function useRenewSticker(onSuccess?: () => void) {
       onSuccess?.()
     },
     onError: (error) => toast.error(apiErrorMessage(error, 'Failed to renew sticker.')),
+  })
+}
+
+export function useUpdateStickerSettings(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: StickerSettingsInput) => vehicleStickersService.updateSettings(input),
+    onSuccess: () => {
+      toast.success('Sticker settings updated.')
+      queryClient.invalidateQueries({ queryKey: stickerKeys.options })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to update settings.')),
   })
 }

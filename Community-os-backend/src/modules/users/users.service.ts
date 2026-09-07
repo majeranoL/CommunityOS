@@ -120,6 +120,14 @@ export class UsersService {
             resident: {
               include: {
                 household: true,
+                householdMemberships: {
+                  where: {
+                    status: 'ACTIVE',
+                  },
+                  include: {
+                    household: true,
+                  },
+                },
               },
             },
             roles: {
@@ -153,6 +161,14 @@ export class UsersService {
         resident: {
           include: {
             household: true,
+            householdMemberships: {
+              where: {
+                status: 'ACTIVE',
+              },
+              include: {
+                household: true,
+              },
+            },
           },
         },
         roles: {

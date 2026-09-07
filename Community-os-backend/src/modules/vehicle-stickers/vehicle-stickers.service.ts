@@ -11,6 +11,7 @@ import {
   FinanceCategory,
   NotificationType,
   Prisma,
+  StickerRequestStatus,
   StickerStatus,
 } from '@prisma/client';
 
@@ -25,12 +26,28 @@ import { CreateStickerDto } from './dto/create-sticker.dto';
 import { UpdateStickerDto } from './dto/update-sticker.dto';
 import { VerifyStickerDto } from './dto/verify-sticker.dto';
 import { StickerQueryDto } from './dto/sticker-query.dto';
+import { RequestStickerDto } from './dto/request-sticker.dto';
+import { RequestQueryDto } from './dto/request-query.dto';
+import { UpdateStickerSettingsDto } from './dto/update-sticker-settings.dto';
 
 import { VEHICLE_STICKERS_FEATURE } from '../features/feature.constants';
 
 const STICKER_CHARGE_CODE = 'vehicle-sticker';
 const STICKER_CHARGE_NAME = 'Vehicle Sticker / Gate Pass Fee';
 const VALIDITY_DAYS = 365;
+
+const SEQUENCE_CONFIGS = {
+  'vehicle-sticker': { prefix: 'STK', digits: 6 },
+  'sticker-request': { prefix: 'SR', digits: 6 },
+} as const;
+
+type SequenceKey = keyof typeof SEQUENCE_CONFIGS;
+
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
 
 @Injectable()
 export class VehicleStickersService {
@@ -39,6 +56,49 @@ export class VehicleStickersService {
     private readonly featuresService: FeaturesService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  private readonly requestInclude = {
+    vehicle: {
+      select: {
+        id: true,
+        plateNumber: true,
+        make: true,
+        model: true,
+        color: true,
+        residentId: true,
+      },
+    },
+    requestedBy: {
+      select: { id: true, firstName: true, lastName: true },
+    },
+    approvedBy: {
+      select: { id: true, firstName: true, lastName: true },
+    },
+    assessment: {
+      select: {
+        id: true,
+        assessmentNumber: true,
+        amount: true,
+        status: true,
+        dueDate: true,
+      },
+    },
+    stickers: {
+      where: { deletedAt: null },
+      orderBy: { stickerNumber: 'asc' },
+      select: {
+        id: true,
+        stickerNumber: true,
+        status: true,
+        issueDate: true,
+        expirationDate: true,
+      },
+    },
+  } satisfies Prisma.StickerRequestInclude;
+
+  // ==========================================
+  // Permissions + settings helpers
+  // ==========================================
 
   private getPermissionCodes(user: any): string[] {
     const codes: string[] = [];
@@ -53,17 +113,99 @@ export class VehicleStickersService {
     return [...new Set(codes)];
   }
 
-  private async isVerificationRequired(communityId: string): Promise<boolean> {
-    const config = await this.featuresService.getConfig(
-      communityId,
-      VEHICLE_STICKERS_FEATURE,
-    );
-    const mode = (config as { verificationMode?: string }).verificationMode;
-    return mode === 'approval';
+  private isOfficer(user: any): boolean {
+    return this.getPermissionCodes(user).includes('sticker.verify');
+  }
+
+  private async getStickerSettings(communityId: string) {
+    const keys = [
+      'stickerCycleEnabled',
+      'stickerCycleStart',
+      'stickerCycleEnd',
+      'stickerMaxQuantity',
+    ];
+
+    const rows = await this.prisma.setting.findMany({
+      where: { communityId, key: { in: keys } },
+      select: { key: true, value: true },
+    });
+
+    const values = new Map(rows.map((row) => [row.key, row.value]));
+
+    const rawMax = Number(values.get('stickerMaxQuantity') ?? 1);
+    const maxQuantity =
+      Number.isFinite(rawMax) && rawMax >= 1 ? Math.floor(rawMax) : 1;
+
+    return {
+      cycleEnabled:
+        values.get('stickerCycleEnabled') === true ||
+        values.get('stickerCycleEnabled') === 'true',
+      cycleStart:
+        typeof values.get('stickerCycleStart') === 'string'
+          ? (values.get('stickerCycleStart') as string)
+          : null,
+      cycleEnd:
+        typeof values.get('stickerCycleEnd') === 'string'
+          ? (values.get('stickerCycleEnd') as string)
+          : null,
+      maxQuantity,
+    };
+  }
+
+  private parseMonthDay(
+    value: string | null,
+  ): { month: number; day: number } | null {
+    if (!value) return null;
+
+    const match = /^(\d{1,2})-(\d{1,2})$/.exec(value);
+    if (!match) return null;
+
+    const month = Number(match[1]);
+    const day = Number(match[2]);
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+    return { month, day };
+  }
+
+  private cycleStart(
+    settings: { cycleEnabled: boolean; cycleStart: string | null },
+    date: Date,
+  ): Date | null {
+    const md = this.parseMonthDay(settings.cycleStart);
+    if (!settings.cycleEnabled || !md) return null;
+
+    const year = date.getFullYear();
+    const start = new Date(year, md.month - 1, md.day, 0, 0, 0, 0);
+
+    if (start > date) {
+      return new Date(year - 1, md.month - 1, md.day, 0, 0, 0, 0);
+    }
+
+    return start;
+  }
+
+  private cycleExpiration(
+    settings: { cycleEnabled: boolean; cycleEnd: string | null },
+    date: Date,
+  ): Date {
+    const md = this.parseMonthDay(settings.cycleEnd);
+    if (!settings.cycleEnabled || !md) {
+      return addDays(new Date(date), VALIDITY_DAYS);
+    }
+
+    const year = date.getFullYear();
+    const end = new Date(year, md.month - 1, md.day, 23, 59, 59, 999);
+
+    if (end < date) {
+      return new Date(year + 1, md.month - 1, md.day, 23, 59, 59, 999);
+    }
+
+    return end;
   }
 
   // ==========================================
-  // Sticker Request Options (fee preview)
+  // Sticker Request Options (fee + cycle preview)
   // ==========================================
 
   async options(communityId: string) {
@@ -79,10 +221,25 @@ export class VehicleStickersService {
 
     const price = chargeType?.amount?.toNumber() ?? 0;
 
+    const settings = await this.getStickerSettings(communityId);
+    const now = new Date();
+
     return {
       success: true,
       message: 'Sticker options retrieved.',
-      data: { price, validityDays: VALIDITY_DAYS },
+      data: {
+        price,
+        validityDays: VALIDITY_DAYS,
+        maxQuantity: settings.maxQuantity,
+        quantityEnabled: settings.maxQuantity >= 2,
+        cycle: {
+          enabled: settings.cycleEnabled,
+          start: settings.cycleStart,
+          end: settings.cycleEnd,
+          activeFrom: this.cycleStart(settings, now)?.toISOString() ?? null,
+          activeExpiration: this.cycleExpiration(settings, now).toISOString(),
+        },
+      },
     };
   }
 
@@ -90,11 +247,7 @@ export class VehicleStickersService {
   // Request Sticker (resident self-service)
   // ==========================================
 
-  async request(
-    communityId: string,
-    user: any,
-    dto: { vehicleId: string; notes?: string },
-  ) {
+  async request(communityId: string, user: any, dto: RequestStickerDto) {
     await this.featuresService.assertEnabled(
       communityId,
       VEHICLE_STICKERS_FEATURE,
@@ -115,36 +268,73 @@ export class VehicleStickersService {
       );
     }
 
-    const activeRequest = await this.prisma.vehicleSticker.findFirst({
+    const settings = await this.getStickerSettings(communityId);
+    const quantity = dto.quantity ?? 1;
+
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      throw new BadRequestException('Quantity must be between 1 and 100.');
+    }
+
+    if (settings.maxQuantity < 2 && quantity > 1) {
+      throw new BadRequestException(
+        'Multiple stickers are not allowed in this community.',
+      );
+    }
+
+    const pendingRequest = await this.prisma.stickerRequest.findFirst({
       where: {
         communityId,
         vehicleId: dto.vehicleId,
         deletedAt: null,
-        status: { in: [StickerStatus.PENDING, StickerStatus.ACTIVE] },
+        status: StickerRequestStatus.PENDING,
       },
     });
 
-    if (activeRequest) {
+    if (pendingRequest) {
       throw new ConflictException(
-        activeRequest.status === StickerStatus.PENDING
-          ? 'A sticker request is already pending for this vehicle.'
-          : 'This vehicle already has an active sticker.',
+        'A sticker request is already pending for this vehicle.',
       );
     }
 
-    const sticker = await this.prisma.vehicleSticker.create({
-      data: {
+    const activeSticker = await this.prisma.vehicleSticker.findFirst({
+      where: {
         communityId,
         vehicleId: dto.vehicleId,
-        status: StickerStatus.PENDING,
-        notes: dto.notes?.trim(),
-        createdById: user.id,
+        deletedAt: null,
+        status: StickerStatus.ACTIVE,
       },
-      include: {
-        vehicle: {
-          select: { id: true, plateNumber: true, make: true, model: true },
+    });
+
+    if (activeSticker) {
+      throw new ConflictException(
+        'This vehicle already has an active sticker.',
+      );
+    }
+
+    const chargeType = await this.prisma.chargeType.findFirst({
+      where: { communityId, code: STICKER_CHARGE_CODE, deletedAt: null },
+      select: { amount: true },
+    });
+
+    const unitPrice = chargeType?.amount?.toNumber() ?? 0;
+
+    const request = await this.prisma.$transaction(async (tx) => {
+      const requestNumber = (
+        await this.allocateNumbers(tx, communityId, 'sticker-request', 1)
+      )[0];
+
+      return tx.stickerRequest.create({
+        data: {
+          communityId,
+          vehicleId: dto.vehicleId,
+          requestNumber,
+          quantity,
+          feeTotal: new Prisma.Decimal(unitPrice * quantity),
+          notes: dto.notes?.trim(),
+          requestedById: user.id,
         },
-      },
+        include: this.requestInclude,
+      });
     });
 
     const officerIds = await this.notificationsService.userIdsWithPermission(
@@ -157,19 +347,375 @@ export class VehicleStickersService {
       officerIds,
       NotificationType.VEHICLE_STICKER,
       'New sticker request',
-      `Plate ${vehicle.plateNumber} is requesting a vehicle sticker.`,
-      `/stickers/${sticker.id}`,
+      `Plate ${vehicle.plateNumber} is requesting ${quantity} vehicle sticker${quantity > 1 ? 's' : ''}.`,
+      `/stickers/${request.id}`,
     );
 
     return {
       success: true,
       message: 'Sticker request submitted. You will be notified once reviewed.',
-      data: sticker,
+      data: request,
     };
   }
 
   // ==========================================
-  // Create Sticker (officer direct issue)
+  // Get All Sticker Requests
+  // ==========================================
+
+  async requests(communityId: string, user: any, query: RequestQueryDto) {
+    await this.featuresService.assertEnabled(
+      communityId,
+      VEHICLE_STICKERS_FEATURE,
+    );
+
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      status,
+      vehicleId,
+      sortBy = 'createdAt',
+      order = 'desc',
+    } = query;
+
+    const isOfficer = this.isOfficer(user);
+
+    const where: any = {
+      communityId,
+      deletedAt: null,
+    };
+
+    if (!isOfficer) {
+      where.vehicle = { residentId: user?.resident?.id };
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (vehicleId) {
+      where.vehicleId = vehicleId;
+    }
+
+    if (search) {
+      where.OR = [
+        { requestNumber: { contains: search, mode: 'insensitive' } },
+        { vehicle: { plateNumber: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const allowedSorts = ['requestNumber', 'createdAt', 'updatedAt'];
+    const orderBy = {
+      [allowedSorts.includes(sortBy) ? sortBy : 'createdAt']: order,
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.stickerRequest.findMany({
+        where,
+        orderBy,
+        skip: (page - 1) * limit,
+        take: limit,
+        include: this.requestInclude,
+      }),
+      this.prisma.stickerRequest.count({ where }),
+    ]);
+
+    return {
+      success: true,
+      message: 'Sticker requests retrieved successfully.',
+      data: items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPreviousPage: page > 1,
+      },
+    };
+  }
+
+  // ==========================================
+  // Get One Sticker Request
+  // ==========================================
+
+  async requestFindOne(communityId: string, user: any, id: string) {
+    await this.featuresService.assertEnabled(
+      communityId,
+      VEHICLE_STICKERS_FEATURE,
+    );
+
+    const isOfficer = this.isOfficer(user);
+
+    const where: any = {
+      id,
+      communityId,
+      deletedAt: null,
+    };
+
+    if (!isOfficer) {
+      where.vehicle = { residentId: user?.resident?.id };
+    }
+
+    const request = await this.prisma.stickerRequest.findFirst({
+      where,
+      include: this.requestInclude,
+    });
+
+    if (!request) {
+      throw new NotFoundException('Sticker request not found.');
+    }
+
+    return {
+      success: true,
+      message: 'Sticker request retrieved successfully.',
+      data: request,
+    };
+  }
+
+  // ==========================================
+  // Delete / Cancel Sticker Request
+  // ==========================================
+
+  async requestDelete(communityId: string, user: any, id: string) {
+    await this.featuresService.assertEnabled(
+      communityId,
+      VEHICLE_STICKERS_FEATURE,
+    );
+
+    const isOfficer = this.isOfficer(user);
+
+    const where: any = {
+      id,
+      communityId,
+      deletedAt: null,
+    };
+
+    if (!isOfficer) {
+      where.vehicle = { residentId: user?.resident?.id };
+    }
+
+    const request = await this.prisma.stickerRequest.findFirst({ where });
+
+    if (!request) {
+      throw new NotFoundException('Sticker request not found.');
+    }
+
+    if (request.status === StickerRequestStatus.APPROVED) {
+      throw new BadRequestException('An approved request cannot be cancelled.');
+    }
+
+    await this.prisma.stickerRequest.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+
+    return {
+      success: true,
+      message: 'Sticker request cancelled.',
+      data: null,
+    };
+  }
+
+  // ==========================================
+  // Verify Sticker Request (approve issues stickers)
+  // ==========================================
+
+  async requestVerify(
+    communityId: string,
+    user: any,
+    id: string,
+    dto: VerifyStickerDto,
+  ) {
+    await this.featuresService.assertEnabled(
+      communityId,
+      VEHICLE_STICKERS_FEATURE,
+    );
+
+    const request = await this.prisma.stickerRequest.findFirst({
+      where: { id, communityId, deletedAt: null },
+      include: {
+        vehicle: {
+          select: {
+            id: true,
+            plateNumber: true,
+            residentId: true,
+            resident: {
+              select: {
+                id: true,
+                householdId: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+        },
+        requestedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Sticker request not found.');
+    }
+
+    if (request.status !== StickerRequestStatus.PENDING) {
+      throw new BadRequestException(
+        'Only pending sticker requests can be verified.',
+      );
+    }
+
+    if (dto.approved) {
+      const updated = await this.prisma.$transaction(async (tx) => {
+        const issueDate = new Date();
+        const settings = await this.getStickerSettings(communityId);
+        const expirationDate = this.cycleExpiration(settings, issueDate);
+
+        const numbers = await this.allocateNumbers(
+          tx,
+          communityId,
+          'vehicle-sticker',
+          request.quantity,
+        );
+
+        const created: Array<{
+          id: string;
+          stickerNumber: string | null;
+          issueDate: Date | null;
+          expirationDate: Date | null;
+          status: StickerStatus;
+        }> = [];
+
+        for (const stickerNumber of numbers) {
+          created.push(
+            await tx.vehicleSticker.create({
+              data: {
+                communityId,
+                vehicleId: request.vehicleId,
+                requestId: request.id,
+                stickerNumber,
+                issueDate,
+                expirationDate,
+                status: StickerStatus.ACTIVE,
+                notes: request.notes,
+                createdById: user.id,
+                verifiedById: user.id,
+                verifiedAt: new Date(),
+                verificationRemarks: dto.remarks,
+              },
+              select: {
+                id: true,
+                stickerNumber: true,
+                issueDate: true,
+                expirationDate: true,
+                status: true,
+              },
+            }),
+          );
+        }
+
+        const assessmentId = await this.chargeHousehold(tx, communityId, {
+          householdId: request.vehicle?.resident?.householdId,
+          amount: request.feeTotal.toNumber(),
+          plateNumber: request.vehicle.plateNumber,
+          quantity: request.quantity,
+        });
+
+        await tx.vehicle.update({
+          where: { id: request.vehicleId },
+          data: { hasSticker: true, parkingStickerNumber: numbers[0] },
+        });
+
+        const record = await tx.stickerRequest.update({
+          where: { id: request.id },
+          data: {
+            status: StickerRequestStatus.APPROVED,
+            approvedById: user.id,
+            approvedAt: new Date(),
+            reviewRemarks: dto.remarks,
+            assessmentId,
+          },
+          include: this.requestInclude,
+        });
+
+        return { record, created };
+      });
+
+      const feeText = updated.record.assessment
+        ? ` A fee of ${updated.record.assessment.amount.toNumber().toLocaleString('en-PH', { style: 'currency', currency: 'PHP' })} was billed to your household.`
+        : '';
+
+      await this.notificationsService.notify(
+        communityId,
+        request.requestedById,
+        NotificationType.VEHICLE_STICKER,
+        'Sticker request approved',
+        `Your sticker request for ${request.vehicle.plateNumber} was approved.${feeText}`,
+        `/stickers/${id}`,
+      );
+
+      const chargeHouseholdId = request.vehicle?.resident?.householdId;
+
+      if (updated.record.assessment?.id && chargeHouseholdId) {
+        const chargeAmount = updated.record.assessment.amount
+          .toNumber()
+          .toLocaleString('en-PH', { style: 'currency', currency: 'PHP' });
+
+        await this.notificationsService.dispatchToHousehold(
+          communityId,
+          chargeHouseholdId,
+          NotificationType.ASSESSMENT,
+          `${STICKER_CHARGE_NAME} billed to your household`,
+          `A ${STICKER_CHARGE_NAME} of ${chargeAmount} was billed for ${request.quantity} sticker(s) for vehicle ${request.vehicle.plateNumber}.`,
+          '/finance/my-dues',
+          {
+            emailVariant: NotificationEmailVariant.DUES,
+            emailData: {
+              periodLabel: `${STICKER_CHARGE_NAME} — ${request.vehicle.plateNumber}`,
+              amount: chargeAmount,
+              dueDate: new Intl.DateTimeFormat('en-US', {
+                dateStyle: 'medium',
+              }).format(updated.record.assessment.dueDate ?? new Date()),
+            },
+          },
+        );
+      }
+
+      return {
+        success: true,
+        message: 'Sticker request approved.',
+        data: updated.record,
+      };
+    }
+
+    const updated = await this.prisma.stickerRequest.update({
+      where: { id: request.id },
+      data: {
+        status: StickerRequestStatus.REJECTED,
+        approvedById: user.id,
+        approvedAt: new Date(),
+        reviewRemarks: dto.remarks,
+      },
+      include: this.requestInclude,
+    });
+
+    await this.notificationsService.notify(
+      communityId,
+      request.requestedById,
+      NotificationType.VEHICLE_STICKER,
+      'Sticker request rejected',
+      `Your sticker request for ${request.vehicle.plateNumber} was rejected.${dto.remarks ? ` Reason: ${dto.remarks}` : ''}`,
+      `/stickers/${id}`,
+    );
+
+    return {
+      success: true,
+      message: 'Sticker request rejected.',
+      data: updated,
+    };
+  }
+
+  // ==========================================
+  // Issue Sticker(s) (officer direct issue)
   // ==========================================
 
   async create(communityId: string, user: any, dto: CreateStickerDto) {
@@ -178,15 +724,48 @@ export class VehicleStickersService {
       VEHICLE_STICKERS_FEATURE,
     );
 
-    dto.stickerNumber = dto.stickerNumber.trim();
-    dto.notes = dto.notes?.trim();
+    if (!this.isOfficer(user)) {
+      throw new ForbiddenException(
+        'Only officers can issue stickers directly. Use "Request a sticker" instead.',
+      );
+    }
 
-    const issueDate = new Date(dto.issueDate);
-    const expirationDate = new Date(dto.expirationDate);
+    dto.notes = dto.notes?.trim();
+    dto.stickerNumber = dto.stickerNumber?.trim();
+
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { id: dto.vehicleId, communityId, deletedAt: null },
+      include: {
+        resident: { select: { id: true, householdId: true } },
+      },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found.');
+    }
+
+    const quantity = dto.quantity ?? 1;
+
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      throw new BadRequestException('Quantity must be between 1 and 100.');
+    }
+
+    if (dto.stickerNumber && quantity > 1) {
+      throw new BadRequestException(
+        'Sticker numbers are generated automatically when issuing multiple stickers.',
+      );
+    }
+
+    const issueDate = dto.issueDate ? new Date(dto.issueDate) : new Date();
 
     if (isNaN(issueDate.getTime())) {
       throw new BadRequestException('Invalid issue date.');
     }
+
+    const settings = await this.getStickerSettings(communityId);
+    const expirationDate = dto.expirationDate
+      ? new Date(dto.expirationDate)
+      : this.cycleExpiration(settings, issueDate);
 
     if (isNaN(expirationDate.getTime())) {
       throw new BadRequestException('Invalid expiration date.');
@@ -198,92 +777,166 @@ export class VehicleStickersService {
       );
     }
 
-    const permissions = this.getPermissionCodes(user);
-    const isOfficer = permissions.includes('sticker.verify');
+    const result = await this.prisma.$transaction(async (tx) => {
+      const numbers =
+        dto.stickerNumber && quantity === 1
+          ? [dto.stickerNumber]
+          : await this.allocateNumbers(
+              tx,
+              communityId,
+              'vehicle-sticker',
+              quantity,
+            );
 
-    if (!isOfficer) {
-      const ownVehicle = await this.prisma.vehicle.findFirst({
-        where: {
-          id: dto.vehicleId,
-          communityId,
-          residentId: user?.resident?.id,
-          deletedAt: null,
-        },
-      });
+      if (dto.stickerNumber && quantity === 1) {
+        const duplicate = await tx.vehicleSticker.findFirst({
+          where: { communityId, stickerNumber: dto.stickerNumber },
+        });
 
-      if (!ownVehicle) {
-        throw new ForbiddenException(
-          'You can only apply for stickers on your own vehicles.',
-        );
-      }
-    } else {
-      const vehicle = await this.prisma.vehicle.findFirst({
-        where: {
-          id: dto.vehicleId,
-          communityId,
-          deletedAt: null,
-        },
-      });
-
-      if (!vehicle) {
-        throw new NotFoundException('Vehicle not found.');
-      }
-    }
-
-    const verificationRequired = await this.isVerificationRequired(communityId);
-    const stickerStatus = verificationRequired
-      ? StickerStatus.PENDING
-      : StickerStatus.ACTIVE;
-
-    const sticker = await this.prisma.$transaction(async (tx) => {
-      const duplicate = await tx.vehicleSticker.findFirst({
-        where: { communityId, stickerNumber: dto.stickerNumber },
-      });
-
-      if (duplicate) {
-        throw new ConflictException('Sticker number already exists.');
+        if (duplicate) {
+          throw new ConflictException('Sticker number already exists.');
+        }
       }
 
-      return tx.vehicleSticker.create({
-        data: {
-          communityId,
-          vehicleId: dto.vehicleId,
-          stickerNumber: dto.stickerNumber,
-          issueDate,
-          expirationDate,
-          photoUrl: dto.photoUrl,
-          status: stickerStatus,
-          notes: dto.notes,
-          createdById: user.id,
-        },
-        include: {
-          vehicle: { select: { plateNumber: true, make: true, model: true } },
-          createdBy: {
-            select: { firstName: true, lastName: true },
+      const stickerRows: Array<{
+        id: string;
+        stickerNumber: string | null;
+        status: StickerStatus;
+        issueDate: Date | null;
+        expirationDate: Date | null;
+        vehicle: {
+          id: string;
+          plateNumber: string;
+          make: string | null;
+          model: string | null;
+        };
+        assessment: {
+          id: string;
+          assessmentNumber: string;
+          amount: Prisma.Decimal;
+          status: AssessmentStatus;
+        } | null;
+      }> = [];
+
+      for (const stickerNumber of numbers) {
+        const row = await tx.vehicleSticker.create({
+          data: {
+            communityId,
+            vehicleId: dto.vehicleId,
+            stickerNumber,
+            issueDate,
+            expirationDate,
+            photoUrl: dto.photoUrl,
+            status: StickerStatus.ACTIVE,
+            notes: dto.notes,
+            createdById: user.id,
+            verifiedById: user.id,
+            verifiedAt: new Date(),
           },
-          assessment: {
-            select: {
-              id: true,
-              assessmentNumber: true,
-              amount: true,
-              status: true,
+          include: {
+            vehicle: {
+              select: { id: true, plateNumber: true, make: true, model: true },
+            },
+            assessment: {
+              select: {
+                id: true,
+                assessmentNumber: true,
+                amount: true,
+                status: true,
+              },
             },
           },
-        },
+        });
+
+        stickerRows.push(row);
+      }
+
+      const chargeType = await tx.chargeType.findFirst({
+        where: { communityId, code: STICKER_CHARGE_CODE, deletedAt: null },
+        select: { amount: true },
       });
+
+      const unitPrice = chargeType?.amount?.toNumber() ?? 0;
+
+      const assessmentId = await this.chargeHousehold(tx, communityId, {
+        householdId: vehicle.resident?.householdId,
+        amount: unitPrice * quantity,
+        plateNumber: vehicle.plateNumber,
+        quantity,
+      });
+
+      await tx.vehicle.update({
+        where: { id: vehicle.id },
+        data: { hasSticker: true, parkingStickerNumber: numbers[0] },
+      });
+
+      return { stickerRows, assessmentId };
     });
 
     return {
       success: true,
-      message: verificationRequired
-        ? 'Sticker application submitted for review.'
-        : 'Sticker registered successfully.',
-      data: sticker,
+      message: 'Sticker issued successfully.',
+      data: {
+        stickers: result.stickerRows,
+        assessmentId: result.assessmentId,
+      },
     };
   }
 
   // ==========================================
-  // Find All Stickers
+  // Sticker Settings (annual cycle + quantity rules)
+  // ==========================================
+
+  async updateSettings(
+    communityId: string,
+    user: any,
+    dto: UpdateStickerSettingsDto,
+  ) {
+    await this.featuresService.assertEnabled(
+      communityId,
+      VEHICLE_STICKERS_FEATURE,
+    );
+
+    const values: Record<string, Prisma.InputJsonValue> = {};
+
+    if (dto.cycleEnabled !== undefined) {
+      values.stickerCycleEnabled = dto.cycleEnabled;
+    }
+
+    if (dto.cycleStart) values.stickerCycleStart = dto.cycleStart;
+    if (dto.cycleEnd) values.stickerCycleEnd = dto.cycleEnd;
+
+    if (dto.maxQuantity !== undefined) {
+      values.stickerMaxQuantity = dto.maxQuantity;
+    }
+
+    await this.prisma.$transaction(
+      Object.entries(values).map(([key, value]) =>
+        this.prisma.setting.upsert({
+          where: { communityId_key: { communityId, key } },
+          update: { value, updatedById: user.id },
+          create: {
+            communityId,
+            key,
+            value,
+            group: 'vehicle',
+            updatedById: user.id,
+          },
+        }),
+      ),
+    );
+
+    const updated = await this.getStickerSettings(communityId);
+
+    return {
+      success: true,
+      message: 'Sticker settings updated.',
+      data: updated,
+    };
+  }
+
+  // ==========================================
+  // Issued sticker records (legacy record endpoints)
   // ==========================================
 
   async findAll(communityId: string, user: any, query: StickerQueryDto) {
@@ -302,8 +955,7 @@ export class VehicleStickersService {
       order = 'desc',
     } = query;
 
-    const permissions = this.getPermissionCodes(user);
-    const isOfficer = permissions.includes('sticker.verify');
+    const isOfficer = this.isOfficer(user);
 
     const where: any = {
       communityId,
@@ -388,10 +1040,6 @@ export class VehicleStickersService {
     };
   }
 
-  // ==========================================
-  // Find One Sticker
-  // ==========================================
-
   async findOne(communityId: string, user: any, id: string) {
     await this.featuresService.assertEnabled(
       communityId,
@@ -404,8 +1052,7 @@ export class VehicleStickersService {
       deletedAt: null,
     };
 
-    const permissions = this.getPermissionCodes(user);
-    const isOfficer = permissions.includes('sticker.verify');
+    const isOfficer = this.isOfficer(user);
 
     if (!isOfficer) {
       where.vehicle = { residentId: user?.resident?.id };
@@ -451,10 +1098,6 @@ export class VehicleStickersService {
       data: sticker,
     };
   }
-
-  // ==========================================
-  // Update Sticker
-  // ==========================================
 
   async update(communityId: string, id: string, dto: UpdateStickerDto) {
     await this.featuresService.assertEnabled(
@@ -524,10 +1167,6 @@ export class VehicleStickersService {
     };
   }
 
-  // ==========================================
-  // Remove Sticker
-  // ==========================================
-
   async remove(communityId: string, id: string) {
     await this.featuresService.assertEnabled(
       communityId,
@@ -554,203 +1193,31 @@ export class VehicleStickersService {
     };
   }
 
-  // ==========================================
-  // Verify Sticker (approve / reject)
-  // ==========================================
-
-  async verify(
-    communityId: string,
-    user: any,
-    id: string,
-    dto: VerifyStickerDto,
-  ) {
-    await this.featuresService.assertEnabled(
-      communityId,
-      VEHICLE_STICKERS_FEATURE,
-    );
-
-    const sticker = await this.prisma.vehicleSticker.findFirst({
-      where: { id, communityId, deletedAt: null },
-      include: {
-        vehicle: {
-          select: {
-            id: true,
-            plateNumber: true,
-            residentId: true,
-            resident: {
-              select: {
-                id: true,
-                householdId: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
-        },
-        createdBy: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
-
-    if (!sticker) {
-      throw new NotFoundException('Sticker not found.');
-    }
-
-    if (sticker.status !== StickerStatus.PENDING) {
-      throw new BadRequestException('Only pending stickers can be verified.');
-    }
-
-    let updated;
-
-    if (dto.approved) {
-      updated = await this.prisma.$transaction(async (tx) => {
-        const stickerNumber =
-          sticker.stickerNumber ??
-          (await this.nextStickerNumber(tx, communityId));
-
-        const now = new Date();
-        const expirationDate = new Date(now);
-        expirationDate.setDate(expirationDate.getDate() + VALIDITY_DAYS);
-
-        const assessmentId = await this.chargeHousehold(
-          tx,
-          communityId,
-          sticker,
-        );
-
-        const record = await tx.vehicleSticker.update({
-          where: { id },
-          data: {
-            stickerNumber,
-            issueDate: sticker.issueDate ?? now,
-            expirationDate: sticker.expirationDate ?? expirationDate,
-            status: StickerStatus.ACTIVE,
-            verifiedById: user.id,
-            verifiedAt: now,
-            verificationRemarks: dto.remarks,
-            assessmentId,
-          },
-          include: {
-            vehicle: { select: { plateNumber: true, make: true, model: true } },
-            createdBy: { select: { firstName: true, lastName: true } },
-            verifiedBy: { select: { firstName: true, lastName: true } },
-            assessment: {
-              select: {
-                id: true,
-                assessmentNumber: true,
-                amount: true,
-                status: true,
-                dueDate: true,
-              },
-            },
-          },
-        });
-
-        await tx.vehicle.update({
-          where: { id: sticker.vehicle.id },
-          data: { hasSticker: true, parkingStickerNumber: stickerNumber },
-        });
-
-        return record;
-      });
-
-      const feeText = updated.assessment
-        ? ` A fee of ₱${Number(updated.assessment.amount).toLocaleString()} was billed to your household.`
-        : '';
-
-      await this.notificationsService.notify(
-        communityId,
-        sticker.createdById,
-        NotificationType.VEHICLE_STICKER,
-        'Sticker approved',
-        `Your sticker for ${sticker.vehicle.plateNumber} was approved.${feeText}`,
-        `/stickers/${id}`,
-      );
-
-      const chargeHouseholdId = sticker.vehicle?.resident?.householdId;
-      if (updated.assessment?.id && chargeHouseholdId) {
-        const chargeAmount = Number(updated.assessment.amount).toLocaleString(
-          'en-PH',
-          { style: 'currency', currency: 'PHP' },
-        );
-        await this.notificationsService.dispatchToHousehold(
-          communityId,
-          chargeHouseholdId,
-          NotificationType.ASSESSMENT,
-          `${STICKER_CHARGE_NAME} billed to your household`,
-          `A ${STICKER_CHARGE_NAME} of ${chargeAmount} was billed for vehicle ${sticker.vehicle.plateNumber}.`,
-          '/finance/my-dues',
-          {
-            emailVariant: NotificationEmailVariant.DUES,
-            emailData: {
-              periodLabel: `${STICKER_CHARGE_NAME} — ${sticker.vehicle.plateNumber}`,
-              amount: chargeAmount,
-              dueDate: new Intl.DateTimeFormat('en-US', {
-                dateStyle: 'medium',
-              }).format(updated.assessment.dueDate ?? new Date()),
-            },
-          },
-        );
-      }
-    } else {
-      updated = await this.prisma.vehicleSticker.update({
-        where: { id },
-        data: {
-          status: StickerStatus.REVOKED,
-          verifiedById: user.id,
-          verifiedAt: new Date(),
-          verificationRemarks: dto.remarks,
-        },
-        include: {
-          vehicle: { select: { plateNumber: true, make: true, model: true } },
-          createdBy: { select: { firstName: true, lastName: true } },
-          verifiedBy: { select: { firstName: true, lastName: true } },
-          assessment: {
-            select: {
-              id: true,
-              assessmentNumber: true,
-              amount: true,
-              status: true,
-            },
-          },
-        },
-      });
-
-      await this.notificationsService.notify(
-        communityId,
-        sticker.createdById,
-        NotificationType.VEHICLE_STICKER,
-        'Sticker rejected',
-        `Your sticker request for ${sticker.vehicle.plateNumber} was rejected.${dto.remarks ? ` Reason: ${dto.remarks}` : ''}`,
-        `/stickers/${id}`,
-      );
-    }
-
-    return {
-      success: true,
-      message: dto.approved
-        ? 'Sticker approved successfully.'
-        : 'Sticker rejected.',
-      data: updated,
-    };
-  }
-
-  // ==========================================
-  // Renew Sticker
-  // ==========================================
-
   async renew(
     communityId: string,
     user: any,
     id: string,
-    dto: { expirationDate: Date; notes?: string },
+    dto: { expirationDate?: Date; notes?: string },
   ) {
     await this.featuresService.assertEnabled(
       communityId,
       VEHICLE_STICKERS_FEATURE,
     );
 
+    const where: any = {
+      id,
+      communityId,
+      deletedAt: null,
+    };
+
+    const isOfficer = this.isOfficer(user);
+
+    if (!isOfficer) {
+      where.vehicle = { residentId: user?.resident?.id };
+    }
+
     const sticker = await this.prisma.vehicleSticker.findFirst({
-      where: { id, communityId, deletedAt: null },
+      where,
     });
 
     if (!sticker) {
@@ -766,7 +1233,10 @@ export class VehicleStickersService {
       );
     }
 
-    const newExpiration = new Date(dto.expirationDate);
+    const settings = await this.getStickerSettings(communityId);
+    const newExpiration = dto.expirationDate
+      ? new Date(dto.expirationDate)
+      : this.cycleExpiration(settings, new Date());
 
     if (isNaN(newExpiration.getTime())) {
       throw new BadRequestException('Invalid expiration date.');
@@ -804,18 +1274,13 @@ export class VehicleStickersService {
     };
   }
 
-  // ==========================================
-  // Get Stickers By Vehicle
-  // ==========================================
-
   async findByVehicle(communityId: string, user: any, vehicleId: string) {
     await this.featuresService.assertEnabled(
       communityId,
       VEHICLE_STICKERS_FEATURE,
     );
 
-    const permissions = this.getPermissionCodes(user);
-    const isOfficer = permissions.includes('sticker.verify');
+    const isOfficer = this.isOfficer(user);
 
     const where: any = {
       communityId,
@@ -882,32 +1347,6 @@ export class VehicleStickersService {
     });
   }
 
-  private async nextStickerNumber(
-    tx: Prisma.TransactionClient,
-    communityId: string,
-  ) {
-    const year = new Date().getFullYear();
-    const prefix = `STK-${year}-`;
-
-    const existing = await tx.vehicleSticker.findMany({
-      where: {
-        communityId,
-        stickerNumber: { startsWith: prefix },
-      },
-      select: { stickerNumber: true },
-    });
-
-    let maxSeq = 0;
-    for (const s of existing) {
-      if (s.stickerNumber) {
-        const num = parseInt(s.stickerNumber.slice(prefix.length), 10);
-        if (!isNaN(num) && num > maxSeq) maxSeq = num;
-      }
-    }
-
-    return `${prefix}${String(maxSeq + 1).padStart(3, '0')}`;
-  }
-
   private async nextAssessmentNumber(
     tx: Prisma.TransactionClient,
     communityId: string,
@@ -925,42 +1364,92 @@ export class VehicleStickersService {
   }
 
   /**
-   * Creates an ISSUED assessment on the vehicle owner's household
-   * so the sticker fee flows into the regular dues/payments ledger.
-   * Returns the assessment id, or null when the owner has no household
-   * or the charge type amount is 0.
+   * Creates an ISSUED assessment on the vehicle owner's household so the
+   * sticker fee flows into the regular dues/payments ledger. Returns the
+   * assessment id, or null when the owner has no household or the fee is 0.
    */
   private async chargeHousehold(
     tx: Prisma.TransactionClient,
     communityId: string,
-    sticker: any,
+    opts: {
+      householdId?: string | null;
+      amount: number;
+      plateNumber: string;
+      quantity?: number;
+    },
   ) {
-    if (sticker.assessmentId) return sticker.assessmentId;
+    if (!opts.householdId || opts.amount <= 0) return null;
 
-    const householdId = sticker.vehicle?.resident?.householdId;
-    if (!householdId) return null;
-
-    const chargeType = await this.ensureStickerChargeType(tx, communityId);
-    const amount =
-      chargeType.amount?.toNumber?.() ?? Number(chargeType.amount ?? 0);
-    if (amount <= 0) return null;
+    await this.ensureStickerChargeType(tx, communityId);
 
     const nextNumber = (await this.nextAssessmentNumber(tx, communityId)) + 1;
+    const quantityText =
+      opts.quantity && opts.quantity > 1 ? ` (×${opts.quantity})` : '';
 
     const assessment = await tx.assessment.create({
       data: {
         communityId,
-        householdId,
-        chargeTypeId: chargeType.id,
+        householdId: opts.householdId,
+        chargeTypeId: (
+          await tx.chargeType.findFirst({
+            where: { communityId, code: STICKER_CHARGE_CODE, deletedAt: null },
+            select: { id: true },
+          })
+        )?.id,
         assessmentNumber: `ASS-${String(nextNumber).padStart(6, '0')}`,
-        title: `${STICKER_CHARGE_NAME} — ${sticker.vehicle.plateNumber}`,
-        description: `Auto-charged for vehicle sticker request.`,
-        amount: chargeType.amount ?? 0,
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        title: `${STICKER_CHARGE_NAME} — ${opts.plateNumber}${quantityText}`,
+        description: 'Auto-charged for vehicle sticker.',
+        amount: new Prisma.Decimal(opts.amount),
+        dueDate: addDays(new Date(), 14),
         status: AssessmentStatus.ISSUED,
       },
     });
 
     return assessment.id;
+  }
+
+  // ==========================================
+  // Atomic per-community number generation
+  // ==========================================
+
+  private async allocateNumbers(
+    tx: Prisma.TransactionClient,
+    communityId: string,
+    key: SequenceKey,
+    count: number,
+  ): Promise<string[]> {
+    const cfg = SEQUENCE_CONFIGS[key];
+
+    await tx.sequence.upsert({
+      where: { communityId_key: { communityId, key } },
+      update: {},
+      create: {
+        communityId,
+        key,
+        prefix: cfg.prefix,
+        digits: cfg.digits,
+      },
+    });
+
+    const rows = await tx.$queryRaw<{ next_value: bigint }[]>`
+      SELECT "nextValue" AS next_value
+      FROM "Sequence"
+      WHERE "communityId" = ${communityId} AND "key" = ${key}
+      FOR UPDATE
+    `;
+
+    const current = rows[0] ? Number(rows[0].next_value) : 1;
+
+    await tx.$queryRaw`
+      UPDATE "Sequence"
+      SET "nextValue" = "nextValue" + ${count}, "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "communityId" = ${communityId} AND "key" = ${key}
+    `;
+
+    return Array.from(
+      { length: count },
+      (_, i) =>
+        `${cfg.prefix}-${String(current + i).padStart(cfg.digits, '0')}`,
+    );
   }
 }

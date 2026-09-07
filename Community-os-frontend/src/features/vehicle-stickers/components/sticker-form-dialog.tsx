@@ -26,95 +26,83 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useCreateSticker, useUpdateSticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
+import { useCreateSticker } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { stickerFormSchema, type StickerFormValues } from '@/features/vehicle-stickers/validation/vehicle-sticker'
 import { useVehicles } from '@/features/vehicles/hooks/use-vehicles'
-import type { VehicleStickerListItem } from '@/features/vehicle-stickers/types/vehicle-sticker'
-import { useAuthStore, useHasPermission } from '@/store/auth-store'
-import { PERMISSIONS } from '@/constants/permissions'
+import { formatCurrency } from '@/lib/format'
 
 interface StickerFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  sticker?: VehicleStickerListItem | null
   vehicleId?: string
+  price?: number
 }
 
-function toFormValues(sticker?: VehicleStickerListItem | null, vehicleId?: string): StickerFormValues {
-  return {
-    vehicleId: sticker?.vehicle?.id ?? vehicleId ?? '',
-    stickerNumber: sticker?.stickerNumber ?? '',
-    issueDate: sticker?.issueDate ? sticker.issueDate.split('T')[0] : '',
-    expirationDate: sticker?.expirationDate ? sticker.expirationDate.split('T')[0] : '',
-    notes: sticker?.notes ?? '',
-    photoUrl: sticker?.photoUrl ?? '',
-  }
-}
-
-export function StickerFormDialog({
-  open,
-  onOpenChange,
-  sticker,
-  vehicleId,
-}: StickerFormDialogProps) {
-  const isEditing = Boolean(sticker)
+export function StickerFormDialog({ open, onOpenChange, vehicleId, price = 0 }: StickerFormDialogProps) {
   const createSticker = useCreateSticker(() => onOpenChange(false))
-  const updateSticker = useUpdateSticker(() => onOpenChange(false))
-
-  const user = useAuthStore((state) => state.user)
-  const myResidentId = user?.resident?.id
-  const isOfficer = useHasPermission(PERMISSIONS.stickerVerify)
 
   const { data: vehicles } = useVehicles({
     page: 1,
     limit: 100,
-    residentId: isOfficer ? undefined : myResidentId || undefined,
     status: 'ACTIVE',
   })
 
   const form = useForm<StickerFormValues>({
     resolver: zodResolver(stickerFormSchema),
-    defaultValues: toFormValues(),
+    defaultValues: { vehicleId: vehicleId ?? '', quantity: '', notes: '' },
   })
 
   useEffect(() => {
-    if (open) form.reset(toFormValues(sticker, vehicleId))
-  }, [open, sticker, vehicleId, form])
+    if (open) {
+      form.reset({ vehicleId: vehicleId ?? '', quantity: '', notes: '' })
+    }
+  }, [open, vehicleId, form])
+
+  const watchQuantity = form.watch('quantity')
+  const quantity = Math.max(1, Number(watchQuantity) || 1)
+  const totalFee = price > 0 ? price * quantity : 0
 
   const handleSubmit = (values: StickerFormValues) => {
     const input = {
       vehicleId: values.vehicleId,
-      stickerNumber: values.stickerNumber,
-      issueDate: values.issueDate,
-      expirationDate: values.expirationDate,
+      quantity: values.quantity ? Number(values.quantity) : 1,
+      stickerNumber: values.stickerNumber?.trim() || undefined,
+      issueDate: values.issueDate || undefined,
+      expirationDate: values.expirationDate || undefined,
       notes: values.notes || undefined,
       photoUrl: values.photoUrl || undefined,
     }
-
-    if (isEditing && sticker) {
-      updateSticker.mutate({ id: sticker.id, input })
-    } else {
-      createSticker.mutate(input)
-    }
+    createSticker.mutate(input)
   }
 
-  const pending = createSticker.isPending || updateSticker.isPending
+  const pending = createSticker.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Edit sticker' : 'Apply for sticker'}</DialogTitle>
+          <DialogTitle>Issue sticker</DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? 'Update the vehicle sticker details.'
-              : 'Submit a new vehicle sticker application.'}
+            Issue a vehicle sticker directly. Number{quantity > 1 ? 's are' : ' is'} generated
+            automatically {quantity > 1 ? 'for each sticker' : 'unless you provide one'}.
           </DialogDescription>
         </DialogHeader>
 
+        {totalFee > 0 ? (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Household will be billed</span>
+              <span className="font-medium">
+                {formatCurrency(totalFee)}
+                {quantity > 1 ? ` (×${quantity})` : ''}
+              </span>
+            </div>
+          </div>
+        ) : null}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {!vehicleId && !sticker && (
+            {!vehicleId && (
               <FormField
                 control={form.control}
                 name="vehicleId"
@@ -143,24 +131,46 @@ export function StickerFormDialog({
             )}
             <FormField
               control={form.control}
-              name="stickerNumber"
+              name="quantity"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sticker number</FormLabel>
+                  <FormLabel>Quantity</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., STK-2026-001" {...field} />
+                    <Input
+                      type="number"
+                      min={1}
+                      max={100}
+                      placeholder="1"
+                      {...field}
+                      value={field.value ?? ''}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            {quantity === 1 ? (
+              <FormField
+                control={form.control}
+                name="stickerNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sticker number (optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Auto-generated if blank" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="issueDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Issue date</FormLabel>
+                    <FormLabel>Issue date (optional)</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -173,7 +183,7 @@ export function StickerFormDialog({
                 name="expirationDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Expiration date</FormLabel>
+                    <FormLabel>Expiration date (optional)</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -200,7 +210,7 @@ export function StickerFormDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={pending}>
-                {pending ? 'Saving…' : isEditing ? 'Save changes' : 'Submit application'}
+                {pending ? 'Saving…' : 'Issue sticker'}
               </Button>
             </DialogFooter>
           </form>

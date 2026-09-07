@@ -1,8 +1,11 @@
 import { AssessmentStatus } from '@prisma/client';
 
+import { ConflictException, ForbiddenException } from '@nestjs/common';
+
 import {
   summarizeFinance,
   type HouseholdFinanceSummary,
+  HouseholdsService,
 } from './households.service';
 
 const GOOD = 'GOOD';
@@ -207,5 +210,97 @@ describe('summarizeFinance', () => {
     expect(
       summarizeFinance(['h1'], overdue, new Map(), now).get('h1'),
     ).toMatchObject({ monthsBehind: 3, standing: BAD });
+  });
+});
+
+describe('HouseholdsService switchHousehold', () => {
+  const membership = {
+    relationshipType: 'OWNER',
+    isPrimary: false,
+    household: {
+      id: 'h2',
+      block: 'B',
+      lot: '5',
+      unit: null,
+      address: 'Block B',
+      status: 'ACTIVE',
+    },
+  };
+
+  let prismaMock: any;
+  let service: HouseholdsService;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    prismaMock = {
+      user: { findFirst: jest.fn() },
+      residentHousehold: { findFirst: jest.fn() },
+      resident: {
+        update: jest.fn().mockResolvedValue({ id: 'res-1', householdId: 'h2' }),
+      },
+    };
+
+    service = new HouseholdsService(prismaMock, {} as any);
+  });
+
+  it('switches the resident active household to a membership', async () => {
+    prismaMock.user.findFirst.mockResolvedValue({
+      id: 'user-1',
+      residentId: 'res-1',
+    });
+    prismaMock.residentHousehold.findFirst.mockResolvedValue(membership);
+
+    const result = await service.switchHousehold('c1', 'user-1', 'h2');
+
+    expect(result.success).toBe(true);
+    expect(prismaMock.resident.update).toHaveBeenCalledWith({
+      where: { id: 'res-1' },
+      data: { householdId: 'h2' },
+    });
+  });
+
+  it('throws when the user has no linked resident', async () => {
+    prismaMock.user.findFirst.mockResolvedValue({
+      id: 'user-1',
+      residentId: null,
+    });
+
+    await expect(service.switchHousehold('c1', 'user-1', 'h2')).rejects.toThrow(
+      ForbiddenException,
+    );
+
+    expect(prismaMock.resident.update).not.toHaveBeenCalled();
+  });
+
+  it('throws when the user is not an active member of the household', async () => {
+    prismaMock.user.findFirst.mockResolvedValue({
+      id: 'user-1',
+      residentId: 'res-1',
+    });
+    prismaMock.residentHousehold.findFirst.mockResolvedValue(null);
+
+    await expect(service.switchHousehold('c1', 'user-1', 'h2')).rejects.toThrow(
+      ForbiddenException,
+    );
+
+    expect(prismaMock.resident.update).not.toHaveBeenCalled();
+  });
+
+  it('throws when the target household is inactive', async () => {
+    prismaMock.user.findFirst.mockResolvedValue({
+      id: 'user-1',
+      residentId: 'res-1',
+    });
+    prismaMock.residentHousehold.findFirst.mockResolvedValue({
+      ...membership,
+      household: { ...membership.household, status: 'INACTIVE' },
+    });
+
+    await expect(service.switchHousehold('c1', 'user-1', 'h2')).rejects.toThrow(
+      ConflictException,
+    );
+
+    expect(prismaMock.resident.update).not.toHaveBeenCalled();
   });
 });

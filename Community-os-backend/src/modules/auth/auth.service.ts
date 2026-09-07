@@ -45,6 +45,7 @@ type AccountWithUser = {
     phoneNumber: string | null;
     avatarUrl: string | null;
     isPlatformAdmin: boolean;
+    isCommunityAccount: boolean;
     community: {
       id: string;
       code: string;
@@ -61,6 +62,17 @@ type AccountWithUser = {
         unit: string | null;
         address: string | null;
       } | null;
+      householdMemberships: {
+        relationshipType: string;
+        isPrimary: boolean;
+        household: {
+          id: string;
+          block: string | null;
+          lot: string | null;
+          unit: string | null;
+          address: string | null;
+        };
+      }[];
     } | null;
     roles: {
       role: {
@@ -114,6 +126,8 @@ export class AuthService {
 
       isPlatformAdmin: user.isPlatformAdmin,
 
+      isCommunityAccount: user.isCommunityAccount,
+
       community: {
         id: user.community.id,
         code: user.community.code,
@@ -135,6 +149,18 @@ export class AuthService {
                   address: user.resident.household.address,
                 }
               : null,
+
+            households: (user.resident.householdMemberships ?? []).map(
+              (membership) => ({
+                id: membership.household.id,
+                block: membership.household.block,
+                lot: membership.household.lot,
+                unit: membership.household.unit,
+                address: membership.household.address,
+                relationshipType: membership.relationshipType,
+                isPrimary: membership.isPrimary,
+              }),
+            ),
           }
         : null,
 
@@ -835,6 +861,14 @@ export class AuthService {
             resident: {
               include: {
                 household: true,
+                householdMemberships: {
+                  where: {
+                    status: 'ACTIVE',
+                  },
+                  include: {
+                    household: true,
+                  },
+                },
               },
             },
             roles: {
@@ -1088,6 +1122,7 @@ export class AuthService {
     avatarUrl: string | null;
     status: UserStatus;
     isPlatformAdmin: boolean;
+    isCommunityAccount: boolean;
     account: {
       email: string;
     };
@@ -1107,6 +1142,17 @@ export class AuthService {
         unit: string | null;
         address: string | null;
       } | null;
+      householdMemberships: {
+        relationshipType: string;
+        isPrimary: boolean;
+        household: {
+          id: string;
+          block: string | null;
+          lot: string | null;
+          unit: string | null;
+          address: string | null;
+        };
+      }[];
     } | null;
     roles: {
       role: {
@@ -1137,6 +1183,8 @@ export class AuthService {
 
         isPlatformAdmin: user.isPlatformAdmin,
 
+        isCommunityAccount: user.isCommunityAccount,
+
         status: user.status,
 
         community: {
@@ -1160,6 +1208,18 @@ export class AuthService {
                     address: user.resident.household.address,
                   }
                 : null,
+
+              households: (user.resident.householdMemberships ?? []).map(
+                (membership) => ({
+                  id: membership.household.id,
+                  block: membership.household.block,
+                  lot: membership.household.lot,
+                  unit: membership.household.unit,
+                  address: membership.household.address,
+                  relationshipType: membership.relationshipType,
+                  isPrimary: membership.isPrimary,
+                }),
+              ),
             }
           : null,
 

@@ -151,15 +151,15 @@ export default function VehiclesPage() {
       key: 'sticker',
       header: 'Sticker',
       cell: (row) => {
-        const latest = row.stickers?.[0]
-        if (!latest) return <span className="text-muted-foreground">—</span>
-        if (latest.status === 'PENDING') {
+        const latestRequest = row.requests?.[0]
+        const latestSticker = row.stickers?.[0]
+        if (latestRequest?.status === 'PENDING') {
           return <Badge variant="warning">Pending</Badge>
         }
-        if (latest.status === 'ACTIVE') {
+        if (latestSticker?.status === 'ACTIVE') {
           return (
             <span className="font-mono text-sm text-muted-foreground">
-              {latest.stickerNumber ?? '—'}
+              {latestSticker.stickerNumber ?? '—'}
             </span>
           )
         }
@@ -187,7 +187,8 @@ export default function VehiclesPage() {
             {['ACTIVE'].includes(row.status) &&
             canRequestSticker &&
             canViewStickers &&
-            !row.stickers?.some((s) => ['PENDING', 'ACTIVE'].includes(s.status)) ? (
+            !row.requests?.some((request) => request.status === 'PENDING') &&
+            !row.stickers?.some((sticker) => ['PENDING', 'ACTIVE'].includes(sticker.status)) ? (
               <Button
                 type="button"
                 variant="outline"
@@ -404,6 +405,7 @@ export default function VehiclesPage() {
           onOpenChange={(open) => !open && setBuyVehicle(null)}
           vehicle={buyVehicle}
           price={stickerOptions?.price ?? 0}
+          options={stickerOptions ?? null}
         />
       ) : null}
     </div>

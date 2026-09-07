@@ -26,6 +26,7 @@ export function useLiveNotifications() {
     const refresh = () => {
       queryClient.invalidateQueries({ queryKey: notificationKeys.all })
       queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount })
+      queryClient.invalidateQueries({ queryKey: notificationKeys.badges })
     }
 
     source.addEventListener('notification.created', refresh)

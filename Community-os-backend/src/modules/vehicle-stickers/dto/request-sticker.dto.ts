@@ -1,5 +1,4 @@
 import {
-  IsDate,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -12,25 +11,10 @@ import {
 
 import { Type } from 'class-transformer';
 
-export class CreateStickerDto {
+export class RequestStickerDto {
   @IsUUID()
   @IsNotEmpty()
   vehicleId!: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(30)
-  stickerNumber?: string;
-
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  issueDate?: Date;
-
-  @IsOptional()
-  @IsDate()
-  @Type(() => Date)
-  expirationDate?: Date;
 
   @IsOptional()
   @Type(() => Number)
@@ -43,9 +27,4 @@ export class CreateStickerDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  photoUrl?: string;
 }

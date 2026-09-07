@@ -1,4 +1,5 @@
 import { AlertTriangle, Printer } from 'lucide-react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -22,6 +23,15 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
   const community = data?.community ?? null
   const resident = payment?.resident ?? null
 
+  useEffect(() => {
+    if (open) {
+      document.body.classList.add('print-receipt')
+    } else {
+      document.body.classList.remove('print-receipt')
+    }
+    return () => document.body.classList.remove('print-receipt')
+  }, [open])
+
   const payor = resident
     ? [resident.firstName, resident.middleName, resident.lastName, resident.suffix]
         .filter(Boolean)
@@ -30,7 +40,7 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto print:inset-auto print:max-h-none print:max-w-none print:translate-x-0 print:translate-y-0 print:overflow-visible print:border-0 print:shadow-none print:p-0 sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto print:static print:inset-auto print:max-h-none print:max-w-none print:translate-x-0 print:translate-y-0 print:overflow-visible print:border-0 print:shadow-none print:p-0 sm:max-w-2xl">
         <DialogHeader className="print:hidden">
           <DialogTitle>Official receipt</DialogTitle>
           <DialogDescription className="flex items-center gap-2">

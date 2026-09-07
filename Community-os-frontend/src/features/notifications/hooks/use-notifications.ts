@@ -7,6 +7,7 @@ export const notificationKeys = {
   all: ['notifications'] as const,
   list: (params: unknown) => ['notifications', 'list', params] as const,
   unreadCount: ['notifications', 'unread-count'] as const,
+  badges: ['notifications', 'badges'] as const,
 }
 
 export function useNotifications(params: { page?: number; limit?: number; unreadOnly?: boolean } = {}) {
@@ -25,9 +26,18 @@ export function useUnreadCount() {
   })
 }
 
+export function useNotificationBadges() {
+  return useQuery({
+    queryKey: notificationKeys.badges,
+    queryFn: () => notificationsService.unreadByModule(),
+    refetchInterval: 60_000,
+  })
+}
+
 function invalidateAll(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: notificationKeys.all })
   queryClient.invalidateQueries({ queryKey: notificationKeys.unreadCount })
+  queryClient.invalidateQueries({ queryKey: notificationKeys.badges })
 }
 
 export function useMarkRead() {

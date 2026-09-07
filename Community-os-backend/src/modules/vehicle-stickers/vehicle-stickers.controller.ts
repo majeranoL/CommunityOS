@@ -18,6 +18,9 @@ import { CreateStickerDto } from './dto/create-sticker.dto';
 import { UpdateStickerDto } from './dto/update-sticker.dto';
 import { VerifyStickerDto } from './dto/verify-sticker.dto';
 import { StickerQueryDto } from './dto/sticker-query.dto';
+import { RequestStickerDto } from './dto/request-sticker.dto';
+import { RequestQueryDto } from './dto/request-query.dto';
+import { UpdateStickerSettingsDto } from './dto/update-sticker-settings.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -50,11 +53,93 @@ export class VehicleStickersController {
 
   @Post('request')
   @Permissions('sticker.create')
-  request(
-    @Request() req: any,
-    @Body() dto: { vehicleId: string; notes?: string },
-  ) {
+  request(@Request() req: any, @Body() dto: RequestStickerDto) {
     return this.vehicleStickersService.request(
+      req.user.community.id,
+      req.user,
+      dto,
+    );
+  }
+
+  // ==========================================
+  // Get All Sticker Requests
+  // ==========================================
+
+  @Get()
+  @Permissions('sticker.view')
+  requests(@Request() req: any, @Query() query: RequestQueryDto) {
+    return this.vehicleStickersService.requests(
+      req.user.community.id,
+      req.user,
+      query,
+    );
+  }
+
+  @Get('requests')
+  @Permissions('sticker.view')
+  requestsAlias(@Request() req: any, @Query() query: RequestQueryDto) {
+    return this.vehicleStickersService.requests(
+      req.user.community.id,
+      req.user,
+      query,
+    );
+  }
+
+  // ==========================================
+  // Get Single Sticker Request
+  // ==========================================
+
+  @Get('requests/:id')
+  @Permissions('sticker.view')
+  requestFindOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.vehicleStickersService.requestFindOne(
+      req.user.community.id,
+      req.user,
+      id,
+    );
+  }
+
+  // ==========================================
+  // Cancel Sticker Request
+  // ==========================================
+
+  @Delete('requests/:id')
+  @Permissions('sticker.create')
+  requestDelete(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
+    return this.vehicleStickersService.requestDelete(
+      req.user.community.id,
+      req.user,
+      id,
+    );
+  }
+
+  // ==========================================
+  // Verify Sticker Request (approve issues stickers)
+  // ==========================================
+
+  @Post(':id/verify')
+  @Permissions('sticker.verify')
+  requestVerify(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: VerifyStickerDto,
+  ) {
+    return this.vehicleStickersService.requestVerify(
+      req.user.community.id,
+      req.user,
+      id,
+      dto,
+    );
+  }
+
+  // ==========================================
+  // Sticker Settings (annual cycle + quantity rules)
+  // ==========================================
+
+  @Put('settings')
+  @Permissions('sticker.verify')
+  updateSettings(@Request() req: any, @Body() dto: UpdateStickerSettingsDto) {
+    return this.vehicleStickersService.updateSettings(
       req.user.community.id,
       req.user,
       dto,
@@ -76,21 +161,7 @@ export class VehicleStickersController {
   }
 
   // ==========================================
-  // Get All Stickers
-  // ==========================================
-
-  @Get()
-  @Permissions('sticker.view')
-  findAll(@Request() req: any, @Query() query: StickerQueryDto) {
-    return this.vehicleStickersService.findAll(
-      req.user.community.id,
-      req.user,
-      query,
-    );
-  }
-
-  // ==========================================
-  // Get Stickers By Vehicle
+  // Get Stickers By Vehicle (issued records)
   // ==========================================
 
   @Get('vehicle/:vehicleId')
@@ -107,7 +178,7 @@ export class VehicleStickersController {
   }
 
   // ==========================================
-  // Get Sticker By ID
+  // Issued sticker record endpoints (legacy management)
   // ==========================================
 
   @Get(':id')
@@ -120,10 +191,6 @@ export class VehicleStickersController {
     );
   }
 
-  // ==========================================
-  // Update Sticker
-  // ==========================================
-
   @Put(':id')
   @Permissions('sticker.update')
   update(
@@ -133,29 +200,6 @@ export class VehicleStickersController {
   ) {
     return this.vehicleStickersService.update(req.user.community.id, id, dto);
   }
-
-  // ==========================================
-  // Verify Sticker
-  // ==========================================
-
-  @Post(':id/verify')
-  @Permissions('sticker.verify')
-  verify(
-    @Request() req: any,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: VerifyStickerDto,
-  ) {
-    return this.vehicleStickersService.verify(
-      req.user.community.id,
-      req.user,
-      id,
-      dto,
-    );
-  }
-
-  // ==========================================
-  // Renew Sticker
-  // ==========================================
 
   @Post(':id/renew')
   @Permissions('sticker.create')
@@ -171,10 +215,6 @@ export class VehicleStickersController {
       dto,
     );
   }
-
-  // ==========================================
-  // Delete Sticker
-  // ==========================================
 
   @Delete(':id')
   @Permissions('sticker.delete')

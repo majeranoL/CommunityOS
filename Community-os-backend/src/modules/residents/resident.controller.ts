@@ -18,6 +18,7 @@ import { ResidentService } from './resident.service';
 
 import { CreateResidentDto } from './dto/create-resident.dto';
 import { VerifyResidentDto } from './dto/verify-resident.dto';
+import { AddHouseholdMembershipDto } from './dto/add-household-membership.dto';
 import { ResidentQueryDto } from './dto/resident-query.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -102,6 +103,24 @@ export class ResidentController {
       dto,
     );
   }
+  // ==========================================
+  // Add Household Membership (multi-household)
+  // ==========================================
+
+  @Post(':id/households')
+  @Permissions('resident.verify')
+  addHouseholdMembership(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddHouseholdMembershipDto,
+  ) {
+    return this.residentService.addHouseholdMembership(
+      req.user.community.id,
+      id,
+      dto,
+    );
+  }
+
   @Delete(':id')
   @Permissions('resident.delete')
   remove(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {

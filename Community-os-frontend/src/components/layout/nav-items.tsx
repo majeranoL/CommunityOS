@@ -23,6 +23,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/constants/permissions'
+import type { NotificationType } from '@/features/notifications/types/notification'
 
 export interface NavItem {
   label: string
@@ -36,6 +37,24 @@ export interface NavItem {
 export interface NavSection {
   label: string
   items: NavItem[]
+}
+
+/**
+ * Maps sidebar navigation items to the notification modules whose unread
+ * counts power that item's badge. A nav item must only list notification
+ * types that are meaningful to the modules the item links to. Badge counts
+ * are always scoped to the authenticated user's own unread notifications.
+ */
+export const NOTIFICATION_BADGE_TYPES: Record<string, NotificationType[]> = {
+  '/app/announcements': ['ANNOUNCEMENT'],
+  '/app/events': ['EVENT'],
+  '/app/polls': ['POLL'],
+  '/app/complaints': ['COMPLAINT'],
+  '/app/facilities': ['RESERVATION'],
+  '/app/vehicles': ['VEHICLE_STICKER'],
+  '/app/stickers': ['VEHICLE_STICKER'],
+  '/app/finance': ['PAYMENT', 'ASSESSMENT'],
+  '/app/billing': ['PAYMENT', 'ASSESSMENT'],
 }
 
 export const NAV_SECTIONS: NavSection[] = [

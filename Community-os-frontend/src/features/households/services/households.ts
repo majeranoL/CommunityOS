@@ -1,5 +1,10 @@
 import api from '@/lib/api'
-import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
+import type {
+  ApiEnvelope,
+  HouseholdSummary,
+  ListQuery,
+  Pagination,
+} from '@/types/api'
 import type {
   CreateHouseholdInput,
   HouseholdDetail,
@@ -38,6 +43,14 @@ export const householdsService = {
   async me() {
     const { data } =
       await api.get<ApiEnvelope<HouseholdDetail>>('/households/me')
+    return data.data
+  },
+
+  async switchHousehold(householdId: string) {
+    const { data } = await api.patch<ApiEnvelope<HouseholdSummary>>(
+      '/households/switch',
+      { householdId },
+    )
     return data.data
   },
 

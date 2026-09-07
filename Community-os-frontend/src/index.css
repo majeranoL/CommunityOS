@@ -202,3 +202,22 @@
     animation: none;
   }
 }
+
+@media print {
+  body.print-receipt {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.print-receipt #root {
+    display: none !important;
+  }
+
+  body.print-receipt [data-sonner-toaster] {
+    display: none !important;
+  }
+}
+
+@page {
+  margin: 12mm;
+}
