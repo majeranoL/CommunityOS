@@ -95,10 +95,7 @@ function detectFamily(buffer: Buffer): MagicFamily | undefined {
     return 'gif';
   }
 
-  if (
-    buffer.length >= 12 &&
-    buffer.slice(4, 8).toString('latin1') === 'ftyp'
-  ) {
+  if (buffer.length >= 12 && buffer.slice(4, 8).toString('latin1') === 'ftyp') {
     return 'mp4';
   }
 
