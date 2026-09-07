@@ -23,7 +23,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { documentsService } from '@/features/documents/services/documents'
-import { SecureImage } from '@/components/shared/secure-image'
+import { SecureImage, SecureVideo } from '@/components/shared/secure-image'
 import {
   useAssignComplaint,
   useCloseComplaint,
@@ -168,6 +168,7 @@ export function ComplaintDetailDialog({
                       /\.(png|jpe?g|webp|gif)$/i.test(
                         att.originalName || att.filename,
                       )
+                    const isVideo = att.mimetype?.startsWith('video/')
                     return (
                       <div
                         key={att.id}
@@ -182,6 +183,11 @@ export function ComplaintDetailDialog({
                             />
                             <ImageIcon className="h-5 w-5 text-muted-foreground absolute" />
                           </div>
+                        ) : isVideo ? (
+                          <SecureVideo
+                            src={att.url}
+                            className="aspect-video w-full rounded bg-muted object-contain"
+                          />
                         ) : (
                           <div className="flex h-12 w-full items-center justify-center rounded bg-primary/10 text-primary">
                             <FileText className="h-6 w-6" />

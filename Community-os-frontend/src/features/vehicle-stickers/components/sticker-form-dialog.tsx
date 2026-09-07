@@ -19,6 +19,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { FileUpload } from '@/components/shared/file-upload'
 import {
   Select,
   SelectContent,
@@ -49,12 +50,12 @@ export function StickerFormDialog({ open, onOpenChange, vehicleId, price = 0 }: 
 
   const form = useForm<StickerFormValues>({
     resolver: zodResolver(stickerFormSchema),
-    defaultValues: { vehicleId: vehicleId ?? '', quantity: '', notes: '' },
+    defaultValues: { vehicleId: vehicleId ?? '', quantity: '', notes: '', photoUrl: '' },
   })
 
   useEffect(() => {
     if (open) {
-      form.reset({ vehicleId: vehicleId ?? '', quantity: '', notes: '' })
+      form.reset({ vehicleId: vehicleId ?? '', quantity: '', notes: '', photoUrl: '' })
     }
   }, [open, vehicleId, form])
 
@@ -205,6 +206,28 @@ export function StickerFormDialog({ open, onOpenChange, vehicleId, price = 0 }: 
                 </FormItem>
               )}
             />
+            {quantity === 1 ? (
+              <FormField
+                control={form.control}
+                name="photoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sticker photo</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        value={field.value}
+                        onChange={field.onChange}
+                        maxFiles={1}
+                        accept="image/*"
+                        label="Upload sticker photo"
+                        description="PNG, JPG, or WEBP up to 10MB"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : null}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel

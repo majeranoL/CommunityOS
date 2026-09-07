@@ -302,18 +302,29 @@ export class PaymentsService {
       '',
     );
 
-    const checkout = await this.gateway.createCheckout({
-      amount: Number(dto.amount),
-      currency: 'PHP',
-      description: 'HOA dues payment',
-      successUrl: `${appUrl}/app/finance?tab=my-payments`,
-      failureUrl: `${appUrl}/app/finance?tab=my-dues`,
-      metadata: {
-        paymentId: payment.id,
-        communityId,
-        type: 'payment',
-      },
-    });
+    let checkout: Awaited<
+      ReturnType<PaymentsGatewayService['createCheckout']>
+    >;
+    try {
+      checkout = await this.gateway.createCheckout({
+        amount: Number(dto.amount),
+        currency: 'PHP',
+        description: 'HOA dues payment',
+        successUrl: `${appUrl}/app/finance?tab=my-payments`,
+        failureUrl: `${appUrl}/app/finance?tab=my-dues`,
+        metadata: {
+          paymentId: payment.id,
+          communityId,
+          type: 'payment',
+        },
+      });
+    } catch (error) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED },
+      });
+      throw error;
+    }
 
     await this.prisma.payment.update({
       where: { id: payment.id },

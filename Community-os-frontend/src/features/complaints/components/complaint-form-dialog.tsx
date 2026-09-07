@@ -185,9 +185,9 @@ export function ComplaintFormDialog({ open, onOpenChange }: ComplaintFormDialogP
                       value={field.value}
                       onChange={field.onChange}
                       maxFiles={5}
-                      accept="image/*,application/pdf"
+                      accept="image/*,video/mp4,video/webm,video/quicktime,application/pdf"
                       label="Upload photos or supporting documents"
-                      description="Up to 5 images or PDFs (max 10MB each)"
+                      description="Up to 5 images, videos, or PDFs (max 10MB each)"
                     />
                   </FormControl>
                   <FormMessage />

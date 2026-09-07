@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DateTimePicker } from '@/components/shared/date-time-picker'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateEvent, useUpdateEvent } from '@/features/events/hooks/use-events'
 import { eventSchema, type EventFormValues } from '@/features/events/validation/event'
 import type { CommunityEvent, EventCategory } from '@/features/events/types/event'
@@ -210,9 +211,16 @@ export function EventFormDialog({ open, onOpenChange, event }: EventFormDialogPr
               name="coverImageUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cover image URL</FormLabel>
+                  <FormLabel>Cover image</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://… (optional)" {...field} />
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      accept="image/*"
+                      maxFiles={1}
+                      label="Upload event cover image"
+                      description="PNG, JPG, or WEBP up to 10MB"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

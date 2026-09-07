@@ -196,9 +196,22 @@ function PayInvoiceDialog({
       window.open(resumeUrl, '_blank', 'noopener,noreferrer')
       return
     }
+
+    // Open synchronously from the click so the browser does not block the
+    // eventual PayMongo navigation after the API request completes.
+    const checkoutWindow = window.open('', '_blank')
+    if (checkoutWindow) checkoutWindow.opener = null
+
     checkout.mutate(invoice.id, {
       onSuccess: (result) => {
-        window.open(result.checkoutUrl, '_blank', 'noopener,noreferrer')
+        if (checkoutWindow && !checkoutWindow.closed) {
+          checkoutWindow.location.href = result.checkoutUrl
+        } else {
+          window.location.assign(result.checkoutUrl)
+        }
+      },
+      onError: () => {
+        if (checkoutWindow && !checkoutWindow.closed) checkoutWindow.close()
       },
     })
   }
