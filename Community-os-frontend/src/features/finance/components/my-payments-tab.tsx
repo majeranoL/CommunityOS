@@ -159,7 +159,12 @@ export function MyPaymentsTab() {
         </Select>
       </div>
 
-      <DataTable columns={columns} rows={data?.items ?? []} keyExtractor={(row) => row.id} />
+      <DataTable
+        columns={columns}
+        rows={data?.items ?? []}
+        keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailPaymentId(row.id)}
+      />
 
       {data?.pagination && data.pagination.totalPages > 1 ? (
         <Pagination

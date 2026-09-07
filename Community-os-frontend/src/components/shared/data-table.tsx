@@ -15,6 +15,7 @@ interface DataTableProps<T> {
   columns: Column<T>[]
   rows: T[]
   keyExtractor: (row: T) => string
+  onRowClick?: (row: T) => void
   isLoading?: boolean
   emptyMessage?: string
   dense?: boolean
@@ -37,6 +38,7 @@ export function DataTable<T>({
   columns,
   rows,
   keyExtractor,
+  onRowClick,
   isLoading = false,
   emptyMessage = 'No results found.',
   dense = false,
@@ -74,7 +76,25 @@ export function DataTable<T>({
             <TableEmptyState colSpan={columns.length}>{emptyMessage}</TableEmptyState>
           ) : (
             rows.map((row) => (
-              <TableRow key={keyExtractor(row)} className={dense ? 'h-10' : ''}>
+              <TableRow
+                key={keyExtractor(row)}
+                className={`${dense ? 'h-10' : ''} ${onRowClick ? 'cursor-pointer' : ''}`}
+                onClick={
+                  onRowClick
+                    ? (event) => {
+                        const target = event.target as HTMLElement
+                        if (
+                          target.closest(
+                            'button, a, input, textarea, select, [role="button"], [role="menuitem"]',
+                          )
+                        ) {
+                          return
+                        }
+                        onRowClick(row)
+                      }
+                    : undefined
+                }
+              >
                 {columns.map((column) => (
                   <TableCell
                     key={column.key}

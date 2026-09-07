@@ -231,6 +231,7 @@ export default function AnnouncementsPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailId(row.id)}
         isLoading={isLoading}
         emptyMessage="No announcements found."
       />

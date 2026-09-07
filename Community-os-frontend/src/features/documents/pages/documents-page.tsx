@@ -229,6 +229,7 @@ export default function DocumentsPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={openFile}
         isLoading={isLoading}
         emptyMessage="No documents found."
       />

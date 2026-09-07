@@ -132,6 +132,7 @@ export default function RolesPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setPermissionsRoleId(row.id)}
         isLoading={isLoading}
         emptyMessage="No roles found."
       />

@@ -313,6 +313,7 @@ export default function PetsPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailPetId(row.id)}
         isLoading={isLoading}
         emptyMessage="No pets found."
       />

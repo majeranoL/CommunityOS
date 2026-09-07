@@ -276,6 +276,7 @@ export default function VisitorsPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailId(row.id)}
         isLoading={isLoading}
         emptyMessage="No visitors found."
       />
