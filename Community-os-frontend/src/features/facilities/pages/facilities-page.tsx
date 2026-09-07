@@ -220,6 +220,7 @@ function FacilitiesTab() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailId(row.id)}
         isLoading={isLoading}
         emptyMessage="No facilities found."
       />
@@ -418,6 +419,7 @@ function ReservationsTab({
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => onDetailIdChange(row.id)}
         isLoading={isLoading}
         emptyMessage="No reservations found."
       />

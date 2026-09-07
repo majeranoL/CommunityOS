@@ -55,3 +55,17 @@ export function SecureImage({ src, alt, className }: SecureImageProps) {
 
   return <img src={resolved} alt={alt ?? ''} className={className} loading="lazy" />
 }
+
+interface SecureVideoProps {
+  src?: string | null
+  className?: string
+  controls?: boolean
+}
+
+export function SecureVideo({ src, className, controls = true }: SecureVideoProps) {
+  const resolved = useSecureImageUrl(src)
+
+  if (!resolved) return null
+
+  return <video src={resolved} className={className} controls={controls} preload="metadata" />
+}

@@ -173,6 +173,7 @@ export default function UsersPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setSelectedUserId(row.id)}
         isLoading={isLoading}
         emptyMessage="No users found."
       />

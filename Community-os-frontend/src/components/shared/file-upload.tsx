@@ -3,7 +3,7 @@ import { Upload, X, FileText, Image as ImageIcon, Loader2, ExternalLink } from '
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
 import { documentsService } from '@/features/documents/services/documents'
-import { SecureImage } from '@/components/shared/secure-image'
+import { SecureImage, SecureVideo } from '@/components/shared/secure-image'
 import type { UploadFileResult } from '@/features/documents/types/document'
 import { cn } from '@/lib/utils'
 
@@ -69,6 +69,7 @@ export function FileUpload({
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [uploadedTypes, setUploadedTypes] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Normalize current items to an array of URLs / IDs
@@ -108,6 +109,10 @@ export function FileUpload({
 
       const newUrls = uploadedResults.map((r) => r.url || r.id)
       const nextList = [...items, ...newUrls]
+      setUploadedTypes((current) => ({
+        ...current,
+        ...Object.fromEntries(uploadedResults.map((result) => [result.url || result.id, result.mimetype])),
+      }))
 
       if (maxFiles === 1) {
         onChange?.(nextList[0] ?? null)
@@ -206,7 +211,9 @@ export function FileUpload({
       {items.length > 0 && (
         <div className={cn('grid gap-2.5', maxFiles > 1 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1')}>
           {items.map((fileUrl, index) => {
-            const isImage = isImageUrl(fileUrl)
+            const mimetype = uploadedTypes[fileUrl]
+            const isImage = isImageUrl(fileUrl, mimetype)
+            const isVideo = mimetype?.startsWith('video/')
             const fileName = getFileName(fileUrl)
 
             return (
@@ -225,6 +232,10 @@ export function FileUpload({
                       className="h-full w-full object-cover rounded"
                     />
                     <ImageIcon className="h-6 w-6 text-muted-foreground absolute" />
+                  </div>
+                ) : isVideo ? (
+                  <div className="relative w-full aspect-video max-h-36 overflow-hidden rounded bg-muted flex items-center justify-center">
+                    <SecureVideo src={fileUrl} className="h-full w-full rounded object-contain" />
                   </div>
                 ) : (
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">

@@ -302,6 +302,7 @@ export default function ResidentsPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setSelectedId(row.id)}
         isLoading={isLoading}
         emptyMessage="No residents found."
       />

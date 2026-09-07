@@ -240,7 +240,11 @@ export class InvoicesService {
       where: { id: communityId, deletedAt: null },
     });
 
-    if (!community || community.status !== CommunityStatus.INACTIVE) {
+    if (
+      !community ||
+      community.status !== CommunityStatus.INACTIVE ||
+      community.suspensionReason !== 'unpaid'
+    ) {
       return;
     }
 
@@ -384,18 +388,32 @@ export class InvoicesService {
       };
     }
 
-    const checkout = await this.gateway.createCheckout({
-      amount: Number(invoice.amount),
-      currency: 'PHP',
-      description: `CommunityOS subscription invoice ${invoice.invoiceNumber}`,
-      metadata: {
-        invoiceId: invoice.id,
-        communityId,
-        type: 'invoice',
-      },
-      successUrl: `${this.appUrl()}/app/billing`,
-      failureUrl: `${this.appUrl()}/app/billing`,
-    });
+    const retryStatus =
+      invoice.status === InvoiceStatus.PROCESSING
+        ? InvoiceStatus.ISSUED
+        : invoice.status;
+
+    let checkout: Awaited<ReturnType<PaymentsGatewayService['createCheckout']>>;
+    try {
+      checkout = await this.gateway.createCheckout({
+        amount: Number(invoice.amount),
+        currency: 'PHP',
+        description: `CommunityOS subscription invoice ${invoice.invoiceNumber}`,
+        metadata: {
+          invoiceId: invoice.id,
+          communityId,
+          type: 'invoice',
+        },
+        successUrl: `${this.appUrl()}/app/billing`,
+        failureUrl: `${this.appUrl()}/app/billing`,
+      });
+    } catch (error) {
+      await this.prisma.invoice.update({
+        where: { id: invoice.id },
+        data: { status: retryStatus },
+      });
+      throw error;
+    }
 
     await this.prisma.invoice.update({
       where: { id: invoice.id },

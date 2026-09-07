@@ -143,6 +143,11 @@ function OnlineCheckoutDialogContent({
 
   const handlePay = () => {
     if (!residentId || selectedItems.length === 0) return
+    // Reserve a tab during the click gesture; navigating after the API call
+    // would otherwise be treated as a blocked popup by the browser.
+    const checkoutWindow = window.open('', '_blank')
+    if (checkoutWindow) checkoutWindow.opener = null
+
     const input: PaymentCheckoutInput = {
       residentId,
       amount: totalAmount,
@@ -158,8 +163,15 @@ function OnlineCheckoutDialogContent({
       onSuccess: (result) => {
         onOpenChange(false)
         if (result?.checkoutUrl) {
-          window.open(result.checkoutUrl, '_blank', 'noopener,noreferrer')
+          if (checkoutWindow && !checkoutWindow.closed) {
+            checkoutWindow.location.href = result.checkoutUrl
+          } else {
+            window.location.assign(result.checkoutUrl)
+          }
         }
+      },
+      onError: () => {
+        if (checkoutWindow && !checkoutWindow.closed) checkoutWindow.close()
       },
     })
   }

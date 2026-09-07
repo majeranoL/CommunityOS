@@ -24,7 +24,7 @@ export const facilitySchema = z.object({
   description: z.string().optional().or(z.literal('')),
   location: z.string().max(200).optional().or(z.literal('')),
   capacity: z.string().optional().or(z.literal('')),
-  imageUrl: z.string().url('Enter a valid image URL').optional().or(z.literal('')),
+  imageUrl: z.string().max(500).optional().or(z.literal('')),
   hourlyRate: z.string().optional().or(z.literal('')),
   status: z.string().min(1, 'Status is required'),
 })

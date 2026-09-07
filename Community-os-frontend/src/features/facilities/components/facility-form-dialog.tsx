@@ -7,6 +7,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FileUpload } from '@/components/shared/file-upload'
 import { useCreateFacility, useUpdateFacility } from '@/features/facilities/hooks/use-facilities'
 import {
   facilitySchema,
@@ -217,9 +218,16 @@ export function FacilityFormDialog({ open, onOpenChange, facility }: FacilityFor
               name="imageUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Image URL</FormLabel>
+                  <FormLabel>Facility image</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://… (optional)" {...field} />
+                    <FileUpload
+                      value={field.value}
+                      onChange={field.onChange}
+                      accept="image/*"
+                      maxFiles={1}
+                      label="Upload facility image"
+                      description="PNG, JPG, or WEBP up to 10MB"
+                    />
                   </FormControl>
                   <FormDescription>A photo makes the facility easier to recognize.</FormDescription>
                   <FormMessage />

@@ -397,6 +397,7 @@ function OfficerHouseholdsView() {
         columns={columns}
         rows={rows}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setSelectedId(row.id)}
         isLoading={isLoading}
         emptyMessage="No households found."
       />

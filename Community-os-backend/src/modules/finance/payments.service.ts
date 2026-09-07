@@ -8,6 +8,7 @@ import {
 import {
   AssessmentStatus,
   ChargeRecurrence,
+  CommunityStatus,
   NotificationType,
   PaymentMethod,
   PaymentStatus,
@@ -306,18 +307,27 @@ export class PaymentsService {
       '',
     );
 
-    const checkout = await this.gateway.createCheckout({
-      amount: Number(dto.amount),
-      currency: 'PHP',
-      description: 'HOA dues payment',
-      successUrl: `${appUrl}/app/finance?tab=my-payments`,
-      failureUrl: `${appUrl}/app/finance?tab=my-dues`,
-      metadata: {
-        paymentId: payment.id,
-        communityId,
-        type: 'payment',
-      },
-    });
+    let checkout: Awaited<ReturnType<PaymentsGatewayService['createCheckout']>>;
+    try {
+      checkout = await this.gateway.createCheckout({
+        amount: Number(dto.amount),
+        currency: 'PHP',
+        description: 'HOA dues payment',
+        successUrl: `${appUrl}/app/finance?tab=my-payments`,
+        failureUrl: `${appUrl}/app/finance?tab=my-dues`,
+        metadata: {
+          paymentId: payment.id,
+          communityId,
+          type: 'payment',
+        },
+      });
+    } catch (error) {
+      await this.prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED },
+      });
+      throw error;
+    }
 
     await this.prisma.payment.update({
       where: { id: payment.id },
@@ -342,6 +352,29 @@ export class PaymentsService {
   // ==========================================
   // Gateway webhook transitions (verified by gateway module)
   // ==========================================
+
+  private async reactivateCommunityIfInactive(communityId: string) {
+    const community = await this.prisma.community.findFirst({
+      where: { id: communityId, deletedAt: null },
+    });
+
+    if (
+      !community ||
+      community.status !== CommunityStatus.INACTIVE ||
+      community.suspensionReason !== 'unpaid'
+    ) {
+      return;
+    }
+
+    await this.prisma.community.update({
+      where: { id: communityId },
+      data: {
+        status: CommunityStatus.ACTIVE,
+        suspendedAt: null,
+        suspensionReason: null,
+      },
+    });
+  }
 
   async markGatewaySucceeded(gatewayId: string) {
     const payment = await this.prisma.payment.findFirst({
@@ -368,6 +401,7 @@ export class PaymentsService {
     });
 
     await this.syncLinkedAssessments(payment.communityId, payment.id);
+    await this.reactivateCommunityIfInactive(payment.communityId);
     await this.notifyResident(
       payment.communityId,
       payment.residentId,

@@ -16,6 +16,10 @@ const ALLOWED_MIMETYPES = new Set([
   'image/jpeg',
   'image/webp',
   'image/gif',
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/ogg',
   'text/plain',
   'text/csv',
 ]);
@@ -38,7 +42,18 @@ const BLOCKED_EXTENSIONS = new Set([
 ]);
 
 type MagicFamily =
-  'pdf' | 'png' | 'jpeg' | 'webp' | 'gif' | 'zip' | 'ole' | 'text' | 'json';
+  | 'pdf'
+  | 'png'
+  | 'jpeg'
+  | 'webp'
+  | 'gif'
+  | 'mp4'
+  | 'webm'
+  | 'video-ogg'
+  | 'zip'
+  | 'ole'
+  | 'text'
+  | 'json';
 
 function detectFamily(buffer: Buffer): MagicFamily | undefined {
   if (buffer.length >= 4 && buffer.slice(0, 4).toString('latin1') === '%PDF') {
@@ -80,6 +95,30 @@ function detectFamily(buffer: Buffer): MagicFamily | undefined {
     return 'gif';
   }
 
+  if (buffer.length >= 12 && buffer.slice(4, 8).toString('latin1') === 'ftyp') {
+    return 'mp4';
+  }
+
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  ) {
+    return 'webm';
+  }
+
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x4f &&
+    buffer[1] === 0x67 &&
+    buffer[2] === 0x67 &&
+    buffer[3] === 0x53
+  ) {
+    return 'video-ogg';
+  }
+
   if (
     buffer.length >= 4 &&
     buffer[0] === 0x50 &&
@@ -109,6 +148,9 @@ function mimeToFamily(mimetype: string): MagicFamily | undefined {
   if (mimetype === 'image/jpeg') return 'jpeg';
   if (mimetype === 'image/webp') return 'webp';
   if (mimetype === 'image/gif') return 'gif';
+  if (mimetype === 'video/mp4' || mimetype === 'video/quicktime') return 'mp4';
+  if (mimetype === 'video/webm') return 'webm';
+  if (mimetype === 'video/ogg') return 'video-ogg';
   if (
     mimetype.includes('wordprocessingml') ||
     mimetype.includes('spreadsheetml') ||

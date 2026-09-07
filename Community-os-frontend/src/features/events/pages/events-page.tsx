@@ -278,6 +278,7 @@ export default function EventsPage() {
             columns={columns}
             rows={data?.items ?? []}
             keyExtractor={(row) => row.id}
+            onRowClick={(row) => setDetailId(row.id)}
             isLoading={isLoading}
             emptyMessage="No events found."
           />

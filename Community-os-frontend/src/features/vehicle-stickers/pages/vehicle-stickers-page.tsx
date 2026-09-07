@@ -222,6 +222,7 @@ export default function VehicleStickersPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailId(row.id)}
         isLoading={isLoading}
         emptyMessage="No sticker requests found."
       />

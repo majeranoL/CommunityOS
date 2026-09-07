@@ -720,6 +720,7 @@ function AssessmentsTab({ variant = 'dues' }: { variant?: 'dues' | 'other' }) {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailId(row.id)}
         isLoading={isLoading}
         emptyMessage={isDues ? 'No monthly dues found.' : 'No charges found.'}
       />
@@ -980,6 +981,7 @@ function PaymentsTab() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setDetailId(row.id)}
         isLoading={isLoading}
         emptyMessage="No payments found."
       />
@@ -1171,6 +1173,7 @@ function ChargeTypesTab() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setEditing(row)}
         isLoading={isLoading}
         emptyMessage="No charge types found."
       />
@@ -1487,6 +1490,7 @@ function ExpensesTab() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setEditing(row)}
         isLoading={isLoading}
         emptyMessage="No expenses recorded yet."
       />
@@ -1773,6 +1777,12 @@ function HouseholdUtilityBillingSection() {
         ]}
         rows={readings}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => {
+          if (canManage) {
+            setEditingReading(row)
+            setReadingDialogOpen(true)
+          }
+        }}
         isLoading={readingsLoading}
         emptyMessage={
           readingsPeriod
@@ -2003,6 +2013,7 @@ function UtilitiesTab() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
+        onRowClick={(row) => setEditing(row)}
         isLoading={isLoading}
         emptyMessage="No utility expenses recorded yet."
       />
