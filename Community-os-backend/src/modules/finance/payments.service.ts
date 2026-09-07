@@ -302,9 +302,7 @@ export class PaymentsService {
       '',
     );
 
-    let checkout: Awaited<
-      ReturnType<PaymentsGatewayService['createCheckout']>
-    >;
+    let checkout: Awaited<ReturnType<PaymentsGatewayService['createCheckout']>>;
     try {
       checkout = await this.gateway.createCheckout({
         amount: Number(dto.amount),

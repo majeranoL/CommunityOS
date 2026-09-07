@@ -389,9 +389,7 @@ export class InvoicesService {
         ? InvoiceStatus.ISSUED
         : invoice.status;
 
-    let checkout: Awaited<
-      ReturnType<PaymentsGatewayService['createCheckout']>
-    >;
+    let checkout: Awaited<ReturnType<PaymentsGatewayService['createCheckout']>>;
     try {
       checkout = await this.gateway.createCheckout({
         amount: Number(invoice.amount),
