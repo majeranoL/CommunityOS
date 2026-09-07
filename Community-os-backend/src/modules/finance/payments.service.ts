@@ -26,6 +26,7 @@ import { PaymentQueryDto } from './dto/payment-query.dto';
 import { RejectPaymentDto } from './dto/payment-review.dto';
 
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+import { allocateAdvanceAmount } from './advance-payment-allocation';
 
 @Injectable()
 export class PaymentsService {
@@ -102,7 +103,8 @@ export class PaymentsService {
       resident.householdId,
     );
 
-    if (targets.length === 0) {
+    const isAdvance = Boolean(dto.advanceMonths);
+    if (targets.length === 0 && !isAdvance) {
       throw new BadRequestException(
         'Select at least one assessment or billing period to pay for.',
       );
@@ -114,7 +116,7 @@ export class PaymentsService {
     );
 
     // Allow small rounding tolerance (e.g. 1200.0000001)
-    if (Math.abs(allocatedTotal - dto.amount) > 0.005) {
+    if (!isAdvance && Math.abs(allocatedTotal - dto.amount) > 0.005) {
       throw new BadRequestException(
         `Payment amount must equal the sum of selected items (${allocatedTotal.toFixed(
           2,
@@ -156,6 +158,8 @@ export class PaymentsService {
         chargeTypeId: chargeTypeId ?? dto.chargeTypeId,
 
         status: PaymentStatus.PENDING_VERIFICATION,
+        isAdvance,
+        advanceMonths: dto.advanceMonths,
 
         allocations: {
           create: targets.map((target) => ({
@@ -971,6 +975,15 @@ export class PaymentsService {
       },
     });
 
+    if (payment.isAdvance) {
+      await this.allocateAdvancePayment(
+        communityId,
+        payment.id,
+        payment.residentId,
+        payment.amount.toNumber(),
+      );
+    }
+
     await this.syncLinkedAssessments(communityId, id);
 
     await this.notifyResident(
@@ -1173,6 +1186,70 @@ export class PaymentsService {
     }
   }
 
+  private async allocateAdvancePayment(
+    communityId: string,
+    paymentId: string,
+    residentId: string,
+    amount: number,
+  ) {
+    const resident = await this.prisma.resident.findFirst({
+      where: { id: residentId, communityId, deletedAt: null },
+      select: { householdId: true },
+    });
+    if (!resident?.householdId) return;
+    const assessments = await this.prisma.assessment.findMany({
+      where: {
+        communityId,
+        householdId: resident.householdId,
+        deletedAt: null,
+        status: {
+          in: [
+            AssessmentStatus.ISSUED,
+            AssessmentStatus.PARTIALLY_PAID,
+            AssessmentStatus.OVERDUE,
+          ],
+        },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+    });
+    const result = allocateAdvanceAmount(
+      assessments.map((assessment) => ({
+        id: assessment.id,
+        dueDate: assessment.dueDate,
+        createdAt: assessment.createdAt,
+        collectible:
+          assessment.amount.toNumber() -
+          assessment.discountAmount.toNumber() -
+          assessment.paidAmount.toNumber(),
+      })),
+      amount,
+    );
+    for (const allocation of result.allocations) {
+      await this.prisma.paymentAllocation.create({
+        data: {
+          communityId,
+          paymentId,
+          assessmentId: allocation.assessmentId,
+          allocatedAmount: allocation.amount,
+        },
+      });
+      await this.financeSyncService.syncAssessment(
+        communityId,
+        allocation.assessmentId,
+      );
+    }
+    if (result.remainder > 0) {
+      await this.prisma.householdCredit.create({
+        data: {
+          communityId,
+          householdId: resident.householdId,
+          balance: result.remainder,
+          sourcePaymentId: paymentId,
+        },
+      });
+    }
+  }
+
   private async reverseAllocations(communityId: string, paymentId: string) {
     await this.prisma.paymentAllocation.updateMany({
       where: {
@@ -1347,10 +1424,18 @@ export class PaymentsService {
         });
       }
     } else if (dto.assessmentId) {
-      await verifyOwnership(dto.assessmentId);
+      const assessment = await verifyOwnership(dto.assessmentId);
       targets.push({
         assessmentId: dto.assessmentId,
-        amount: dto.amount,
+        amount: Math.min(
+          dto.amount,
+          Math.max(
+            assessment.amount.toNumber() -
+              assessment.discountAmount.toNumber() -
+              assessment.paidAmount.toNumber(),
+            0,
+          ),
+        ),
       });
     }
 
@@ -1405,7 +1490,12 @@ export class PaymentsService {
 
         targets.push({
           assessmentId: assessment.id,
-          amount: period.amount.toNumber(),
+          amount: Math.max(
+            assessment.amount.toNumber() -
+              assessment.discountAmount.toNumber() -
+              assessment.paidAmount.toNumber(),
+            0,
+          ),
         });
       }
     }

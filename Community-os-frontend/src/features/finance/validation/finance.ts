@@ -52,6 +52,7 @@ export const paymentSchema = z.object({
   allocations: z.array(paymentAllocationSchema).optional(),
   proofFileId: z.string().optional().or(z.literal('')),
   proofUrl: z.string().optional().or(z.literal('')),
+  advanceMonths: z.number().int().min(1).optional(),
 })
 
 export type PaymentFormValues = z.infer<typeof paymentSchema>

@@ -232,7 +232,8 @@ export const permissions = [
   {
     code: 'facility.item.manage',
     module: 'Facilities',
-    description: 'Manage borrowable items (create, update, delete, approve loans)',
+    description:
+      'Manage borrowable items (create, update, delete, approve loans)',
   },
   {
     code: 'facility.item.borrow',
@@ -946,6 +947,7 @@ export const MEMBER_PERMISSIONS: string[] = [
   'announcement.view',
   'complaint.create',
   'complaint.view',
+  'upload.file',
   'facility.view',
   'facility.item.borrow',
   'reservation.create',

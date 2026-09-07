@@ -175,6 +175,19 @@ export function useUpdateAssessment(onSuccess?: () => void) {
   })
 }
 
+export function useApplyAssessmentDiscount() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: { type: 'FIXED' | 'PERCENTAGE'; value: number } }) =>
+      assessmentsService.discount(id, input),
+    onSuccess: () => {
+      toast.success('Discount applied.')
+      invalidateAssessments(queryClient)
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to apply discount.')),
+  })
+}
+
 export function useIssueAssessment() {
   const queryClient = useQueryClient()
   return useMutation({

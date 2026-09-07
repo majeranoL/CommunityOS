@@ -20,6 +20,7 @@ import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { AssessmentQueryDto } from './dto/assessment-query.dto';
 import { GenerateAssessmentsDto } from './dto/generate-assessments.dto';
 import { DuesTrackerQueryDto } from './dto/dues-tracker-query.dto';
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -162,5 +163,19 @@ export class AssessmentsController {
   @Permissions('finance.waive')
   waive(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.assessmentsService.waive(req.user.community.id, id);
+  }
+
+  @Patch(':id/discount')
+  @Permissions('finance.manage')
+  discount(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApplyDiscountDto,
+  ) {
+    return this.assessmentsService.applyDiscount(
+      req.user.community.id,
+      id,
+      dto,
+    );
   }
 }

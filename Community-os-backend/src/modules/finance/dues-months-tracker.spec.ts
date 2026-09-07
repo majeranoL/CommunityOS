@@ -60,6 +60,20 @@ describe('dues-months-tracker', () => {
   });
 
   describe('summarizeMonthRows', () => {
+    it('uses net collectible amounts after discounts', () => {
+      const summary = summarizeMonthRows('2026-08', [
+        row({
+          amount: 1000,
+          discountAmount: 250,
+          paidAmount: 500,
+          status: AssessmentStatus.PARTIALLY_PAID,
+        }),
+      ]);
+      expect(summary.totalExpected).toBe(750);
+      expect(summary.totalCollected).toBe(500);
+      expect(summary.perHousehold).toBe(750);
+    });
+
     it('counts paid / partial / unpaid and totals collected vs expected', () => {
       const summary = summarizeMonthRows('2026-08', [
         row({ status: AssessmentStatus.PAID, paidAmount: 250 }),

@@ -82,7 +82,10 @@ export class FinanceSyncService {
       ? allocated._sum.allocatedAmount.toNumber()
       : 0;
 
-    const assessmentAmount = assessment.amount.toNumber();
+    const assessmentAmount = Math.max(
+      assessment.amount.toNumber() - assessment.discountAmount.toNumber(),
+      0,
+    );
 
     const status = determineAssessmentStatus({
       status: assessment.status,

@@ -4,6 +4,7 @@ export interface DuesMonthRow {
   period: string | null;
   billingPeriodKey: string | null;
   amount: number;
+  discountAmount?: number;
   paidAmount: number;
   status: AssessmentStatus;
   dueDate: Date;
@@ -111,8 +112,9 @@ export function summarizeMonthRows(
   let totalCollected = 0;
 
   for (const row of counted) {
-    totalExpected += row.amount;
-    totalCollected += row.paidAmount;
+    const collectible = Math.max(row.amount - (row.discountAmount ?? 0), 0);
+    totalExpected += collectible;
+    totalCollected += Math.min(row.paidAmount, collectible);
 
     switch (row.status) {
       case AssessmentStatus.PAID:
@@ -155,7 +157,7 @@ export function summarizeMonthRows(
 function modeAmount(rows: DuesMonthRow[]): number {
   const counts = new Map<number, number>();
   for (const row of rows) {
-    const amount = round2(row.amount);
+    const amount = round2(Math.max(row.amount - (row.discountAmount ?? 0), 0));
     counts.set(amount, (counts.get(amount) ?? 0) + 1);
   }
 

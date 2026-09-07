@@ -36,6 +36,7 @@ export interface HouseholdAssessment {
   title: string
   period: string | null
   amount: string | number
+  discountAmount?: string | number
   paidAmount: string | number
   dueDate: string
   status: string

@@ -48,7 +48,10 @@ export function buildHouseholdLedger(
       status: assessment.status,
       method: null,
       referenceNumber: null,
-      debit: Number(assessment.amount),
+      debit: Math.max(
+        Number(assessment.amount) - Number(assessment.discountAmount ?? 0),
+        0,
+      ),
       credit: 0,
     })
 
@@ -64,6 +67,27 @@ export function buildHouseholdLedger(
         referenceNumber: payment.referenceNumber ?? null,
         debit: 0,
         credit: payment.status === VERIFIED ? Number(payment.amount) : 0,
+      })
+    }
+    const listedVerified = (assessment.payments ?? [])
+      .filter((payment) => payment.status === VERIFIED)
+      .reduce((sum, payment) => sum + Number(payment.amount), 0)
+    const allocationCredit = Math.max(
+      Number(assessment.paidAmount) - listedVerified,
+      0,
+    )
+    if (allocationCredit > 0) {
+      rows.push({
+        id: `allocation:${assessment.id}`,
+        date: assessment.dueDate,
+        type: 'payment',
+        description: `Advance credit — ${assessment.title}`,
+        number: 'ADVANCE',
+        status: VERIFIED,
+        method: null,
+        referenceNumber: null,
+        debit: 0,
+        credit: allocationCredit,
       })
     }
   }

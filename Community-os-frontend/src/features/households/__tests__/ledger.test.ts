@@ -37,6 +37,14 @@ describe('buildHouseholdLedger', () => {
     })
   })
 
+  it('uses the discounted amount as the ledger debit', () => {
+    const entries = buildHouseholdLedger([
+      assessment('discounted', { amount: 1000, discountAmount: 125 }),
+    ])
+    expect(entries[0].debit).toBe(875)
+    expect(entries[0].balance).toBe(875)
+  })
+
   it('applies confirmed payments as credits and runs a balance', () => {
     const entries = buildHouseholdLedger([
       assessment('a1', {
