@@ -942,7 +942,12 @@ export class PaymentsService {
     });
 
     if (payment.isAdvance) {
-      await this.allocateAdvancePayment(communityId, payment.id, payment.residentId, payment.amount.toNumber());
+      await this.allocateAdvancePayment(
+        communityId,
+        payment.id,
+        payment.residentId,
+        payment.amount.toNumber(),
+      );
     }
 
     await this.syncLinkedAssessments(communityId, id);
@@ -1148,59 +1153,66 @@ export class PaymentsService {
   }
 
   private async allocateAdvancePayment(
-      communityId: string,
-      paymentId: string,
-      residentId: string,
-      amount: number,
-    ) {
-      const resident = await this.prisma.resident.findFirst({
-        where: { id: residentId, communityId, deletedAt: null },
-        select: { householdId: true },
+    communityId: string,
+    paymentId: string,
+    residentId: string,
+    amount: number,
+  ) {
+    const resident = await this.prisma.resident.findFirst({
+      where: { id: residentId, communityId, deletedAt: null },
+      select: { householdId: true },
+    });
+    if (!resident?.householdId) return;
+    const assessments = await this.prisma.assessment.findMany({
+      where: {
+        communityId,
+        householdId: resident.householdId,
+        deletedAt: null,
+        status: {
+          in: [
+            AssessmentStatus.ISSUED,
+            AssessmentStatus.PARTIALLY_PAID,
+            AssessmentStatus.OVERDUE,
+          ],
+        },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+    });
+    const result = allocateAdvanceAmount(
+      assessments.map((assessment) => ({
+        id: assessment.id,
+        dueDate: assessment.dueDate,
+        createdAt: assessment.createdAt,
+        collectible:
+          assessment.amount.toNumber() -
+          assessment.discountAmount.toNumber() -
+          assessment.paidAmount.toNumber(),
+      })),
+      amount,
+    );
+    for (const allocation of result.allocations) {
+      await this.prisma.paymentAllocation.create({
+        data: {
+          communityId,
+          paymentId,
+          assessmentId: allocation.assessmentId,
+          allocatedAmount: allocation.amount,
+        },
       });
-      if (!resident?.householdId) return;
-      const assessments = await this.prisma.assessment.findMany({
-        where: {
+      await this.financeSyncService.syncAssessment(
+        communityId,
+        allocation.assessmentId,
+      );
+    }
+    if (result.remainder > 0) {
+      await this.prisma.householdCredit.create({
+        data: {
           communityId,
           householdId: resident.householdId,
-          deletedAt: null,
-          status: { in: [AssessmentStatus.ISSUED, AssessmentStatus.PARTIALLY_PAID, AssessmentStatus.OVERDUE] },
+          balance: result.remainder,
+          sourcePaymentId: paymentId,
         },
-        orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
       });
-      const result = allocateAdvanceAmount(
-        assessments.map((assessment) => ({
-          id: assessment.id,
-          dueDate: assessment.dueDate,
-          createdAt: assessment.createdAt,
-          collectible: assessment.amount.toNumber() -
-            assessment.discountAmount.toNumber() -
-            assessment.paidAmount.toNumber(),
-        })),
-        amount,
-      );
-      for (const allocation of result.allocations) {
-        await this.prisma.paymentAllocation.create({
-          data: {
-            communityId,
-            paymentId,
-            assessmentId: allocation.assessmentId,
-            allocatedAmount: allocation.amount,
-          },
-        });
-        await this.financeSyncService.syncAssessment(
-          communityId,
-          allocation.assessmentId,
-        );
-      }
-      if (result.remainder > 0) {
-        await this.prisma.householdCredit.create({
-          data: {
-            communityId,
-            householdId: resident.householdId,
-            balance: result.remainder,
-            sourcePaymentId: paymentId,
-          },
-        });
     }
   }
 
@@ -1383,7 +1395,12 @@ export class PaymentsService {
         assessmentId: dto.assessmentId,
         amount: Math.min(
           dto.amount,
-          Math.max(assessment.amount.toNumber() - assessment.discountAmount.toNumber() - assessment.paidAmount.toNumber(), 0),
+          Math.max(
+            assessment.amount.toNumber() -
+              assessment.discountAmount.toNumber() -
+              assessment.paidAmount.toNumber(),
+            0,
+          ),
         ),
       });
     }
@@ -1440,7 +1457,9 @@ export class PaymentsService {
         targets.push({
           assessmentId: assessment.id,
           amount: Math.max(
-            assessment.amount.toNumber() - assessment.discountAmount.toNumber() - assessment.paidAmount.toNumber(),
+            assessment.amount.toNumber() -
+              assessment.discountAmount.toNumber() -
+              assessment.paidAmount.toNumber(),
             0,
           ),
         });

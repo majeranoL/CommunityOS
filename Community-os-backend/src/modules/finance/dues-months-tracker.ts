@@ -157,9 +157,7 @@ export function summarizeMonthRows(
 function modeAmount(rows: DuesMonthRow[]): number {
   const counts = new Map<number, number>();
   for (const row of rows) {
-    const amount = round2(
-      Math.max(row.amount - (row.discountAmount ?? 0), 0),
-    );
+    const amount = round2(Math.max(row.amount - (row.discountAmount ?? 0), 0));
     counts.set(amount, (counts.get(amount) ?? 0) + 1);
   }
 

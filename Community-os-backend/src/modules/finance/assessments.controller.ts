@@ -167,7 +167,15 @@ export class AssessmentsController {
 
   @Patch(':id/discount')
   @Permissions('finance.manage')
-  discount(@Request() req: any, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ApplyDiscountDto) {
-    return this.assessmentsService.applyDiscount(req.user.community.id, id, dto);
+  discount(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApplyDiscountDto,
+  ) {
+    return this.assessmentsService.applyDiscount(
+      req.user.community.id,
+      id,
+      dto,
+    );
   }
 }

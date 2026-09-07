@@ -165,7 +165,8 @@ export function buildDuesTracker(
     );
 
     const billed = billedAssessments.reduce(
-      (sum, assessment) =>       sum +
+      (sum, assessment) =>
+        sum +
         Math.max(
           Number(assessment.amount) - Number(assessment.discountAmount ?? 0),
           0,

@@ -232,7 +232,8 @@ export const permissions = [
   {
     code: 'facility.item.manage',
     module: 'Facilities',
-    description: 'Manage borrowable items (create, update, delete, approve loans)',
+    description:
+      'Manage borrowable items (create, update, delete, approve loans)',
   },
   {
     code: 'facility.item.borrow',

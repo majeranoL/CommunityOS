@@ -156,7 +156,7 @@ export class DuesAutomationService {
           await this.prisma.paymentAllocation.create({
             data: {
               communityId,
-              paymentId: credit.sourcePaymentId,
+              paymentId: credit.sourcePaymentId ?? undefined,
               assessmentId: assessment.id,
               allocatedAmount: applied,
             },
@@ -167,7 +167,10 @@ export class DuesAutomationService {
           });
           collectible -= applied;
         }
-        await this.financeSyncService.syncAssessment(communityId, assessment.id);
+        await this.financeSyncService.syncAssessment(
+          communityId,
+          assessment.id,
+        );
         createdCount += 1;
       }
 

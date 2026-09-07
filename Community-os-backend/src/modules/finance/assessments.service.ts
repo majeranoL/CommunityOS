@@ -45,24 +45,38 @@ export class AssessmentsService {
       where: { id, communityId, deletedAt: null },
     });
     if (!assessment) throw new NotFoundException('Assessment not found.');
-    if (assessment.paidAmount.toNumber() > 0 || assessment.status === AssessmentStatus.PAID) {
-      throw new ConflictException('Discounts can only be applied to an unpaid assessment.');
+    if (
+      assessment.paidAmount.toNumber() > 0 ||
+      assessment.status === AssessmentStatus.PAID
+    ) {
+      throw new ConflictException(
+        'Discounts can only be applied to an unpaid assessment.',
+      );
     }
     const original = assessment.amount.toNumber();
     if (dto.type === 'PERCENTAGE' && dto.value > 100) {
       throw new BadRequestException('Percentage discount cannot exceed 100%.');
     }
-    const discountAmount = dto.type === 'PERCENTAGE'
-      ? original * dto.value / 100
-      : dto.value;
+    const discountAmount =
+      dto.type === 'PERCENTAGE' ? (original * dto.value) / 100 : dto.value;
     if (discountAmount <= 0 || discountAmount >= original) {
-      throw new BadRequestException('Discount must be less than the assessment amount.');
+      throw new BadRequestException(
+        'Discount must be less than the assessment amount.',
+      );
     }
     const updated = await this.prisma.assessment.update({
       where: { id },
-      data: { discountType: dto.type, discountValue: dto.value, discountAmount },
+      data: {
+        discountType: dto.type,
+        discountValue: dto.value,
+        discountAmount,
+      },
     });
-    return { success: true, message: 'Discount applied to this assessment.', data: updated };
+    return {
+      success: true,
+      message: 'Discount applied to this assessment.',
+      data: updated,
+    };
   }
 
   // ==========================================
@@ -377,7 +391,7 @@ export class AssessmentsService {
         await this.prisma.paymentAllocation.create({
           data: {
             communityId,
-            paymentId: credit.sourcePaymentId,
+            paymentId: credit.sourcePaymentId ?? undefined,
             assessmentId: assessment.id,
             allocatedAmount: applied,
           },
