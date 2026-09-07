@@ -116,6 +116,63 @@ describe('InvoicesService gateway invoice flow', () => {
     expect(prisma.invoice.update).not.toHaveBeenCalled();
   });
 
+  it('reuses an existing checkout for a PROCESSING invoice', async () => {
+    prisma.invoice.findFirst.mockResolvedValue({
+      id: 'inv-processing',
+      status: InvoiceStatus.PROCESSING,
+      gatewayInvoiceId: 'cses_existing',
+      checkoutUrl: 'https://checkout.paymongo.com/existing',
+    });
+
+    const result = await service.createGatewayCheckout(
+      'community-1',
+      'inv-processing',
+    );
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Checkout already exists. Redirect to the checkout URL.',
+      data: {
+        invoiceId: 'inv-processing',
+        checkoutUrl: 'https://checkout.paymongo.com/existing',
+        gatewayId: 'cses_existing',
+      },
+    });
+    expect(gateway.createCheckout).not.toHaveBeenCalled();
+    expect(prisma.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it('recreates a checkout when a PROCESSING invoice has no session URL', async () => {
+    prisma.invoice.findFirst.mockResolvedValue({
+      id: 'inv-stale',
+      invoiceNumber: 'INV-000002',
+      amount: '1000',
+      status: InvoiceStatus.PROCESSING,
+      gatewayInvoiceId: null,
+      checkoutUrl: null,
+    });
+
+    const result = await service.createGatewayCheckout(
+      'community-1',
+      'inv-stale',
+    );
+
+    expect(result.data).toEqual({
+      invoiceId: 'inv-stale',
+      checkoutUrl: 'https://checkout.paymongo.com/abc',
+      gatewayId: 'cses_123',
+    });
+    expect(prisma.invoice.update).toHaveBeenCalledWith({
+      where: { id: 'inv-stale' },
+      data: {
+        status: InvoiceStatus.PROCESSING,
+        gatewayProvider: 'paymongo',
+        gatewayInvoiceId: 'cses_123',
+        checkoutUrl: 'https://checkout.paymongo.com/abc',
+      },
+    });
+  });
+
   it('returns NOT_FOUND for an unknown gateway id', async () => {
     prisma.invoice.findFirst.mockResolvedValue(null);
 
