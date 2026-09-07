@@ -42,6 +42,7 @@ export interface HouseholdFinanceSummary {
 export interface FinanceAssessmentInput {
   householdId: string;
   amount: number;
+  discountAmount?: number;
   dueDate: Date;
   status: AssessmentStatus;
 }
@@ -82,7 +83,10 @@ export function summarizeFinance(
     const entry = summary.get(assessment.householdId);
     if (!entry) continue;
 
-    entry.totalBilled += assessment.amount;
+    entry.totalBilled += Math.max(
+      assessment.amount - (assessment.discountAmount ?? 0),
+      0,
+    );
 
     const isUnpaid =
       assessment.status === AssessmentStatus.ISSUED ||
@@ -175,6 +179,7 @@ export class HouseholdsService {
         select: {
           householdId: true,
           amount: true,
+          discountAmount: true,
           dueDate: true,
           status: true,
         },
@@ -240,6 +245,7 @@ export class HouseholdsService {
       assessments.map((assessment) => ({
         householdId: assessment.householdId,
         amount: assessment.amount.toNumber(),
+        discountAmount: assessment.discountAmount.toNumber(),
         dueDate: assessment.dueDate,
         status: assessment.status,
       })),
@@ -528,6 +534,7 @@ export class HouseholdsService {
             title: true,
             period: true,
             amount: true,
+            discountAmount: true,
             paidAmount: true,
             dueDate: true,
             status: true,

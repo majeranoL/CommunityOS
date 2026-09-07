@@ -15,6 +15,7 @@ export interface DuesTrackerAssessmentInput {
   id: string;
   householdId: string;
   amount: number;
+  discountAmount?: number;
   paidAmount: number;
   status: AssessmentStatus;
   period: string | null;
@@ -113,10 +114,14 @@ export function buildDuesTracker(
       status: assessment.status,
     };
 
+    const collectible = Math.max(
+      assessment.amount - (assessment.discountAmount ?? 0),
+      0,
+    );
     if (isBilled(assessment.status)) {
       row.outstanding += Math.max(
         0,
-        Number(assessment.amount) - Number(assessment.paidAmount),
+        collectible - Number(assessment.paidAmount),
       );
     }
 
@@ -160,14 +165,24 @@ export function buildDuesTracker(
     );
 
     const billed = billedAssessments.reduce(
-      (sum, assessment) => sum + Number(assessment.amount),
+      (sum, assessment) =>       sum +
+        Math.max(
+          Number(assessment.amount) - Number(assessment.discountAmount ?? 0),
+          0,
+        ),
       0,
     );
 
     const collected = billedAssessments.reduce(
       (sum, assessment) =>
         sum +
-        Math.min(Number(assessment.paidAmount), Number(assessment.amount)),
+        Math.min(
+          Number(assessment.paidAmount),
+          Math.max(
+            Number(assessment.amount) - Number(assessment.discountAmount ?? 0),
+            0,
+          ),
+        ),
       0,
     );
 

@@ -173,6 +173,7 @@ function PaymentFormDialogContent({
           })) ?? [],
       proofFileId: payment?.proofFileId ?? '',
       proofUrl: payment?.proofUrl ?? '',
+      advanceMonths: undefined,
     },
   })
 
@@ -298,6 +299,7 @@ function PaymentFormDialogContent({
         billingPeriodIds.length > 0 ? billingPeriodIds : undefined,
       proofFileId: values.proofFileId || undefined,
       proofUrl: values.proofUrl || undefined,
+      advanceMonths: values.advanceMonths || undefined,
     }
 
     setPending({ input })
@@ -378,6 +380,29 @@ function PaymentFormDialogContent({
                         ))}
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="advanceMonths"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Advance months (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="e.g. 3"
+                        value={field.value || ''}
+                        onChange={(event) => field.onChange(event.target.valueAsNumber || undefined)}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Enter months with an amount to submit an advance payment. An officer will verify it.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

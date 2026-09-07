@@ -131,7 +131,7 @@ export class DuesAutomationService {
 
       for (const household of eligible) {
         nextNumber += 1;
-        await this.prisma.assessment.create({
+        const assessment = await this.prisma.assessment.create({
           data: {
             communityId,
             assessmentNumber: `ASS-${String(nextNumber).padStart(6, '0')}`,
@@ -145,6 +145,29 @@ export class DuesAutomationService {
             status: AssessmentStatus.ISSUED,
           },
         });
+        let collectible = Number(assessment.amount);
+        const credits = await this.prisma.householdCredit.findMany({
+          where: { communityId, householdId: household.id, balance: { gt: 0 } },
+          orderBy: { createdAt: 'asc' },
+        });
+        for (const credit of credits) {
+          if (collectible <= 0) break;
+          const applied = Math.min(collectible, credit.balance.toNumber());
+          await this.prisma.paymentAllocation.create({
+            data: {
+              communityId,
+              paymentId: credit.sourcePaymentId,
+              assessmentId: assessment.id,
+              allocatedAmount: applied,
+            },
+          });
+          await this.prisma.householdCredit.update({
+            where: { id: credit.id },
+            data: { balance: { decrement: applied } },
+          });
+          collectible -= applied;
+        }
+        await this.financeSyncService.syncAssessment(communityId, assessment.id);
         createdCount += 1;
       }
 
@@ -199,7 +222,9 @@ export class DuesAutomationService {
 
       for (const assessment of overdue) {
         const remaining =
-          assessment.amount.toNumber() - assessment.paidAmount.toNumber();
+          assessment.amount.toNumber() -
+          assessment.discountAmount.toNumber() -
+          assessment.paidAmount.toNumber();
         if (remaining <= 0) continue;
 
         const duplicate = await this.prisma.assessment.findFirst({

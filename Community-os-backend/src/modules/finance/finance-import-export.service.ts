@@ -240,8 +240,12 @@ export class FinanceImportExportService {
       Lot: assessment.household.lot,
       Unit: assessment.household.unit,
       Amount: Number(assessment.amount),
+      DiscountAmount: Number(assessment.discountAmount),
       PaidAmount: Number(assessment.paidAmount),
-      Balance: Number(assessment.amount) - Number(assessment.paidAmount),
+      Balance:
+        Number(assessment.amount) -
+        Number(assessment.discountAmount) -
+        Number(assessment.paidAmount),
       DueDate: assessment.dueDate.toISOString().slice(0, 10),
       Period: assessment.period ?? '',
       ChargeType: assessment.chargeType?.name ?? '',

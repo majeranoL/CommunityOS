@@ -23,6 +23,7 @@ import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { AssessmentQueryDto } from './dto/assessment-query.dto';
 import { GenerateAssessmentsDto } from './dto/generate-assessments.dto';
 import { DuesTrackerQueryDto } from './dto/dues-tracker-query.dto';
+import { ApplyDiscountDto } from './dto/apply-discount.dto';
 
 import { buildDuesTracker } from './dues-tracker';
 
@@ -38,6 +39,31 @@ export class AssessmentsService {
     private readonly financeSyncService: FinanceSyncService,
     private readonly featuresService: FeaturesService,
   ) {}
+
+  async applyDiscount(communityId: string, id: string, dto: ApplyDiscountDto) {
+    const assessment = await this.prisma.assessment.findFirst({
+      where: { id, communityId, deletedAt: null },
+    });
+    if (!assessment) throw new NotFoundException('Assessment not found.');
+    if (assessment.paidAmount.toNumber() > 0 || assessment.status === AssessmentStatus.PAID) {
+      throw new ConflictException('Discounts can only be applied to an unpaid assessment.');
+    }
+    const original = assessment.amount.toNumber();
+    if (dto.type === 'PERCENTAGE' && dto.value > 100) {
+      throw new BadRequestException('Percentage discount cannot exceed 100%.');
+    }
+    const discountAmount = dto.type === 'PERCENTAGE'
+      ? original * dto.value / 100
+      : dto.value;
+    if (discountAmount <= 0 || discountAmount >= original) {
+      throw new BadRequestException('Discount must be less than the assessment amount.');
+    }
+    const updated = await this.prisma.assessment.update({
+      where: { id },
+      data: { discountType: dto.type, discountValue: dto.value, discountAmount },
+    });
+    return { success: true, message: 'Discount applied to this assessment.', data: updated };
+  }
 
   // ==========================================
   // Create Assessment
@@ -337,6 +363,33 @@ export class AssessmentsService {
         },
       });
 
+      const credits = await this.prisma.householdCredit.findMany({
+        where: { communityId, householdId, balance: { gt: 0 } },
+        orderBy: { createdAt: 'asc' },
+      });
+      let collectible = Math.max(
+        Number(amount) - assessment.discountAmount.toNumber(),
+        0,
+      );
+      for (const credit of credits) {
+        if (collectible <= 0) break;
+        const applied = Math.min(credit.balance.toNumber(), collectible);
+        await this.prisma.paymentAllocation.create({
+          data: {
+            communityId,
+            paymentId: credit.sourcePaymentId,
+            assessmentId: assessment.id,
+            allocatedAmount: applied,
+          },
+        });
+        await this.prisma.householdCredit.update({
+          where: { id: credit.id },
+          data: { balance: { decrement: applied } },
+        });
+        collectible -= applied;
+      }
+      await this.financeSyncService.syncAssessment(communityId, assessment.id);
+
       created.push(assessment);
     }
 
@@ -557,6 +610,7 @@ export class AssessmentsService {
         id: true,
         householdId: true,
         amount: true,
+        discountAmount: true,
         paidAmount: true,
         status: true,
         period: true,
@@ -580,7 +634,11 @@ export class AssessmentsService {
       households,
       assessments.map((assessment) => ({
         ...assessment,
-        amount: Number(assessment.amount),
+        discountAmount: Number(assessment.discountAmount),
+        amount: Math.max(
+          Number(assessment.amount) - Number(assessment.discountAmount),
+          0,
+        ),
         paidAmount: Number(assessment.paidAmount),
       })),
       now,

@@ -93,7 +93,7 @@ export function HouseholdDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-6xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Household</DialogTitle>
           <DialogDescription>

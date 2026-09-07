@@ -946,6 +946,7 @@ export const MEMBER_PERMISSIONS: string[] = [
   'announcement.view',
   'complaint.create',
   'complaint.view',
+  'upload.file',
   'facility.view',
   'facility.item.borrow',
   'reservation.create',

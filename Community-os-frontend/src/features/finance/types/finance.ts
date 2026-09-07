@@ -69,6 +69,9 @@ export interface AssessmentListItem {
   description: string | null
   householdId: string
   amount: string | number
+  discountType?: 'FIXED' | 'PERCENTAGE' | null
+  discountValue?: string | number | null
+  discountAmount?: string | number
   dueDate: string
   period: string | null
   paidAmount: string | number
@@ -119,6 +122,7 @@ export interface CreateAssessmentInput {
   period?: string
   remarks?: string
   chargeTypeId?: string
+  advanceMonths?: number
   billingPeriodId?: string
 }
 
@@ -132,6 +136,7 @@ export interface UpdateAssessmentInput {
   period?: string
   remarks?: string
   chargeTypeId?: string
+  advanceMonths?: number
   billingPeriodId?: string
 }
 
@@ -786,4 +791,3 @@ export interface UtilityBillingResult {
   skippedExisting: number
   noReadings: number
 }
-

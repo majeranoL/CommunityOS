@@ -225,8 +225,28 @@ describe('buildDuesTracker', () => {
       paidCount: 1,
       householdCount: 3,
     });
+
     expect(summary.collectionRate).toBeCloseTo(1 / 3);
     expect(summary.collectedRate).toBeCloseTo(1400 / 3000);
+  });
+
+  it('uses the discounted collectible amount for balances and summaries', () => {
+    const result = buildDuesTracker(
+      households,
+      [
+        assessment({
+          householdId: 'h1',
+          amount: 1000,
+          discountAmount: 200,
+          paidAmount: 400,
+          status: AssessmentStatus.PARTIALLY_PAID,
+        }),
+      ],
+      now,
+    );
+    expect(result.rows[0].outstanding).toBe(400);
+    expect(result.summaries['2026-01'].billed).toBe(800);
+    expect(result.summaries['2026-01'].collected).toBe(400);
   });
 
   it('returns periods sorted newest first', () => {

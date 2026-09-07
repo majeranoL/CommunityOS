@@ -107,6 +107,11 @@ export const assessmentsService = {
     const { data } = await api.patch<ApiEnvelope<Assessment>>(`/assessments/${id}/waive`)
     return data.data
   },
+
+  async discount(id: string, input: { type: 'FIXED' | 'PERCENTAGE'; value: number }) {
+    const { data } = await api.patch<ApiEnvelope<Assessment>>(`/assessments/${id}/discount`, input)
+    return data.data
+  },
 }
 
 export const duesMonthsService = {

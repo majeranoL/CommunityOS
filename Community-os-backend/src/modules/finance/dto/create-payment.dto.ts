@@ -79,4 +79,10 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsUUID()
   chargeTypeId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  advanceMonths?: number;
 }
