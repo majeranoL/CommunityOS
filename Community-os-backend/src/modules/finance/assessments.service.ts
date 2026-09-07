@@ -387,11 +387,12 @@ export class AssessmentsService {
       );
       for (const credit of credits) {
         if (collectible <= 0) break;
+        if (!credit.sourcePaymentId) continue;
         const applied = Math.min(credit.balance.toNumber(), collectible);
         await this.prisma.paymentAllocation.create({
           data: {
             communityId,
-            paymentId: credit.sourcePaymentId ?? undefined,
+            paymentId: credit.sourcePaymentId,
             assessmentId: assessment.id,
             allocatedAmount: applied,
           },
