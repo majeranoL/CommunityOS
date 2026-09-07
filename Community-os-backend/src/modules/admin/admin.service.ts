@@ -856,7 +856,12 @@ export class AdminService {
   ) {
     const community = await this.prisma.community.findFirst({
       where: { id: communityId, deletedAt: null },
-      select: { id: true, status: true, suspendedAt: true },
+      select: {
+        id: true,
+        status: true,
+        suspendedAt: true,
+        suspensionReason: true,
+      },
     });
 
     if (!community) {
