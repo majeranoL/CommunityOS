@@ -42,10 +42,23 @@ export class PaymentsController {
   // ==========================================
 
   @Get('gateway-status')
-  gatewayStatus() {
+  async gatewayStatus(@Request() req: any) {
     return {
       success: true,
       message: 'Gateway status retrieved successfully.',
+      data: {
+        configured: await this.paymentsService.isCommunityGatewayEnabled(
+          req.user.community.id,
+        ),
+      },
+    };
+  }
+
+  @Get('platform-gateway-status')
+  platformGatewayStatus() {
+    return {
+      success: true,
+      message: 'Platform gateway status retrieved successfully.',
       data: { configured: this.gateway.enabled },
     };
   }

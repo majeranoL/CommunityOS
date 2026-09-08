@@ -282,6 +282,18 @@ export interface PaymentMethodConfigInput {
   isActive?: boolean
 }
 
+export interface CommunityPayMongoConfig {
+  accountName?: string | null
+  isActive: boolean
+  configured: boolean
+}
+
+export interface CommunityPayMongoInput {
+  secretKey: string
+  webhookSecret?: string
+  accountName?: string
+}
+
 export interface ActivePaymentMethod {
   method: PaymentMethodConfigMethod
   displayMode: PaymentMethodConfigDisplay

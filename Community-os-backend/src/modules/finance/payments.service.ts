@@ -226,9 +226,14 @@ export class PaymentsService {
   // ==========================================
 
   async createGatewayCheckout(communityId: string, dto: CreatePaymentDto) {
-    if (!this.gateway.enabled) {
+    const communityGateway =
+      await this.prisma.communityPayMongoAccount.findUnique({
+        where: { communityId },
+      });
+
+    if (!communityGateway?.isActive) {
       throw new BadRequestException(
-        'Online payment gateway is not configured.',
+        'This community has not configured its PayMongo account.',
       );
     }
 
@@ -310,18 +315,21 @@ export class PaymentsService {
 
     let checkout: Awaited<ReturnType<PaymentsGatewayService['createCheckout']>>;
     try {
-      checkout = await this.gateway.createCheckout({
-        amount: Number(dto.amount),
-        currency: 'PHP',
-        description: 'HOA dues payment',
-        successUrl: `${appUrl}/app/finance?tab=my-payments`,
-        failureUrl: `${appUrl}/app/finance?tab=my-dues`,
-        metadata: {
-          paymentId: payment.id,
-          communityId,
-          type: 'payment',
+      checkout = await this.gateway.createCheckout(
+        {
+          amount: Number(dto.amount),
+          currency: 'PHP',
+          description: 'HOA dues payment',
+          successUrl: `${appUrl}/app/finance?tab=my-payments`,
+          failureUrl: `${appUrl}/app/finance?tab=my-dues`,
+          metadata: {
+            paymentId: payment.id,
+            communityId,
+            type: 'payment',
+          },
         },
-      });
+        communityGateway.secretKey,
+      );
     } catch (error) {
       await this.prisma.payment.update({
         where: { id: payment.id },
@@ -348,6 +356,15 @@ export class PaymentsService {
         gatewayId: checkout.gatewayId,
       },
     };
+  }
+
+  async isCommunityGatewayEnabled(communityId: string) {
+    const account = await this.prisma.communityPayMongoAccount.findUnique({
+      where: { communityId },
+      select: { isActive: true },
+    });
+
+    return account?.isActive === true;
   }
 
   // ==========================================
@@ -478,7 +495,16 @@ export class PaymentsService {
   ) {
     const payment = await this.prisma.payment.findFirst({
       where: { id, communityId, deletedAt: null },
-      include: { resident: { select: { householdId: true } } },
+      include: {
+        resident: { select: { householdId: true } },
+        community: {
+          select: {
+            paymongoAccount: {
+              select: { secretKey: true, isActive: true },
+            },
+          },
+        },
+      },
     });
 
     if (!payment) {
@@ -500,7 +526,12 @@ export class PaymentsService {
 
     let checkout: Record<string, unknown>;
     try {
-      checkout = await this.gateway.retrieveCheckout(payment.gatewayId);
+      checkout = await this.gateway.retrieveCheckout(
+        payment.gatewayId,
+        payment.community.paymongoAccount?.isActive
+          ? payment.community.paymongoAccount.secretKey
+          : undefined,
+      );
     } catch {
       // Gateway unreachable. Leave the payment PROCESSING and retry later
       // rather than risking a wrongly-expired record for a paid session.

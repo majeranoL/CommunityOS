@@ -87,7 +87,7 @@ export interface GatewayStatus {
 
 export async function fetchGatewayStatus() {
   const { data } = await api.get<ApiEnvelope<GatewayStatus>>(
-    '/payments/gateway-status',
+    '/payments/platform-gateway-status',
   )
   return data.data
 }

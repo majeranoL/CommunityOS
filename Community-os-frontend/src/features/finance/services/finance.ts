@@ -2,6 +2,8 @@ import api from '@/lib/api'
 import type { ApiEnvelope, ListQuery, Pagination } from '@/types/api'
 import type {
   ActivePaymentMethod,
+  CommunityPayMongoConfig,
+  CommunityPayMongoInput,
   Assessment,
   AssessmentListItem,
   BillingPeriod,
@@ -252,6 +254,28 @@ export const paymentMethodsService = {
   async remove(method: string) {
     const { data } = await api.delete<ApiEnvelope<null>>(
       `/payment-methods/admin/${method}`,
+    )
+    return data.data
+  },
+
+  async getPayMongo() {
+    const { data } = await api.get<ApiEnvelope<CommunityPayMongoConfig>>(
+      '/payment-methods/admin/paymongo',
+    )
+    return data.data
+  },
+
+  async updatePayMongo(input: CommunityPayMongoInput) {
+    const { data } = await api.put<ApiEnvelope<CommunityPayMongoConfig>>(
+      '/payment-methods/admin/paymongo',
+      input,
+    )
+    return data.data
+  },
+
+  async removePayMongo() {
+    const { data } = await api.delete<ApiEnvelope<null>>(
+      '/payment-methods/admin/paymongo',
     )
     return data.data
   },

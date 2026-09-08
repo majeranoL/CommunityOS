@@ -16,6 +16,7 @@ import { PaymentMethodConfigMethod } from '@prisma/client';
 import { PaymentMethodsService } from './payment-methods.service';
 
 import { PaymentMethodConfigDto } from './dto/payment-method-config.dto';
+import { CommunityPayMongoDto } from './dto/community-paymongo.dto';
 
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -50,6 +51,34 @@ export class PaymentMethodsController {
     return this.paymentMethodsService.save(
       { communityId: req.user.community.id },
       dto,
+    );
+  }
+
+  @Get('admin/paymongo')
+  @Permissions('finance.manage')
+  getPayMongo(@Request() req: AuthenticatedRequest) {
+    return this.paymentMethodsService.getCommunityPayMongo(
+      req.user.community.id,
+    );
+  }
+
+  @Put('admin/paymongo')
+  @Permissions('finance.manage')
+  updatePayMongo(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: CommunityPayMongoDto,
+  ) {
+    return this.paymentMethodsService.updateCommunityPayMongo(
+      req.user.community.id,
+      dto,
+    );
+  }
+
+  @Delete('admin/paymongo')
+  @Permissions('finance.manage')
+  removePayMongo(@Request() req: AuthenticatedRequest) {
+    return this.paymentMethodsService.removeCommunityPayMongo(
+      req.user.community.id,
     );
   }
 

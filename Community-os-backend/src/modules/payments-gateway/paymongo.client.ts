@@ -42,6 +42,7 @@ export class PayMongoClient {
 
   async createCheckout(
     params: CreateCheckoutParams,
+    secretKey?: string,
   ): Promise<PayMongoCheckoutResult> {
     const { amount, currency, description, metadata, successUrl, failureUrl } =
       params;
@@ -73,9 +74,9 @@ export class PayMongoClient {
     const response = await fetch(`${this.baseUrl}/checkout_sessions`, {
       method: 'POST',
       headers: {
-        Authorization: `Basic ${Buffer.from(`${this.secretKey}:`).toString(
-          'base64',
-        )}`,
+        Authorization: `Basic ${Buffer.from(
+          `${secretKey ?? this.secretKey}:`,
+        ).toString('base64')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -101,14 +102,17 @@ export class PayMongoClient {
     return { checkoutUrl, gatewayId };
   }
 
-  async retrieveCheckout(gatewayId: string): Promise<Record<string, unknown>> {
+  async retrieveCheckout(
+    gatewayId: string,
+    secretKey?: string,
+  ): Promise<Record<string, unknown>> {
     const response = await fetch(
       `${this.baseUrl}/checkout_sessions/${gatewayId}`,
       {
         headers: {
-          Authorization: `Basic ${Buffer.from(`${this.secretKey}:`).toString(
-            'base64',
-          )}`,
+          Authorization: `Basic ${Buffer.from(
+            `${secretKey ?? this.secretKey}:`,
+          ).toString('base64')}`,
         },
       },
     );
@@ -128,8 +132,12 @@ export class PayMongoClient {
   // Verifies the PayMongo webhook signature. Returns true when the signature
   // matches an HMAC-SHA256 of the raw request body computed with the webhook
   // secret, or when PayMongo webhooks are not configured (dev fallback).
-  verifyWebhookSignature(rawBody: Buffer, signature: string): boolean {
-    const secret = this.webhookSecret;
+  verifyWebhookSignature(
+    rawBody: Buffer,
+    signature: string,
+    webhookSecret?: string,
+  ): boolean {
+    const secret = webhookSecret ?? this.webhookSecret;
     if (!secret) {
       return true;
     }
