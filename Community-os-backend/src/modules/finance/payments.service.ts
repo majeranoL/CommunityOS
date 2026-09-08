@@ -544,8 +544,14 @@ export class PaymentsService {
 
     if (this.isCheckoutPaid(checkout)) {
       await this.markGatewaySucceeded(payment.gatewayId);
-    } else {
+    } else if (this.isCheckoutFinalizedUnpaid(checkout)) {
       await this.markGatewayExpired(payment.gatewayId);
+    } else {
+      return {
+        success: false,
+        reason: 'GATEWAY_PENDING',
+        status: payment.status,
+      };
     }
 
     const updated = await this.prisma.payment.findUnique({
@@ -563,11 +569,42 @@ export class PaymentsService {
   private isCheckoutPaid(checkout: Record<string, unknown>): boolean {
     const attributes = (checkout as { data?: { attributes?: any } })?.data
       ?.attributes;
-    const status = attributes?.status;
     return (
-      status === 'paid' ||
-      status === 'payment_paid' ||
+      this.containsPaymentStatus(attributes, new Set(['paid', 'succeeded'])) ||
       attributes?.paid === true
+    )
+  }
+
+  private isCheckoutFinalizedUnpaid(
+    checkout: Record<string, unknown>,
+  ): boolean {
+    const attributes = (checkout as { data?: { attributes?: any } })?.data
+      ?.attributes;
+    return this.containsPaymentStatus(
+      attributes,
+      new Set(['expired', 'failed', 'payment_failed']),
+    );
+  }
+
+  private containsPaymentStatus(
+    value: unknown,
+    statuses: Set<string>,
+  ): boolean {
+    if (!value || typeof value !== 'object') return false;
+    if (Array.isArray(value)) {
+      return value.some((item) => this.containsPaymentStatus(item, statuses));
+    }
+
+    const record = value as Record<string, unknown>;
+    if (
+      typeof record.status === 'string' &&
+      statuses.has(record.status.toLowerCase())
+    ) {
+      return true;
+    }
+
+    return Object.values(record).some((item) =>
+      this.containsPaymentStatus(item, statuses),
     );
   }
 
