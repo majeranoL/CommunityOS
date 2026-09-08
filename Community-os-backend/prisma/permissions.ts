@@ -311,6 +311,16 @@ export const permissions = [
     description: 'View households',
   },
   {
+    code: 'household.request',
+    module: 'Households',
+    description: 'Request access to another household',
+  },
+  {
+    code: 'household.request_review',
+    module: 'Households',
+    description: 'Review household acquisition requests',
+  },
+  {
     code: 'household.import',
     module: 'Households',
     description: 'Import households',
@@ -996,6 +1006,7 @@ export const MEMBER_PERMISSIONS: string[] = [
   'resident.update',
   'resident.delete',
   'household.view',
+  'household.request',
   'vehicle.create',
   'vehicle.view',
   'sticker.create',

@@ -21,6 +21,9 @@ import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { SwitchHouseholdDto } from './dto/switch-household.dto';
+import { HouseholdSearchQueryDto } from './dto/household-search-query.dto';
+import { CreateHouseholdAcquisitionRequestDto } from './dto/create-household-acquisition-request.dto';
+import { ReviewHouseholdAcquisitionRequestDto } from './dto/review-household-acquisition-request.dto';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../common/guards/permissions.guard';
@@ -78,6 +81,40 @@ export class HouseholdsController {
   @Permissions('household.view')
   getBlockOptions(@Request() req: any) {
     return this.householdsService.getBlockOptions(req.user.community.id);
+  }
+
+  @Get('search')
+  @Permissions('household.request')
+  search(@Request() req: any, @Query() query: HouseholdSearchQueryDto) {
+    return this.householdsService.searchMemberHouseholds(req.user.community.id, query);
+  }
+
+  @Get('acquisition-requests')
+  @Permissions('household.request_review')
+  acquisitionRequests(@Request() req: any) {
+    return this.householdsService.acquisitionRequests(req.user.community.id, req.user.id, true);
+  }
+
+  @Get('acquisition-requests/mine')
+  @Permissions('household.request')
+  myAcquisitionRequests(@Request() req: any) {
+    return this.householdsService.acquisitionRequests(req.user.community.id, req.user.id, false);
+  }
+
+  @Post('acquisition-requests')
+  @Permissions('household.request')
+  createAcquisitionRequest(@Request() req: any, @Body() dto: CreateHouseholdAcquisitionRequestDto) {
+    return this.householdsService.createAcquisitionRequest(req.user.community.id, req.user.id, dto);
+  }
+
+  @Put('acquisition-requests/:id/review')
+  @Permissions('household.request_review')
+  reviewAcquisitionRequest(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReviewHouseholdAcquisitionRequestDto,
+  ) {
+    return this.householdsService.reviewAcquisitionRequest(req.user.community.id, id, req.user.id, dto);
   }
 
   // ==========================================

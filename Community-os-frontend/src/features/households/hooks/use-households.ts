@@ -46,6 +46,54 @@ export function useMyHousehold() {
   })
 }
 
+export function useHouseholdSearch(search: string) {
+  return useQuery({
+    queryKey: ['household-search', search],
+    queryFn: () => householdsService.search(search),
+    enabled: search.trim().length >= 2,
+  })
+}
+
+export function useMyAcquisitionRequests() {
+  return useQuery({
+    queryKey: ['household-acquisition-requests', 'mine'],
+    queryFn: () => householdsService.acquisitionRequests(),
+  })
+}
+
+export function useRequestHousehold(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { householdId?: string; requestedBlock?: string; requestedLot?: string; requestedUnit?: string; requestedAddress?: string; notes?: string }) => householdsService.requestAcquisition(input),
+    onSuccess: () => {
+      toast.success('Household request submitted for review.')
+      queryClient.invalidateQueries({ queryKey: ['household-acquisition-requests'] })
+      onSuccess?.()
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to submit household request.')),
+  })
+}
+
+export function useOfficerAcquisitionRequests() {
+  return useQuery({
+    queryKey: ['household-acquisition-requests', 'officer'],
+    queryFn: () => householdsService.officerAcquisitionRequests(),
+  })
+}
+
+export function useReviewHouseholdRequest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, status, reviewNotes }: { id: string; status: 'APPROVED' | 'REJECTED'; reviewNotes?: string }) => householdsService.reviewAcquisitionRequest(id, status, reviewNotes),
+    onSuccess: () => {
+      toast.success('Household request updated.')
+      queryClient.invalidateQueries({ queryKey: ['household-acquisition-requests'] })
+      queryClient.invalidateQueries({ queryKey: householdKeys.all })
+    },
+    onError: (error) => toast.error(apiErrorMessage(error, 'Failed to review household request.')),
+  })
+}
+
 export function useCreateHousehold(onSuccess?: () => void) {
   const queryClient = useQueryClient()
   return useMutation({

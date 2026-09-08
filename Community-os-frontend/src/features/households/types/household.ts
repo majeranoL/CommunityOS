@@ -92,3 +92,27 @@ export interface UpdateHouseholdInput {
   address?: string
   status?: HouseholdStatus
 }
+
+export interface HouseholdSearchResult {
+  id: string
+  block: string | null
+  lot: string | null
+  unit: string | null
+  address: string | null
+}
+
+export interface HouseholdAcquisitionRequest {
+  id: string
+  householdId: string | null
+  requestedBlock: string | null
+  requestedLot: string | null
+  requestedUnit: string | null
+  requestedAddress: string | null
+  notes: string | null
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  reviewNotes: string | null
+  household: HouseholdSearchResult | null
+  createdAt: string
+  requestedBy?: { id: string; firstName: string; lastName: string; email?: string }
+  resident?: { id: string; firstName: string; lastName: string }
+}

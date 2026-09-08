@@ -10,6 +10,8 @@ import type {
   HouseholdDetail,
   HouseholdListItem,
   UpdateHouseholdInput,
+  HouseholdAcquisitionRequest,
+  HouseholdSearchResult,
 } from '@/features/households/types/household'
 
 export interface HouseholdListResult {
@@ -51,6 +53,31 @@ export const householdsService = {
       '/households/switch',
       { householdId },
     )
+    return data.data
+  },
+
+  async search(search: string) {
+    const { data } = await api.get<ApiEnvelope<HouseholdSearchResult[]>>('/households/search', { params: { search } })
+    return data.data
+  },
+
+  async acquisitionRequests() {
+    const { data } = await api.get<ApiEnvelope<HouseholdAcquisitionRequest[]>>('/households/acquisition-requests/mine')
+    return data.data
+  },
+
+  async requestAcquisition(input: { householdId?: string; requestedBlock?: string; requestedLot?: string; requestedUnit?: string; requestedAddress?: string; notes?: string }) {
+    const { data } = await api.post<ApiEnvelope<HouseholdAcquisitionRequest>>('/households/acquisition-requests', input)
+    return data.data
+  },
+
+  async officerAcquisitionRequests() {
+    const { data } = await api.get<ApiEnvelope<HouseholdAcquisitionRequest[]>>('/households/acquisition-requests')
+    return data.data
+  },
+
+  async reviewAcquisitionRequest(id: string, status: 'APPROVED' | 'REJECTED', reviewNotes?: string) {
+    const { data } = await api.put<ApiEnvelope<HouseholdAcquisitionRequest>>(`/households/acquisition-requests/${id}/review`, { status, reviewNotes })
     return data.data
   },
 

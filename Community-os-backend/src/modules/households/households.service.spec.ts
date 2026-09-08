@@ -1,4 +1,4 @@
-import { AssessmentStatus } from '@prisma/client';
+import { AssessmentStatus, HouseholdStatus } from '@prisma/client';
 
 import { ConflictException, ForbiddenException } from '@nestjs/common';
 
@@ -235,13 +235,30 @@ describe('HouseholdsService switchHousehold', () => {
 
     prismaMock = {
       user: { findFirst: jest.fn() },
+      household: { findMany: jest.fn() },
       residentHousehold: { findFirst: jest.fn() },
       resident: {
         update: jest.fn().mockResolvedValue({ id: 'res-1', householdId: 'h2' }),
       },
     };
 
-    service = new HouseholdsService(prismaMock, {} as any);
+    service = new HouseholdsService(prismaMock, {} as any, { log: jest.fn() } as any);
+  });
+
+  it('searches active households for member acquisition requests', async () => {
+    prismaMock.household.findMany.mockResolvedValue([
+      { id: 'h2', block: 'B', lot: '5', unit: null, address: 'Block B' },
+    ]);
+
+    const result = await service.searchMemberHouseholds('c1', { search: 'B-5' });
+
+    expect(result.data).toHaveLength(1);
+    expect(prismaMock.household.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ communityId: 'c1', status: HouseholdStatus.ACTIVE }),
+        take: 20,
+      }),
+    );
   });
 
   it('switches the resident active household to a membership', async () => {

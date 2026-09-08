@@ -29,6 +29,7 @@ import { ModuleImportDialog } from '@/features/shared/import-export/module-impor
 import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { HouseholdListItem } from '@/features/households/types/household'
 import { formatCurrency, formatDate } from '@/lib/format'
+import { HouseholdAcquisitionRequestsPanel } from '@/features/households/components/household-acquisition-requests-panel'
 
 const STATUS_FILTERS = ['ALL', 'ACTIVE', 'INACTIVE'] as const
 
@@ -310,6 +311,8 @@ function OfficerHouseholdsView() {
           ) : null}
         </div>
       </PageHeader>
+
+      <HouseholdAcquisitionRequestsPanel />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative sm:max-w-xs sm:flex-1">

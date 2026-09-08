@@ -10,6 +10,8 @@ import {
   AssessmentStatus,
   HouseholdMembershipStatus,
   HouseholdStatus,
+  HouseholdAcquisitionRequestStatus,
+  HouseholdRelationshipType,
   PaymentStatus,
   ResidentStatus,
   ResidentType,
@@ -19,6 +21,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { FeaturesService } from '../features/features.service';
+import { AuditLogsService } from '../auditlogs/audit-logs.service';
 import {
   DEFAULT_DELINQUENCY_THRESHOLD_MONTHS,
   GOOD_BAD_STANDING_FEATURE,
@@ -28,6 +31,9 @@ import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 import { HouseholdQueryDto } from './dto/household-query.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
+import { HouseholdSearchQueryDto } from './dto/household-search-query.dto';
+import { CreateHouseholdAcquisitionRequestDto } from './dto/create-household-acquisition-request.dto';
+import { ReviewHouseholdAcquisitionRequestDto } from './dto/review-household-acquisition-request.dto';
 
 type HouseholdStanding = 'GOOD' | 'BAD';
 
@@ -127,6 +133,7 @@ export class HouseholdsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly featuresService: FeaturesService,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   // ==========================================
@@ -680,6 +687,142 @@ export class HouseholdsService {
         address: membership.household.address,
       },
     };
+  }
+
+  async searchMemberHouseholds(
+    communityId: string,
+    query: HouseholdSearchQueryDto,
+  ) {
+    const search = query.search.trim();
+    const households = await this.prisma.household.findMany({
+      where: {
+        communityId,
+        status: HouseholdStatus.ACTIVE,
+        deletedAt: null,
+        OR: [
+          { block: { contains: search, mode: 'insensitive' } },
+          { lot: { contains: search, mode: 'insensitive' } },
+          { unit: { contains: search, mode: 'insensitive' } },
+          { address: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, block: true, lot: true, unit: true, address: true },
+      take: 20,
+      orderBy: [{ block: 'asc' }, { lot: 'asc' }],
+    });
+    return { success: true, data: households };
+  }
+
+  async acquisitionRequests(communityId: string, userId: string, includeAll: boolean) {
+    const requests = await this.prisma.householdAcquisitionRequest.findMany({
+      where: { communityId, ...(includeAll ? {} : { requestedById: userId }) },
+      include: {
+        household: { select: { id: true, block: true, lot: true, unit: true, address: true } },
+        requestedBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+        resident: { select: { id: true, firstName: true, lastName: true } },
+        reviewedBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { success: true, data: requests };
+  }
+
+  async createAcquisitionRequest(
+    communityId: string,
+    userId: string,
+    dto: CreateHouseholdAcquisitionRequestDto,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, communityId, deletedAt: null },
+      select: { residentId: true },
+    });
+    if (!user?.residentId) throw new ForbiddenException('Only resident accounts can request a household.');
+    if (!dto.householdId && !dto.requestedAddress && !dto.requestedBlock && !dto.requestedLot && !dto.requestedUnit) {
+      throw new BadRequestException('Select an existing household or provide the new property details.');
+    }
+    if (dto.householdId) {
+      const household = await this.prisma.household.findFirst({
+        where: { id: dto.householdId, communityId, status: HouseholdStatus.ACTIVE, deletedAt: null },
+      });
+      if (!household) throw new NotFoundException('Household not found.');
+      const existing = await this.prisma.residentHousehold.findUnique({
+        where: { communityId_residentId_householdId: { communityId, residentId: user.residentId, householdId: dto.householdId } },
+      });
+      if (existing?.status === HouseholdMembershipStatus.ACTIVE) throw new ConflictException('You are already linked to this household.');
+    }
+    const pending = await this.prisma.householdAcquisitionRequest.findFirst({
+      where: { communityId, requestedById: userId, status: HouseholdAcquisitionRequestStatus.PENDING, householdId: dto.householdId ?? null },
+    });
+    if (pending) throw new ConflictException('You already have a pending request for this household.');
+    const request = await this.prisma.householdAcquisitionRequest.create({
+      data: {
+        communityId,
+        requestedById: userId,
+        residentId: user.residentId,
+        householdId: dto.householdId,
+        requestedBlock: dto.requestedBlock?.trim(),
+        requestedLot: dto.requestedLot?.trim(),
+        requestedUnit: dto.requestedUnit?.trim(),
+        requestedAddress: dto.requestedAddress?.trim(),
+        notes: dto.notes?.trim(),
+      },
+    });
+    await this.auditLogs.log({ communityId, actorId: userId, action: 'HOUSEHOLD_ACQUISITION_REQUESTED', entity: 'HouseholdAcquisitionRequest', entityId: request.id, after: request as any });
+    return { success: true, data: request };
+  }
+
+  async reviewAcquisitionRequest(
+    communityId: string,
+    requestId: string,
+    reviewerId: string,
+    dto: ReviewHouseholdAcquisitionRequestDto,
+  ) {
+    const request = await this.prisma.householdAcquisitionRequest.findFirst({
+      where: { id: requestId, communityId, status: HouseholdAcquisitionRequestStatus.PENDING },
+    });
+    if (!request) throw new NotFoundException('Pending household request not found.');
+    if (![HouseholdAcquisitionRequestStatus.APPROVED, HouseholdAcquisitionRequestStatus.REJECTED].includes(dto.status)) {
+      throw new BadRequestException('Request must be approved or rejected.');
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      let householdId = request.householdId;
+      if (dto.status === HouseholdAcquisitionRequestStatus.APPROVED) {
+        if (!householdId) {
+          const created = await tx.household.create({
+            data: {
+              communityId,
+              block: request.requestedBlock,
+              lot: request.requestedLot,
+              unit: request.requestedUnit,
+              address: request.requestedAddress,
+            },
+          });
+          householdId = created.id;
+        }
+        const resident = await tx.resident.findUnique({ where: { id: request.residentId }, select: { householdId: true, primaryHouseholdId: true } });
+        const existing = await tx.residentHousehold.findUnique({ where: { communityId_residentId_householdId: { communityId, residentId: request.residentId, householdId } } });
+        if (!existing) {
+          await tx.residentHousehold.create({
+            data: {
+              communityId,
+              residentId: request.residentId,
+              householdId,
+              relationshipType: HouseholdRelationshipType.OWNER,
+              isPrimary: !resident?.primaryHouseholdId,
+              status: HouseholdMembershipStatus.ACTIVE,
+            },
+          });
+        } else {
+          await tx.residentHousehold.update({ where: { id: existing.id }, data: { status: HouseholdMembershipStatus.ACTIVE } });
+        }
+        if (!resident?.householdId) {
+          await tx.resident.update({ where: { id: request.residentId }, data: { householdId, primaryHouseholdId: householdId } });
+        }
+      }
+      return tx.householdAcquisitionRequest.update({ where: { id: requestId }, data: { status: dto.status, reviewedById: reviewerId, reviewedAt: new Date(), reviewNotes: dto.reviewNotes?.trim(), householdId } });
+    });
+    await this.auditLogs.log({ communityId, actorId: reviewerId, action: `HOUSEHOLD_ACQUISITION_${dto.status}`, entity: 'HouseholdAcquisitionRequest', entityId: requestId, after: result as any });
+    return { success: true, data: result };
   }
 
   // ==========================================

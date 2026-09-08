@@ -24,6 +24,8 @@ export const PERMISSIONS = {
   householdDelete: 'household.delete',
   householdImport: 'household.import',
   householdExport: 'household.export',
+  householdRequest: 'household.request',
+  householdRequestReview: 'household.request_review',
 
   vehicleCreate: 'vehicle.create',
   vehicleView: 'vehicle.view',

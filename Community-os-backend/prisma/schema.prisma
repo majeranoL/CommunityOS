@@ -44,6 +44,12 @@ enum HouseholdMembershipStatus {
   INACTIVE
 }
 
+enum HouseholdAcquisitionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum ConstructionBondStatus {
   OPEN
   ACTIVE
@@ -545,6 +551,7 @@ model Community {
   constructionRequests ConstructionRequest[]
   constructionRequirements ConstructionRequirement[]
   constructionRequestDocuments ConstructionRequestDocument[]
+  householdAcquisitionRequests HouseholdAcquisitionRequest[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -939,6 +946,7 @@ model Resident {
   primaryHousehold   Household? @relation("ResidentPrimaryHousehold", fields: [primaryHouseholdId], references: [id], onDelete: SetNull)
 
   householdMemberships ResidentHousehold[]
+  householdAcquisitionRequests HouseholdAcquisitionRequest[]
 
   complaints   Complaint[]
   reservations Reservation[]
@@ -1311,6 +1319,7 @@ model Household {
   goodStandingQrs       GoodStandingQR[]
   constructionBonds     ConstructionBond[]
   constructionRequests  ConstructionRequest[]
+  householdAcquisitionRequests HouseholdAcquisitionRequest[]
 
   isImported    Boolean      @default(false)
   importBatchId String?      @db.Uuid
@@ -1330,6 +1339,39 @@ model Household {
 // Resident.householdId points at the single ACTIVE household (the default
 // app context); this table keeps the full membership graph (primary home,
 // ownership/occupancy role, and membership dates).
+model HouseholdAcquisitionRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  requestedById String @db.Uuid
+  requestedBy   User   @relation("HouseholdAcquisitionRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  residentId    String @db.Uuid
+  resident      Resident @relation(fields: [residentId], references: [id], onDelete: Cascade)
+
+  householdId String? @db.Uuid
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+
+  requestedBlock   String? @db.VarChar(20)
+  requestedLot     String? @db.VarChar(20)
+  requestedUnit    String? @db.VarChar(20)
+  requestedAddress String?
+  notes            String?
+  status           HouseholdAcquisitionRequestStatus @default(PENDING)
+  reviewedById     String? @db.Uuid
+  reviewedBy       User? @relation("HouseholdAcquisitionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  reviewNotes      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([communityId, status])
+  @@index([requestedById])
+  @@index([residentId])
+  @@index([householdId])
+}
+
 model ResidentHousehold {
   id String @id @default(uuid()) @db.Uuid
 

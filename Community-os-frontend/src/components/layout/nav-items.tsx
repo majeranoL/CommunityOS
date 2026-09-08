@@ -97,6 +97,12 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: PERMISSIONS.householdView,
       },
       {
+        label: 'My Households',
+        href: '/app/my-households',
+        icon: Home,
+        permission: PERMISSIONS.householdRequest,
+      },
+      {
         label: 'Vehicles',
         href: '/app/vehicles',
         icon: Car,
