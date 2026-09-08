@@ -146,6 +146,7 @@ export interface Invoice {
   paymentMethod: string | null
   notes: string | null
   gatewayProvider: string | null
+  gatewayInvoiceId: string | null
   checkoutUrl: string | null
   createdAt: string
 }
