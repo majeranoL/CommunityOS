@@ -42,9 +42,27 @@ export function useSubscription() {
 }
 
 export function useInvoices() {
+  const queryClient = useQueryClient()
+
   return useQuery({
     queryKey: ['billing', 'invoices'],
-    queryFn: fetchInvoices,
+    queryFn: async () => {
+      const invoices = await fetchInvoices()
+      const processingInvoices = invoices.filter(
+        (invoice) => invoice.status === 'PROCESSING' && invoice.gatewayInvoiceId,
+      )
+
+      if (processingInvoices.length > 0) {
+        await Promise.allSettled(
+          processingInvoices.map((invoice) => syncInvoiceGateway(invoice.id)),
+        )
+        queryClient.invalidateQueries({ queryKey: ['billing', 'summary'] })
+        queryClient.invalidateQueries({ queryKey: ['finance'] })
+        return fetchInvoices()
+      }
+
+      return invoices
+    },
   })
 }
 
