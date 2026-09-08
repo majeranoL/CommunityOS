@@ -29,6 +29,19 @@ describe('PayMongoClient webhook signature', () => {
     expect(client.verifyWebhookSignature(rawBody, sig)).toBe(true);
   });
 
+  it('accepts PayMongo timestamped webhook signatures', () => {
+    process.env.PAYMONGO_WEBHOOK_SECRET = 'test-secret';
+    const timestamp = '1700000000';
+    const rawBody = Buffer.from('{"event":"x"}');
+    const sig = createHmac('sha256', 'test-secret')
+      .update(`${timestamp}.${rawBody.toString('utf8')}`)
+      .digest('hex');
+
+    expect(
+      client.verifyWebhookSignature(rawBody, `t=${timestamp},te=${sig}`),
+    ).toBe(true);
+  });
+
   it('rejects an invalid signature', () => {
     process.env.PAYMONGO_WEBHOOK_SECRET = 'test-secret';
     const rawBody = Buffer.from('{"event":"x"}');

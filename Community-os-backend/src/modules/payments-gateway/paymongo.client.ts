@@ -137,9 +137,8 @@ export class PayMongoClient {
     return body;
   }
 
-  // Verifies the PayMongo webhook signature. Returns true when the signature
-  // matches an HMAC-SHA256 of the raw request body computed with the webhook
-  // secret, or when PayMongo webhooks are not configured (dev fallback).
+  // Verifies PayMongo's timestamped webhook signature. The header contains
+  // test/live signatures in the form t=...,te=...,li=....
   verifyWebhookSignature(
     rawBody: Buffer,
     signature: string,
@@ -152,26 +151,58 @@ export class PayMongoClient {
     if (!signature) {
       return false;
     }
+
+    const parts = Object.fromEntries(
+      signature.split(',').map((part) => {
+        const [key, ...value] = part.trim().split('=');
+        return [key, value.join('=')];
+      }),
+    );
+    const timestamp = parts.t;
+    const timestampedSignatures = [parts.te, parts.li].filter(
+      (value): value is string => Boolean(value),
+    );
+
+    if (timestamp && timestampedSignatures.length > 0) {
+      const expected = createHmac('sha256', secret)
+        .update(`${timestamp}.${rawBody.toString('utf8')}`)
+        .digest('hex');
+
+      return timestampedSignatures.some((providedSignature) => {
+        const provided = Buffer.from(providedSignature);
+        const expectedBuffer = Buffer.from(expected);
+        return (
+          provided.length === expectedBuffer.length &&
+          timingSafeEqual(provided, expectedBuffer)
+        );
+      });
+    }
+
+    // Keep compatibility with the original raw HMAC format for existing
+    // integrations while they migrate to PayMongo's structured header.
     const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
     const provided = Buffer.from(signature);
-    const expectedBuf = Buffer.from(expected);
-    if (provided.length !== expectedBuf.length) {
-      return false;
-    }
-    return timingSafeEqual(provided, expectedBuf);
+    const expectedBuffer = Buffer.from(expected);
+    return (
+      provided.length === expectedBuffer.length &&
+      timingSafeEqual(provided, expectedBuffer)
+    );
   }
 
   mapStatus(eventType: string): 'VERIFIED' | 'FAILED' | 'EXPIRED' | null {
     switch (eventType) {
       case 'checkout.session.paid':
       case 'checkout.session.payment.paid':
+      case 'checkout_session.payment.paid':
       case 'checkout_session.payment_paid':
       case 'payment.payment_intent.succeeded':
         return 'VERIFIED';
       case 'checkout.session.payment_failed':
+      case 'checkout_session.payment.failed':
       case 'payment.payment_intent.payment_failed':
         return 'FAILED';
       case 'checkout.session.expired':
+      case 'checkout_session.expired':
       case 'checkout_session.expires_at':
       case 'payment.payment_intent.expired':
         return 'EXPIRED';
