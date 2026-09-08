@@ -13,6 +13,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { PaymentMethodConfigDto } from './dto/payment-method-config.dto';
+import { CommunityPayMongoDto } from './dto/community-paymongo.dto';
 
 const ALL_METHODS: PaymentMethodConfigMethod[] = [
   PaymentMethodConfigMethod.GCASH,
@@ -25,6 +26,78 @@ const MAX_ACTIVE_PER_SCOPE = 3;
 @Injectable()
 export class PaymentMethodsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getCommunityPayMongo(communityId: string) {
+    const account = await this.prisma.communityPayMongoAccount.findUnique({
+      where: { communityId },
+      select: {
+        accountName: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      data: account
+        ? { ...account, configured: true }
+        : { configured: false, accountName: null, isActive: false },
+    };
+  }
+
+  async updateCommunityPayMongo(
+    communityId: string,
+    dto: CommunityPayMongoDto,
+  ) {
+    const account = await this.prisma.communityPayMongoAccount.upsert({
+      where: { communityId },
+      create: {
+        communityId,
+        secretKey: dto.secretKey,
+        webhookSecret: dto.webhookSecret,
+        accountName: dto.accountName,
+      },
+      update: {
+        secretKey: dto.secretKey,
+        webhookSecret: dto.webhookSecret,
+        accountName: dto.accountName,
+        isActive: true,
+      },
+      select: {
+        accountName: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Community PayMongo account saved.',
+      data: { ...account, configured: true },
+    };
+  }
+
+  async removeCommunityPayMongo(communityId: string) {
+    const account = await this.prisma.communityPayMongoAccount.findUnique({
+      where: { communityId },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Community PayMongo account not found.');
+    }
+
+    await this.prisma.communityPayMongoAccount.delete({
+      where: { id: account.id },
+    });
+
+    return {
+      success: true,
+      message: 'Community PayMongo account removed.',
+    };
+  }
 
   // ==========================================
   // Resolve a config row.

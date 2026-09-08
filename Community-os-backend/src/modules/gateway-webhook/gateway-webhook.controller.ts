@@ -3,6 +3,7 @@ import { Controller, Headers, HttpCode, Post, Req } from '@nestjs/common';
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
 import { PaymentsService } from '../finance/payments.service';
 import { InvoicesService } from '../subscriptions/invoices.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 interface WebhookEvent {
   data?: {
@@ -17,6 +18,7 @@ export class GatewayWebhookController {
     private readonly gateway: PaymentsGatewayService,
     private readonly paymentsService: PaymentsService,
     private readonly invoicesService: InvoicesService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // Intentionally NOT behind JWT/permissions guards. Authenticity is
@@ -32,7 +34,9 @@ export class GatewayWebhookController {
       return { success: false, message: 'Missing raw body' };
     }
 
-    const valid = this.gateway.verifyWebhookSignature(rawBody, signature);
+    const valid =
+      this.gateway.verifyWebhookSignature(rawBody, signature) ||
+      (await this.verifyCommunityWebhookSignature(rawBody, signature));
     if (!valid) {
       return { success: false, message: 'Invalid webhook signature' };
     }
@@ -81,5 +85,25 @@ export class GatewayWebhookController {
     }
 
     return { received: true, ignored: true };
+  }
+
+  private async verifyCommunityWebhookSignature(
+    rawBody: Buffer,
+    signature: string,
+  ) {
+    const accounts = await this.prisma.communityPayMongoAccount.findMany({
+      where: { isActive: true, webhookSecret: { not: null } },
+      select: { webhookSecret: true },
+    });
+
+    return accounts.some(
+      (account) =>
+        account.webhookSecret !== null &&
+        this.gateway.verifyWebhookSignature(
+          rawBody,
+          signature,
+          account.webhookSecret,
+        ),
+    );
   }
 }

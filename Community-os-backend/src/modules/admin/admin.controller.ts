@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Request,
   UseGuards,
@@ -24,6 +25,7 @@ import { UpdateCommunityStatusDto } from './dto/update-community-status.dto';
 import { GrantExemptionDto } from './dto/grant-exemption.dto';
 import { ProvisionCommunityDto } from '../communities/dto/provision-community.dto';
 import { CommunitiesService } from '../communities/communities.service';
+import { UpdateCommunityPayMongoDto } from './dto/update-community-paymongo.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
@@ -85,6 +87,24 @@ export class AdminController {
   @Get('communities/:id/subscription')
   findSubscription(@Param('id', ParseUUIDPipe) id: string) {
     return this.adminService.findSubscription(id);
+  }
+
+  @Get('communities/:id/paymongo')
+  getCommunityPayMongo(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.getCommunityPayMongo(id);
+  }
+
+  @Put('communities/:id/paymongo')
+  updateCommunityPayMongo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCommunityPayMongoDto,
+  ) {
+    return this.adminService.updateCommunityPayMongo(id, dto);
+  }
+
+  @Delete('communities/:id/paymongo')
+  removeCommunityPayMongo(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.removeCommunityPayMongo(id);
   }
 
   @Get('monitoring/health')

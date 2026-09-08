@@ -42,6 +42,7 @@ import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { toast } from '@/components/ui/sonner'
 import { PaymentMethodsManager } from '@/features/finance/components/payment-methods-manager'
+import { CommunityPayMongoSettings } from '@/features/finance/components/community-paymongo-settings'
 import { paymentMethodsService } from '@/features/finance/services/finance'
 import {
   useAssessments,
@@ -146,6 +147,7 @@ function PaymentMethodsConfigTab() {
         service={paymentMethodsService}
         queryKey={['payment-methods', 'admin']}
       />
+      <CommunityPayMongoSettings />
     </div>
   )
 }

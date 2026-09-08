@@ -12,26 +12,40 @@ export class PaymentsGatewayService {
 
   // Provider-agnostic checkout creation. Delegates to the configured gateway
   // adapter (PayMongo) and returns the hosted checkout URL + gateway id.
-  async createCheckout(params: {
-    amount: number;
-    currency?: string;
-    description?: string;
-    metadata?: Record<string, string>;
-    successUrl?: string;
-    failureUrl?: string;
-  }) {
-    return this.paymongo.createCheckout(params);
+  async createCheckout(
+    params: {
+      amount: number;
+      currency?: string;
+      description?: string;
+      metadata?: Record<string, string>;
+      successUrl?: string;
+      failureUrl?: string;
+    },
+    secretKey?: string,
+  ) {
+    return this.paymongo.createCheckout(params, secretKey);
   }
 
   // Retrieves the current checkout session state from the gateway so the app
   // can reconcile a PROCESSING record without waiting for a webhook.
-  async retrieveCheckout(gatewayId: string): Promise<Record<string, unknown>> {
-    return this.paymongo.retrieveCheckout(gatewayId);
+  async retrieveCheckout(
+    gatewayId: string,
+    secretKey?: string,
+  ): Promise<Record<string, unknown>> {
+    return this.paymongo.retrieveCheckout(gatewayId, secretKey);
   }
 
   // Verifies a webhook request signature using the configured gateway secret.
-  verifyWebhookSignature(rawBody: Buffer, signature: string): boolean {
-    return this.paymongo.verifyWebhookSignature(rawBody, signature);
+  verifyWebhookSignature(
+    rawBody: Buffer,
+    signature: string,
+    webhookSecret?: string,
+  ): boolean {
+    return this.paymongo.verifyWebhookSignature(
+      rawBody,
+      signature,
+      webhookSecret,
+    );
   }
 
   // Maps a gateway webhook event to a payment lifecycle status.
