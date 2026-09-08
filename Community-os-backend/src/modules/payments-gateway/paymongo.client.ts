@@ -147,13 +147,17 @@ export class PayMongoClient {
 
   mapStatus(eventType: string): 'VERIFIED' | 'FAILED' | 'EXPIRED' | null {
     switch (eventType) {
+      case 'checkout.session.paid':
+      case 'checkout.session.payment.paid':
       case 'checkout_session.payment_paid':
       case 'payment.payment_intent.succeeded':
         return 'VERIFIED';
+      case 'checkout.session.payment_failed':
       case 'payment.payment_intent.payment_failed':
         return 'FAILED';
-      case 'payment.payment_intent.expired':
+      case 'checkout.session.expired':
       case 'checkout_session.expires_at':
+      case 'payment.payment_intent.expired':
         return 'EXPIRED';
       default:
         return null;

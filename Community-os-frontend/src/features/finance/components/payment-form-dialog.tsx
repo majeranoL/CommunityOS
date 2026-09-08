@@ -179,12 +179,15 @@ function PaymentFormDialogContent({
 
   const selectedMethod = form.watch('method')
 
-  const showWalletInstructions = selectedMethod === 'GCASH' || selectedMethod === 'MAYA'
+  const showTransferInstructions =
+    selectedMethod === 'GCASH' ||
+    selectedMethod === 'MAYA' ||
+    selectedMethod === 'BANK_TRANSFER'
 
   const { data: walletMethods } = useQuery({
     queryKey: ['payment-methods', 'active'],
     queryFn: () => paymentMethodsService.listActive(),
-    enabled: showWalletInstructions,
+    enabled: showTransferInstructions,
   })
 
   // Eligible items for the resident's household
@@ -408,10 +411,15 @@ function PaymentFormDialogContent({
                 )}
               />
             </div>
-            {showWalletInstructions && (
+            {showTransferInstructions && (
               <div className="rounded-lg border bg-muted/30 p-3">
                 <p className="mb-2 text-sm font-medium">
-                  How to pay via {selectedMethod === 'GCASH' ? 'GCash' : 'Maya'}
+                  How to pay via{' '}
+                  {selectedMethod === 'GCASH'
+                    ? 'GCash'
+                    : selectedMethod === 'MAYA'
+                      ? 'Maya'
+                      : 'bank transfer'}
                 </p>
                 <ActivePaymentMethods methods={walletMethods} />
               </div>

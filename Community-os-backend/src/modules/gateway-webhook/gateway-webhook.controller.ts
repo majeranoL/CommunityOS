@@ -70,11 +70,13 @@ export class GatewayWebhookController {
 
     if (status === 'FAILED') {
       await this.paymentsService.markGatewayFailed(gatewayId);
+      await this.invoicesService.markGatewayFailedByGateway(gatewayId);
       return { received: true, applied: 'payment-failed' };
     }
 
     if (status === 'EXPIRED') {
       await this.paymentsService.markGatewayExpired(gatewayId);
+      await this.invoicesService.markGatewayExpiredByGateway(gatewayId);
       return { received: true, applied: 'payment-expired' };
     }
 

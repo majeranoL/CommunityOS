@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react'
-import { CreditCard, Info, Loader2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import {
+  CheckCircle2,
+  CreditCard,
+  Info,
+  Loader2,
+  Upload,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -10,17 +19,36 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useAuthStore } from '@/store/auth-store'
 import {
   useAssessments,
   useBillingPeriods,
   useChargeTypes,
-  usePaymentCheckout,
+  useCreatePayment,
 } from '@/features/finance/hooks/use-finance'
 import { useGatewayStatus } from '@/features/billing/hooks/use-billing'
-import type { PaymentCheckoutInput } from '@/features/finance/types/finance'
+import { paymentMethodsService, paymentsService } from '@/features/finance/services/finance'
+import { documentsService } from '@/features/documents/services/documents'
+import { ActivePaymentMethods } from '@/features/finance/components/payment-methods-manager'
+import { PaymentReceiptDialog } from '@/features/finance/components/payment-receipt-dialog'
+import type {
+  CreatePaymentInput,
+  PaymentCheckoutInput,
+  PaymentMethod,
+} from '@/features/finance/types/finance'
+import { toast } from '@/components/ui/sonner'
 import { formatCurrency } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 interface OnlineCheckoutDialogProps {
   open: boolean
@@ -37,6 +65,12 @@ interface PayableItem {
 }
 
 const PAYABLE_STATUSES = new Set(['ISSUED', 'PARTIALLY_PAID', 'OVERDUE'])
+
+const METHOD_LABELS: Record<string, string> = {
+  GCASH: 'GCash',
+  MAYA: 'Maya',
+  BANK_TRANSFER: 'Bank transfer',
+}
 
 export function OnlineCheckoutDialog({
   open,
@@ -64,9 +98,28 @@ function OnlineCheckoutDialogContent({
 }) {
   const user = useAuthStore((s) => s.user)
   const residentId = user?.resident?.id ?? null
-  const checkout = usePaymentCheckout()
   const gatewayStatus = useGatewayStatus()
   const onlineEnabled = gatewayStatus.data?.configured ?? true
+
+  const [mode, setMode] = useState<'qr-bank' | 'online'>('qr-bank')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [method, setMethod] = useState<PaymentMethod>('GCASH')
+  const [reference, setReference] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [proof, setProof] = useState<{
+    fileId: string
+    url: string
+    name: string
+  } | null>(null)
+  const [receiptId, setReceiptId] = useState<string | null>(null)
+  const [receiptOpen, setReceiptOpen] = useState(false)
+
+  const createPayment = useCreatePayment()
+
+  const { data: activeMethods, isLoading: methodsLoading } = useQuery({
+    queryKey: ['payment-methods', 'active'],
+    queryFn: () => paymentMethodsService.listActive(),
+  })
 
   const { data: assessmentData, isLoading: assessmentsLoading } = useAssessments({
     page: 1,
@@ -81,8 +134,6 @@ function OnlineCheckoutDialogContent({
     page: 1,
     limit: 100,
   })
-
-  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const advanceChargeTypes = useMemo(() => {
     const set = new Set<string>()
@@ -132,6 +183,28 @@ function OnlineCheckoutDialogContent({
   const loading =
     assessmentsLoading || periodsLoading || chargeTypesLoading
 
+  const allowedMethods = useMemo(
+    () => (activeMethods ?? []).map((m) => m.method),
+    [activeMethods],
+  )
+
+  // Fall back to the first configured method if the current selection is no
+  // longer active.
+  const effectiveMethod: PaymentMethod =
+    (allowedMethods as PaymentMethod[]).includes(method) ||
+    allowedMethods.length === 0
+      ? method
+      : (allowedMethods[0] as PaymentMethod)
+
+  const needsProof = effectiveMethod === 'GCASH' || effectiveMethod === 'MAYA'
+  const hasItems = selectedItems.length > 0
+  const canSubmitManual =
+    hasItems &&
+    effectiveMethod !== null &&
+    (!needsProof || Boolean(proof)) &&
+    !uploading &&
+    !createPayment.isPending
+
   const toggleItem = (key: string) => {
     setSelected((current) => {
       const next = new Set(current)
@@ -141,7 +214,68 @@ function OnlineCheckoutDialogContent({
     })
   }
 
-  const handlePay = () => {
+  const handleProofUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    event.target.value = ''
+    setUploading(true)
+    try {
+      const result = await documentsService.upload(file)
+      setProof({
+        fileId: result.id,
+        url: result.url,
+        name: result.originalName,
+      })
+    } catch {
+      toast.error('Failed to upload proof.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSubmitManual = () => {
+    if (!residentId || !effectiveMethod) return
+
+    const input: CreatePaymentInput = {
+      residentId,
+      amount: totalAmount,
+      paymentDate: new Date().toISOString(),
+      method: effectiveMethod,
+      referenceNumber: reference.trim() || undefined,
+      proofFileId: proof?.fileId,
+      proofUrl: proof?.url,
+      allocations: selectedItems
+        .filter((item) => item.kind === 'assessment')
+        .map((item) => ({ assessmentId: item.id, amount: item.amount })),
+      billingPeriodIds: selectedItems
+        .filter((item) => item.kind === 'billing-period')
+        .map((item) => item.id),
+    }
+
+    createPayment.mutate(input, {
+      onSuccess: (createdPayment) => {
+        onOpenChange(false)
+        setReference('')
+        setProof(null)
+        setSelected(new Set())
+        if (createdPayment?.id) {
+          setReceiptId(createdPayment.id)
+          toast.success('Payment recorded and awaiting verification.', {
+            action: {
+              label: 'View receipt',
+              onClick: () => setReceiptOpen(true),
+            },
+          })
+        } else {
+          toast.success('Payment recorded and awaiting verification.')
+        }
+      },
+    })
+  }
+
+  const handlePayOnline = () => {
     if (!residentId || selectedItems.length === 0) return
     // Reserve a tab during the click gesture; navigating after the API call
     // would otherwise be treated as a blocked popup by the browser.
@@ -159,8 +293,9 @@ function OnlineCheckoutDialogContent({
         .map((item) => item.id),
       paymentDate: new Date().toISOString(),
     }
-    checkout.mutate(input, {
-      onSuccess: (result) => {
+    paymentsService
+      .checkout(input)
+      .then((result) => {
         onOpenChange(false)
         if (result?.checkoutUrl) {
           if (checkoutWindow && !checkoutWindow.closed) {
@@ -169,33 +304,44 @@ function OnlineCheckoutDialogContent({
             window.location.assign(result.checkoutUrl)
           }
         }
-      },
-      onError: () => {
+      })
+      .catch(() => {
+        toast.error('Failed to start online payment.')
         if (checkoutWindow && !checkoutWindow.closed) checkoutWindow.close()
-      },
-    })
+      })
   }
 
   return (
-    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
       <DialogHeader>
-        <DialogTitle>Pay dues online</DialogTitle>
+        <DialogTitle>Pay dues</DialogTitle>
         <DialogDescription>
-          Pay with GCash, Maya, or card on our secure payment page. The amount is
-          calculated from the items you select — no need to type an amount.
+          Pay with the QR / bank transfer methods below, or pay online with
+          GCash / Maya / card. The amount is calculated from the items you
+          select.
         </DialogDescription>
       </DialogHeader>
 
-      {!onlineEnabled ? (
-        <Alert variant="warning">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Online payments unavailable</AlertTitle>
-          <AlertDescription>
-            The online payment gateway isn&apos;t configured yet. Use the manual
-            payment form instead, or contact your administrator.
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <div className="grid grid-cols-2 gap-2 rounded-lg border p-1">
+        <Button
+          type="button"
+          variant={mode === 'qr-bank' ? 'default' : 'ghost'}
+          className="justify-center"
+          onClick={() => setMode('qr-bank')}
+        >
+          <Wallet className="mr-2 h-4 w-4" />
+          QR / Bank transfer
+        </Button>
+        <Button
+          type="button"
+          variant={mode === 'online' ? 'default' : 'ghost'}
+          className="justify-center"
+          onClick={() => setMode('online')}
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          Pay online
+        </Button>
+      </div>
 
       {loading ? (
         <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
@@ -203,72 +349,207 @@ function OnlineCheckoutDialogContent({
           Loading your unpaid dues…
         </div>
       ) : (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <label
-              key={item.key}
-              className="flex cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
-            >
-              <span className="flex items-center gap-2">
-                <Checkbox
-                  checked={selected.has(item.key)}
-                  onCheckedChange={() => toggleItem(item.key)}
-                />
-                <span>{item.label}</span>
-              </span>
-              <span className="font-medium">{formatCurrency(item.amount)}</span>
-            </label>
-          ))}
-          {items.length === 0 ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">
-              No outstanding dues or advance billing periods found for your
-              household.
+        <>
+          <div className="space-y-2">
+            {items.map((item) => (
+              <label
+                key={item.key}
+                className="flex cursor-pointer items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent"
+              >
+                <span className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selected.has(item.key)}
+                    onCheckedChange={() => toggleItem(item.key)}
+                  />
+                  <span>{item.label}</span>
+                </span>
+                <span className="font-medium">
+                  {formatCurrency(item.amount)}
+                </span>
+              </label>
+            ))}
+            {items.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-muted-foreground">
+                No outstanding dues or advance billing periods found for your
+                household.
+              </p>
+            ) : null}
+          </div>
+
+          {items.some((item) => item.kind === 'billing-period') ? (
+            <p className="text-xs text-muted-foreground">
+              Items marked (advance) cover an open billing period ahead of
+              schedule.
             </p>
           ) : null}
-        </div>
+        </>
       )}
-
-      {items.some((item) => item.kind === 'billing-period') ? (
-        <p className="text-xs text-muted-foreground">
-          Items marked (advance) cover an open billing period ahead of schedule.
-        </p>
-      ) : null}
 
       <div className="flex items-center justify-between text-sm">
         <span className="text-muted-foreground">Total selected</span>
         <span className="font-semibold">{formatCurrency(totalAmount)}</span>
       </div>
 
-      <DialogFooter>
+      {mode === 'qr-bank' ? (
+        <div className="space-y-3 rounded-lg border p-4">
+          {methodsLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading payment methods…
+            </div>
+          ) : activeMethods?.length ? (
+            <>
+              <ActivePaymentMethods methods={activeMethods} />
+              <div className="space-y-3 pt-1">
+                <div className="grid gap-2">
+                  <Label>How did you pay?</Label>
+                  <Select
+                    value={effectiveMethod}
+                    onValueChange={(value) => setMethod(value as PaymentMethod)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select method used" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeMethods.map((m) => (
+                        <SelectItem key={m.method} value={m.method}>
+                          {METHOD_LABELS[m.method]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="reference">
+                    Reference number{' '}
+                    <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="reference"
+                    placeholder="e.g. GCash receipt no."
+                    value={reference}
+                    onChange={(event) => setReference(event.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Proof of payment</Label>
+                  {proof ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+                      <span className="truncate text-muted-foreground">
+                        <Upload className="mr-1 inline h-4 w-4" />
+                        {proof.name}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => setProof(null)}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Remove proof</span>
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground hover:bg-accent">
+                      {uploading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                      {uploading ? 'Uploading…' : 'Upload receipt or screenshot'}
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="sr-only"
+                        onChange={handleProofUpload}
+                        disabled={uploading}
+                      />
+                    </label>
+                  )}
+                  {needsProof && !proof ? (
+                    <p className="text-xs text-muted-foreground">
+                      A screenshot proof is required for wallet payments so an
+                      officer can verify your transfer.
+                    </p>
+                  ) : null}
+                </div>
+
+                <Button
+                  className="w-full"
+                  onClick={handleSubmitManual}
+                  disabled={!canSubmitManual}
+                >
+                  {createPayment.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Submitting…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      I&apos;ve paid — submit for verification
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  An officer will confirm your transfer, then your dues will be
+                  marked as paid.
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No QR / bank transfer payment methods are configured for your
+              community yet. Use &ldquo;Pay online&rdquo; or the &ldquo;Pay
+              now&rdquo; form instead, or ask an officer to add payment methods.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3 rounded-lg border p-4">
+          {!onlineEnabled ? (
+            <Alert variant="warning">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Online payments unavailable</AlertTitle>
+              <AlertDescription>
+                The online payment gateway isn&apos;t configured yet. Use the
+                QR / bank transfer method instead, or contact an administrator.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Button
+              className="w-full"
+              onClick={handlePayOnline}
+              disabled={!hasItems || !residentId}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              Pay with GCash / Maya / Card (PayMongo)
+            </Button>
+          )}
+          <p className="text-xs text-muted-foreground">
+            You&apos;ll be redirected to our secure payment page. If you close
+            it without paying, this checkout is automatically cancelled.
+          </p>
+        </div>
+      )}
+
+      <DialogFooter className={cn(mode === 'qr-bank' && 'justify-start')}>
         <Button
           variant="outline"
           onClick={() => onOpenChange(false)}
-          disabled={checkout.isPending}
+          disabled={uploading || createPayment.isPending}
         >
           Cancel
         </Button>
-        <Button
-          onClick={handlePay}
-          disabled={
-            !onlineEnabled ||
-            checkout.isPending ||
-            selectedItems.length === 0 ||
-            !residentId
-          }
-        >
-          {checkout.isPending ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Preparing payment…
-            </>
-          ) : (
-            <>
-              <CreditCard className="h-4 w-4" />
-              Pay with GCash / Maya / Card
-            </>
-          )}
-        </Button>
       </DialogFooter>
+
+      <PaymentReceiptDialog
+        paymentId={receiptId}
+        open={receiptOpen}
+        onOpenChange={setReceiptOpen}
+      />
     </DialogContent>
   )
 }

@@ -172,6 +172,17 @@ async create(input: CreatePaymentInput) {
     return data.data
   },
 
+  async syncGateway(id: string) {
+    const { data } = await api.post<
+      ApiEnvelope<{
+        success: boolean
+        reason?: string
+        status?: string
+      }>
+    >(`/payments/${id}/gateway-status`)
+    return data.data
+  },
+
   async update(id: string, input: UpdatePaymentInput) {
     const { data } = await api.put<ApiEnvelope<Payment>>(`/payments/${id}`, input)
     return data.data

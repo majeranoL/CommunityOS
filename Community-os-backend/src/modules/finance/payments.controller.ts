@@ -117,6 +117,23 @@ export class PaymentsController {
   }
 
   // ==========================================
+  // Reconcile gateway checkout status
+  // ==========================================
+
+  @Post(':id/gateway-status')
+  @Permissions('payment.view')
+  reconcileGateway(
+    @Request() req: any,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.paymentsService.syncWithGateway(
+      req.user.community.id,
+      id,
+      this.resolveScope(req.user),
+    );
+  }
+
+  // ==========================================
   // Get Payment Receipt
   // ==========================================
 

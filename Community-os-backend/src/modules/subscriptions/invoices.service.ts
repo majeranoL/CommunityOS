@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 import {
   BillingCycle,
@@ -470,6 +471,139 @@ export class InvoicesService {
     });
 
     return { success: true, invoice: updatedInvoice };
+  }
+
+  // ==========================================
+  // Gateway FAILED / EXPIRED webhook transition
+  // ==========================================
+
+  async markGatewayFailedByGateway(gatewayInvoiceId: string) {
+    return this.clearInvoiceGatewaySession(gatewayInvoiceId);
+  }
+
+  async markGatewayExpiredByGateway(gatewayInvoiceId: string) {
+    return this.clearInvoiceGatewaySession(gatewayInvoiceId);
+  }
+
+  // Reverts a PROCESSING invoice back to ISSUED when the gateway session was
+  // not paid (failed or expired), so the invoice can be checked out again.
+  private async clearInvoiceGatewaySession(gatewayInvoiceId: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { gatewayInvoiceId, deletedAt: null },
+    });
+
+    if (!invoice) {
+      return { success: false, reason: 'NOT_FOUND' };
+    }
+
+    if (invoice.status !== InvoiceStatus.PROCESSING) {
+      return { success: false, reason: 'ALREADY_FINAL' };
+    }
+
+    await this.prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        status: InvoiceStatus.ISSUED,
+        gatewayProvider: null,
+        gatewayInvoiceId: null,
+        checkoutUrl: null,
+      },
+    });
+
+    return { success: true };
+  }
+
+  // ==========================================
+  // Gateway reconciliation (PROCESSING -> PAID/ISSUED)
+  // ==========================================
+
+  // Resolves a PROCESSING invoice against the wallet provider's current
+  // checkout state. Paid => PAID; otherwise back to ISSUED. Reconciles
+  // missed webhooks and abandoned checkouts.
+  async syncWithGateway(communityId: string, id: string) {
+    return this.settleInvoiceGatewaySession(communityId, id);
+  }
+
+  private async settleInvoiceGatewaySession(communityId: string, id: string) {
+    const invoice = await this.findScoped(communityId, id);
+
+    if (
+      invoice.status !== InvoiceStatus.PROCESSING ||
+      !invoice.gatewayInvoiceId
+    ) {
+      return { success: true, status: invoice.status, reason: 'NOT_APPLICABLE' };
+    }
+
+    let checkout: Record<string, unknown>;
+    try {
+      checkout = await this.gateway.retrieveCheckout(invoice.gatewayInvoiceId);
+    } catch {
+      // Gateway unreachable. Leave the invoice PROCESSING and retry later
+      // rather than risking a wrongly-reverted record for a paid session.
+      return {
+        success: false,
+        reason: 'GATEWAY_UNREACHABLE',
+        status: invoice.status,
+      };
+    }
+
+    const paid = this.isCheckoutPaid(checkout);
+    if (paid) {
+      await this.markGatewayPaidByGateway(invoice.gatewayInvoiceId);
+    } else {
+      await this.clearInvoiceGatewaySession(invoice.gatewayInvoiceId);
+    }
+
+    const updated = await this.prisma.invoice.findUnique({
+      where: { id: invoice.id },
+      select: { status: true },
+    });
+
+    return {
+      success: true,
+      reason: paid ? 'PAID' : 'RESET_TO_ISSUED',
+      status: updated?.status ?? invoice.status,
+    };
+  }
+
+  private isCheckoutPaid(checkout: Record<string, unknown>): boolean {
+    const attributes = (checkout as { data?: { attributes?: any } })?.data
+      ?.attributes;
+    const status = attributes?.status;
+    return (
+      status === 'paid' || status === 'payment_paid' || attributes?.paid === true
+    );
+  }
+
+  // ==========================================
+  // Abandoned-gateway sweep
+  // ==========================================
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async sweepStaleInvoiceCheckouts() {
+    const cutoff = new Date(Date.now() - 60 * 60 * 1000);
+    const stale = await this.prisma.invoice.findMany({
+      where: {
+        status: InvoiceStatus.PROCESSING,
+        gatewayProvider: 'paymongo',
+        gatewayInvoiceId: { not: null },
+        updatedAt: { lt: cutoff },
+        deletedAt: null,
+      },
+      select: { id: true, communityId: true },
+    });
+
+    for (const invoice of stale) {
+      try {
+        await this.settleInvoiceGatewaySession(invoice.communityId, invoice.id);
+      } catch (error) {
+        // Individual failures must not block the rest of the sweep.
+        console.error(
+          `Sweep: failed to reconcile invoice ${invoice.id}:`,
+          error,
+        );
+      }
+    }
   }
 
   // ==========================================

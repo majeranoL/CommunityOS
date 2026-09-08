@@ -55,6 +55,7 @@ import {
   useGatewayStatus,
   useInvoices,
   useInvoiceCheckout,
+  useInvoiceGatewayStatus,
   useMarkInvoicePaid,
   usePlansList,
   usePlatformPaymentMethods,
@@ -67,6 +68,7 @@ import { PERMISSIONS } from '@/constants/permissions'
 import { formatCurrency, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Invoice } from '@/types/api'
+import type { ActivePaymentMethod } from '@/features/finance/types/finance'
 
 const PAYMENT_METHOD_OPTIONS = [
   { value: 'GCASH', label: 'GCash' },
@@ -178,15 +180,18 @@ function PlanSelectDialog({ currentPlanId }: { currentPlanId: string | null }) {
 function PayInvoiceDialog({
   invoice,
   onlineEnabled,
+  platformMethods,
 }: {
   invoice: Invoice
   onlineEnabled: boolean
+  platformMethods: ActivePaymentMethod[]
 }) {
   const checkout = useInvoiceCheckout()
   const markPaid = useMarkInvoicePaid()
+  const gatewayStatus = useInvoiceGatewayStatus()
   const [open, setOpen] = useState(false)
   const [method, setMethod] = useState('')
-  const [showManual, setShowManual] = useState(false)
+  const [showManual, setShowManual] = useState(true)
 
   const processing = invoice.status === 'PROCESSING'
   const resumeUrl = invoice.checkoutUrl
@@ -216,13 +221,17 @@ function PayInvoiceDialog({
     })
   }
 
+  const handleCheckStatus = () => {
+    gatewayStatus.mutate(invoice.id)
+  }
+
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next)
         if (!next) {
-          setShowManual(false)
+          setShowManual(true)
           setMethod('')
         }
       }}
@@ -237,8 +246,8 @@ function PayInvoiceDialog({
         <DialogHeader>
           <DialogTitle>Pay invoice {invoice.invoiceNumber}</DialogTitle>
           <DialogDescription>
-            Amount due: <strong>{formatCurrency(invoice.amount)}</strong>. Complete your
-            payment online, or confirm a manual GCash / Maya / bank transfer below.
+            Amount due: <strong>{formatCurrency(invoice.amount)}</strong>. Pay
+            by QR / bank transfer below, or online with GCash / Maya / card.
           </DialogDescription>
         </DialogHeader>
 
@@ -248,80 +257,127 @@ function PayInvoiceDialog({
             <AlertTitle>{processing ? 'Payment in progress' : 'Starting payment…'}</AlertTitle>
             <AlertDescription>
               {processing
-                ? 'A checkout session is already open for this invoice. Resume it to complete your payment.'
+                ? 'A checkout session is already open for this invoice. You can check its status, resume it, or pay manually below.'
                 : 'You will be redirected to our secure payment page.'}
             </AlertDescription>
           </Alert>
         ) : null}
 
         <div className="space-y-3">
-          {!onlineEnabled ? (
-            <Alert variant="warning">
-              <Info className="h-4 w-4" />
-              <AlertTitle>Online payments unavailable</AlertTitle>
-              <AlertDescription>
-                The online payment gateway isn&apos;t configured on this
-                deployment yet. Complete your payment manually below, or contact
-                your administrator.
-              </AlertDescription>
-            </Alert>
+          {platformMethods?.length ? (
+            <div className="space-y-3 rounded-lg border p-4">
+              <ActivePaymentMethods methods={platformMethods} />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setShowManual((value) => !value)}
+              >
+                {showManual
+                  ? 'Hide confirmation'
+                  : "I've paid — confirm my payment"}
+              </Button>
+
+              {showManual ? (
+                <div className="space-y-3">
+                  <Select value={method} onValueChange={setMethod}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select method used" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAYMENT_METHOD_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    className="w-full"
+                    disabled={!method || markPaid.isPending}
+                    onClick={() => {
+                      markPaid.mutate(
+                        { id: invoice.id, paymentMethod: method },
+                        { onSuccess: () => setOpen(false) },
+                      )
+                    }}
+                  >
+                    {markPaid.isPending
+                      ? 'Confirming…'
+                      : 'Confirm manual payment'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Once confirmed, this payment is recorded as an expense in
+                    your community finances.
+                  </p>
+                </div>
+              ) : null}
+            </div>
           ) : (
-            <Button
-              className="w-full"
-              onClick={handleOnlinePay}
-              disabled={checkout.isPending}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {resumeUrl
-                ? 'Resume online payment'
-                : 'Pay online with GCash / Maya / Card'}
-            </Button>
+            <p className="text-sm text-muted-foreground">
+              No bank transfer / wallet payment methods are configured yet.
+              Contact an administrator.
+            </p>
           )}
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={() => setShowManual((value) => !value)}
-          >
-            {showManual
-              ? 'Hide manual payment'
-              : 'I already paid via GCash / Maya / Bank'}
-          </Button>
-
-          {showManual ? (
-            <div className="space-y-3 rounded-lg border p-4">
-              <Select value={method} onValueChange={setMethod}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAYMENT_METHOD_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                className="w-full"
-                variant="outline"
-                disabled={!method || markPaid.isPending}
-                onClick={() => {
-                  markPaid.mutate(
-                    { id: invoice.id, paymentMethod: method },
-                    { onSuccess: () => setOpen(false) },
-                  )
-                }}
-              >
-                {markPaid.isPending ? 'Confirming…' : 'Confirm manual payment'}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Once confirmed, this payment is recorded as an expense in your
-                community finances.
-              </p>
-            </div>
-          ) : null}
+          <div className="space-y-2 rounded-lg border p-4">
+            <p className="text-sm font-medium">
+              Prefer to pay online? (GCash / Maya / Card)
+            </p>
+            {!onlineEnabled ? (
+              <Alert variant="warning">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Online payments unavailable</AlertTitle>
+                <AlertDescription>
+                  The online payment gateway isn&apos;t configured on this
+                  deployment yet. Complete your payment manually above.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <>
+                <Button
+                  className="w-full"
+                  onClick={handleOnlinePay}
+                  disabled={checkout.isPending}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  {resumeUrl
+                    ? 'Resume online payment'
+                    : 'Pay online with GCash / Maya / Card'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleCheckStatus}
+                  disabled={gatewayStatus.isPending}
+                >
+                  <RefreshCcw
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      gatewayStatus.isPending && 'animate-spin',
+                    )}
+                  />
+                  {gatewayStatus.isPending
+                    ? 'Checking payment status…'
+                    : 'Check payment status'}
+                </Button>
+                {gatewayStatus.data && !gatewayStatus.isPending ? (
+                  <p className="text-xs text-muted-foreground">
+                    {gatewayStatus.data.success
+                      ? `Payment status checked. Latest status: ${
+                          gatewayStatus.data.status ?? 'unchanged'
+                        }.`
+                      : 'Could not reach the payment gateway. Please try again.'}
+                  </p>
+                ) : null}
+              </>
+            )}
+            <p className="text-xs text-muted-foreground">
+              You&apos;ll be redirected to our secure payment page. If you
+              close it without paying, the checkout is automatically cancelled.
+            </p>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -643,6 +699,7 @@ export default function BillingPage() {
                           <PayInvoiceDialog
                             invoice={invoice}
                             onlineEnabled={onlineEnabled}
+                            platformMethods={platformMethods ?? []}
                           />
                         ) : null}
                       </TableCell>

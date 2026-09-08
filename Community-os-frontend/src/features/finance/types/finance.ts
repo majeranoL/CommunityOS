@@ -10,6 +10,9 @@ export type AssessmentStatus =
 export type PaymentStatus =
   | 'PENDING_VERIFICATION'
   | 'VERIFIED'
+  | 'PROCESSING'
+  | 'FAILED'
+  | 'EXPIRED'
   | 'REJECTED'
   | 'REFUNDED'
   | 'CANCELLED'

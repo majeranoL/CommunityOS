@@ -15,6 +15,7 @@ import {
   markInvoicePaid,
   renewSubscription,
   subscribeToPlan,
+  syncInvoiceGateway,
 } from '@/features/billing/services/billing'
 
 const BILLING_KEYS = ['billing', 'subscription', 'invoices']
@@ -159,6 +160,20 @@ export function useInvoiceCheckout() {
     },
     onError: (error) => {
       toast.error(apiErrorMessage(error, 'Failed to start online payment.'))
+    },
+  })
+}
+
+export function useInvoiceGatewayStatus() {
+  const invalidate = useInvalidateBilling()
+
+  return useMutation({
+    mutationFn: (id: string) => syncInvoiceGateway(id),
+    onSuccess: () => {
+      invalidate()
+    },
+    onError: (error) => {
+      toast.error(apiErrorMessage(error, 'Failed to check payment status.'))
     },
   })
 }

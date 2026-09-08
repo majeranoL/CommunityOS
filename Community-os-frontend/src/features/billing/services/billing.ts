@@ -91,3 +91,16 @@ export async function fetchGatewayStatus() {
   )
   return data.data
 }
+
+export interface InvoiceGatewayReconcileResult {
+  success: boolean
+  reason?: string
+  status?: string
+}
+
+export async function syncInvoiceGateway(id: string) {
+  const { data } = await api.post<ApiEnvelope<InvoiceGatewayReconcileResult>>(
+    `/invoices/${id}/gateway-status`,
+  )
+  return data.data
+}

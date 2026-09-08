@@ -1815,6 +1815,68 @@ async function main() {
   console.log('✅ Platform payment methods configured');
 
   // =====================================================
+  // COMMUNITY-SCOPED PAYMENT METHODS (resident dues)
+  // =====================================================
+
+  const communityPaymentMethods = [
+    {
+      method: PaymentMethodConfigMethod.GCASH,
+      accountName: 'CommunityOS Demo HOA',
+      accountNumber: '0917 555 0101',
+      displayMode: PaymentMethodConfigDisplay.BOTH,
+      instructions:
+        'Send your dues to the GCash number above, then tap "I\u2019ve paid" in the app and upload a screenshot as proof.',
+    },
+    {
+      method: PaymentMethodConfigMethod.MAYA,
+      accountName: 'CommunityOS Demo HOA',
+      accountNumber: '0918 555 0102',
+      displayMode: PaymentMethodConfigDisplay.BOTH,
+      instructions:
+        'Send your dues to the Maya number above, then tap "I\u2019ve paid" in the app and upload a screenshot as proof.',
+    },
+    {
+      method: PaymentMethodConfigMethod.BANK_TRANSFER,
+      accountName: 'CommunityOS Demo HOA',
+      accountNumber: '1234-5678-9012-3456',
+      displayMode: PaymentMethodConfigDisplay.NUMBER,
+      instructions:
+        'Transfer your dues to the bank account above, then tap "I\u2019ve paid" in the app and enter your reference number.',
+    },
+  ];
+
+  for (const config of communityPaymentMethods) {
+    const existing = await prisma.paymentMethodConfig.findFirst({
+      where: { communityId: community.id, method: config.method },
+    });
+
+    const data = {
+      accountName: config.accountName,
+      accountNumber: config.accountNumber,
+      displayMode: config.displayMode,
+      instructions: config.instructions,
+      isActive: true,
+    };
+
+    if (existing) {
+      await prisma.paymentMethodConfig.update({
+        where: { id: existing.id },
+        data,
+      });
+    } else {
+      await prisma.paymentMethodConfig.create({
+        data: {
+          communityId: community.id,
+          method: config.method,
+          ...data,
+        },
+      });
+    }
+  }
+
+  console.log('✅ Community payment methods configured');
+
+  // =====================================================
   // LOGIN INFO
   // =====================================================
 

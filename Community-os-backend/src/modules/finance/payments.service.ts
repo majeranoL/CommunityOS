@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 import {
   AssessmentStatus,
@@ -453,6 +454,118 @@ export class PaymentsService {
     await this.syncLinkedAssessments(payment.communityId, payment.id);
 
     return { success: true };
+  }
+
+  // ==========================================
+  // Gateway reconciliation (PROCESSING -> final)
+  // ==========================================
+
+  // Resolves a PROCESSING gateway payment against the wallet provider's
+  // current checkout state. Paid => VERIFIED; otherwise EXPIRED. This is the
+  // source of truth when a webhook was missed or a checkout was abandoned.
+  async syncWithGateway(
+    communityId: string,
+    id: string,
+    scopeHouseholdId?: string,
+  ) {
+    return this.settleGatewaySession(communityId, id, scopeHouseholdId);
+  }
+
+  private async settleGatewaySession(
+    communityId: string,
+    id: string,
+    scopeHouseholdId?: string,
+  ) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id, communityId, deletedAt: null },
+      include: { resident: { select: { householdId: true } } },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found.');
+    }
+
+    // IDOR guard: a member may only reconcile their own household's payment
+    if (scopeHouseholdId && payment.resident.householdId !== scopeHouseholdId) {
+      throw new NotFoundException('Payment not found.');
+    }
+
+    if (payment.status !== PaymentStatus.PROCESSING || !payment.gatewayId) {
+      return {
+        success: true,
+        status: payment.status,
+        reason: 'NOT_APPLICABLE',
+      };
+    }
+
+    let checkout: Record<string, unknown>;
+    try {
+      checkout = await this.gateway.retrieveCheckout(payment.gatewayId);
+    } catch {
+      // Gateway unreachable. Leave the payment PROCESSING and retry later
+      // rather than risking a wrongly-expired record for a paid session.
+      return {
+        success: false,
+        reason: 'GATEWAY_UNREACHABLE',
+        status: payment.status,
+      };
+    }
+
+    if (this.isCheckoutPaid(checkout)) {
+      await this.markGatewaySucceeded(payment.gatewayId);
+    } else {
+      await this.markGatewayExpired(payment.gatewayId);
+    }
+
+    const updated = await this.prisma.payment.findUnique({
+      where: { id: payment.id },
+      select: { status: true },
+    });
+
+    return {
+      success: true,
+      reason: this.isCheckoutPaid(checkout) ? 'PAID' : 'EXPIRED',
+      status: updated?.status ?? payment.status,
+    };
+  }
+
+  private isCheckoutPaid(checkout: Record<string, unknown>): boolean {
+    const attributes = (checkout as { data?: { attributes?: any } })?.data
+      ?.attributes;
+    const status = attributes?.status;
+    return (
+      status === 'paid' || status === 'payment_paid' || attributes?.paid === true
+    );
+  }
+
+  // ==========================================
+  // Abandoned-gateway sweep
+  // ==========================================
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async sweepExpiredGatewayPayments() {
+    const stale = await this.prisma.payment.findMany({
+      where: {
+        status: PaymentStatus.PROCESSING,
+        gatewayProvider: 'paymongo',
+        gatewayId: { not: null },
+        expiresAt: { lt: new Date() },
+        deletedAt: null,
+      },
+      select: { id: true, communityId: true },
+    });
+
+    for (const payment of stale) {
+      try {
+        await this.settleGatewaySession(payment.communityId, payment.id);
+      } catch (error) {
+        // Individual failures must not block the rest of the sweep.
+        console.error(
+          `Sweep: failed to reconcile payment ${payment.id}:`,
+          error,
+        );
+      }
+    }
   }
 
   // ==========================================

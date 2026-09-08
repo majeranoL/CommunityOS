@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { Loader2, Receipt, Eye } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2, RefreshCcw, Receipt, Eye } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { DataTable, type Column } from '@/components/shared/data-table'
 import { Pagination } from '@/components/shared/pagination'
@@ -10,9 +11,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { usePayments } from '@/features/finance/hooks/use-finance'
+import { paymentsService } from '@/features/finance/services/finance'
 import { PaymentDetailDialog } from '@/features/finance/components/payment-detail-dialog'
 import { PaymentReceiptDialog } from '@/features/finance/components/payment-receipt-dialog'
 import { formatCurrency, formatDate, toTitleCase } from '@/lib/format'
@@ -21,7 +24,10 @@ import type { PaymentListItem } from '@/features/finance/types/finance'
 const STATUS_OPTIONS = [
   { value: 'ALL', label: 'All statuses' },
   { value: 'PENDING_VERIFICATION', label: 'Pending' },
+  { value: 'PROCESSING', label: 'Processing' },
   { value: 'VERIFIED', label: 'Verified' },
+  { value: 'EXPIRED', label: 'Expired' },
+  { value: 'FAILED', label: 'Failed' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'REFUNDED', label: 'Refunded' },
   { value: 'CANCELLED', label: 'Cancelled' },
@@ -34,12 +40,43 @@ export function MyPaymentsTab() {
   const [detailPaymentId, setDetailPaymentId] = useState<string | null>(null)
   const [receiptPaymentId, setReceiptPaymentId] = useState<string | null>(null)
 
+  const queryClient = useQueryClient()
+  const syncedGatewayIds = useRef<Set<string>>(new Set())
+
   const { data, isLoading } = usePayments({
     page,
     limit: 10,
     search: search || undefined,
     status: status === 'ALL' ? undefined : status,
   })
+
+  // Reconcile returned / abandoned online checkouts: any PROCESSING payment
+  // is resolved against the gateway (paid => verified, otherwise expired),
+  // then the list is refreshed.
+  useEffect(() => {
+    const processing = (data?.items ?? []).filter(
+      (payment) =>
+        payment.status === 'PROCESSING' &&
+        !syncedGatewayIds.current.has(payment.id),
+    )
+    if (processing.length === 0) return
+
+    for (const payment of processing) {
+      syncedGatewayIds.current.add(payment.id)
+      paymentsService
+        .syncGateway(payment.id)
+        .catch(() => {
+          syncedGatewayIds.current.delete(payment.id)
+        })
+        .finally(() => {
+          queryClient.invalidateQueries({ queryKey: ['payments'] })
+        })
+    }
+  }, [data, queryClient])
+
+  const processingCount = (data?.items ?? []).filter(
+    (payment) => payment.status === 'PROCESSING',
+  ).length
 
   const columns: Column<PaymentListItem>[] = [
     {
@@ -129,6 +166,18 @@ export function MyPaymentsTab() {
 
   return (
     <div className="space-y-4">
+      {processingCount > 0 ? (
+        <Alert variant="info">
+          <RefreshCcw className="h-4 w-4" />
+          <AlertTitle>Checking payment status…</AlertTitle>
+          <AlertDescription>
+            {processingCount === 1
+              ? 'An online payment is still being confirmed with the gateway. Its status will update automatically shortly.'
+              : `${processingCount} online payments are still being confirmed with the gateway. Their status will update automatically shortly.`}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         <Input
           placeholder="Search payments…"

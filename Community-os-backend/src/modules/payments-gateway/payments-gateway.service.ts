@@ -23,6 +23,12 @@ export class PaymentsGatewayService {
     return this.paymongo.createCheckout(params);
   }
 
+  // Retrieves the current checkout session state from the gateway so the app
+  // can reconcile a PROCESSING record without waiting for a webhook.
+  async retrieveCheckout(gatewayId: string): Promise<Record<string, unknown>> {
+    return this.paymongo.retrieveCheckout(gatewayId);
+  }
+
   // Verifies a webhook request signature using the configured gateway secret.
   verifyWebhookSignature(rawBody: Buffer, signature: string): boolean {
     return this.paymongo.verifyWebhookSignature(rawBody, signature);
