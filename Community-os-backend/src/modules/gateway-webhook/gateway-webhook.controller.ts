@@ -8,6 +8,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 interface WebhookEvent {
   data?: {
     id?: string;
+    attributes?: {
+      metadata?: {
+        paymentId?: string;
+      };
+    };
   };
   type?: string;
 }
@@ -61,8 +66,15 @@ export class GatewayWebhookController {
     if (status === 'VERIFIED') {
       const paymentResult =
         await this.paymentsService.markGatewaySucceeded(gatewayId);
+      const paymentId = event.data?.attributes?.metadata?.paymentId;
+      const metadataPaymentResult = paymentId
+        ? await this.paymentsService.markGatewaySucceededByPaymentId(paymentId)
+        : { success: false };
       if (paymentResult.success) {
         return { received: true, applied: 'payment' };
+      }
+      if (metadataPaymentResult.success) {
+        return { received: true, applied: 'payment-metadata' };
       }
       const invoiceResult =
         await this.invoicesService.markGatewayPaidByGateway(gatewayId);

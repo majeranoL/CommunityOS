@@ -399,6 +399,19 @@ export class PaymentsService {
       where: { gatewayId: gatewayId, deletedAt: null },
     });
 
+    return this.markGatewaySucceededForPayment(payment);
+  }
+
+  async markGatewaySucceededByPaymentId(paymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, deletedAt: null },
+    });
+
+    return this.markGatewaySucceededForPayment(payment);
+  }
+
+  private async markGatewaySucceededForPayment(payment: any) {
+
     if (!payment) {
       return { success: false, reason: 'NOT_FOUND' };
     }
@@ -1111,6 +1124,7 @@ export class PaymentsService {
     await this.findScoped(communityId, id);
 
     await this.reverseAllocations(communityId, id);
+    await this.clearPaymentCredit(id);
 
     await this.prisma.payment.update({
       where: { id },
@@ -1203,6 +1217,7 @@ export class PaymentsService {
     }
 
     await this.reverseAllocations(communityId, id);
+    await this.clearPaymentCredit(id);
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },
@@ -1251,6 +1266,7 @@ export class PaymentsService {
     }
 
     await this.reverseAllocations(communityId, id);
+    await this.clearPaymentCredit(id);
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },
@@ -1301,6 +1317,7 @@ export class PaymentsService {
     }
 
     await this.reverseAllocations(communityId, id);
+    await this.clearPaymentCredit(id);
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },
@@ -1443,6 +1460,13 @@ export class PaymentsService {
       data: {
         reversedAt: new Date(),
       },
+    });
+  }
+
+  private async clearPaymentCredit(paymentId: string) {
+    await this.prisma.householdCredit.updateMany({
+      where: { sourcePaymentId: paymentId, balance: { gt: 0 } },
+      data: { balance: 0 },
     });
   }
 

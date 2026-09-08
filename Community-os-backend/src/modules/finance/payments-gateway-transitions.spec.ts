@@ -19,6 +19,9 @@ describe('PaymentsService gateway transitions', () => {
       findMany: jest.Mock;
       updateMany: jest.Mock;
     };
+    householdCredit: {
+      updateMany: jest.Mock;
+    };
     user: {
       findFirst: jest.Mock;
     };
@@ -48,6 +51,9 @@ describe('PaymentsService gateway transitions', () => {
       paymentAllocation: {
         findMany: jest.fn().mockResolvedValue([]),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      householdCredit: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       user: {
         findFirst: jest.fn().mockResolvedValue(null),
@@ -159,6 +165,20 @@ describe('PaymentsService gateway transitions', () => {
         data: expect.objectContaining({ status: PaymentStatus.FAILED }),
       }),
     );
+  });
+
+  it('clears unapplied advance credit when a verified payment is refunded', async () => {
+    prisma.payment.findFirst.mockResolvedValue(
+      buildPayment(PaymentStatus.VERIFIED),
+    );
+
+    const result = await service.refund('c1', 'pay-1', 'user-1');
+
+    expect(result.success).toBe(true);
+    expect(prisma.householdCredit.updateMany).toHaveBeenCalledWith({
+      where: { sourcePaymentId: 'pay-1', balance: { gt: 0 } },
+      data: { balance: 0 },
+    });
   });
 
   it('returns NOT_FOUND for an unknown gateway id', async () => {
