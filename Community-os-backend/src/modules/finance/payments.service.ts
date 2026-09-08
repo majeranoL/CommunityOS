@@ -572,7 +572,7 @@ export class PaymentsService {
     return (
       this.containsPaymentStatus(attributes, new Set(['paid', 'succeeded'])) ||
       attributes?.paid === true
-    )
+    );
   }
 
   private isCheckoutFinalizedUnpaid(

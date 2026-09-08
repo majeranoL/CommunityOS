@@ -47,7 +47,8 @@ export class PayMongoClient {
     const { amount, currency, description, metadata, successUrl, failureUrl } =
       params;
 
-    const configuredPaymentMethods = process.env.PAYMONGO_PAYMENT_METHOD_TYPES
+    const configuredPaymentMethods =
+      process.env.PAYMONGO_PAYMENT_METHOD_TYPES
       ?.split(',')
       .map((method) => method.trim())
       .filter(Boolean);
