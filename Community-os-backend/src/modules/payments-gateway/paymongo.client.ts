@@ -48,10 +48,9 @@ export class PayMongoClient {
       params;
 
     const configuredPaymentMethods =
-      process.env.PAYMONGO_PAYMENT_METHOD_TYPES
-      ?.split(',')
-      .map((method) => method.trim())
-      .filter(Boolean);
+      process.env.PAYMONGO_PAYMENT_METHOD_TYPES?.split(',')
+        .map((method) => method.trim())
+        .filter(Boolean);
 
     const attributes: Record<string, unknown> = {
       line_items: [
