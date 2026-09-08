@@ -534,7 +534,9 @@ export class PaymentsService {
       ?.attributes;
     const status = attributes?.status;
     return (
-      status === 'paid' || status === 'payment_paid' || attributes?.paid === true
+      status === 'paid' ||
+      status === 'payment_paid' ||
+      attributes?.paid === true
     );
   }
 

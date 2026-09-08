@@ -96,7 +96,9 @@ export class InvoicesController {
   @Post(':id/gateway-status')
   @Permissions('invoice.view')
   @ApiBearerAuth()
-  @ApiOkResponse({ description: 'Reconcile a checkout session with the gateway' })
+  @ApiOkResponse({
+    description: 'Reconcile a checkout session with the gateway',
+  })
   gatewayStatus(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     return this.invoicesService.syncWithGateway(req.user.community.id, id);
   }

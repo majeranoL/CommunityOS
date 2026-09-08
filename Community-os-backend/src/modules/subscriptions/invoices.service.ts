@@ -531,7 +531,11 @@ export class InvoicesService {
       invoice.status !== InvoiceStatus.PROCESSING ||
       !invoice.gatewayInvoiceId
     ) {
-      return { success: true, status: invoice.status, reason: 'NOT_APPLICABLE' };
+      return {
+        success: true,
+        status: invoice.status,
+        reason: 'NOT_APPLICABLE',
+      };
     }
 
     let checkout: Record<string, unknown>;
@@ -571,7 +575,9 @@ export class InvoicesService {
       ?.attributes;
     const status = attributes?.status;
     return (
-      status === 'paid' || status === 'payment_paid' || attributes?.paid === true
+      status === 'paid' ||
+      status === 'payment_paid' ||
+      attributes?.paid === true
     );
   }
 
