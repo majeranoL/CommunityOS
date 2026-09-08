@@ -47,6 +47,11 @@ export class PayMongoClient {
     const { amount, currency, description, metadata, successUrl, failureUrl } =
       params;
 
+    const configuredPaymentMethods = process.env.PAYMONGO_PAYMENT_METHOD_TYPES
+      ?.split(',')
+      .map((method) => method.trim())
+      .filter(Boolean);
+
     const attributes: Record<string, unknown> = {
       line_items: [
         {
@@ -58,9 +63,12 @@ export class PayMongoClient {
         },
       ],
       send_email_receipt: true,
-      payment_method_types: ['gcash', 'paymaya', 'card'],
       metadata,
     };
+
+    if (configuredPaymentMethods?.length) {
+      attributes.payment_method_types = configuredPaymentMethods;
+    }
 
     if (successUrl) attributes.success_url = successUrl;
     if (failureUrl) attributes.cancel_url = failureUrl;
