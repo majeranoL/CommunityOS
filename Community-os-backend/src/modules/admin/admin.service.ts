@@ -197,7 +197,7 @@ export class AdminService {
     // Resolve community names for top earners
     const communityIds = topCommunitiesRaw.map((r) => r.communityId);
     const communities = await this.prisma.community.findMany({
-      where: { id: { in: communityIds } },
+      where: { id: { in: communityIds }, deletedAt: null },
       select: { id: true, displayName: true, slug: true },
     });
     const communityMap = new Map(communities.map((c) => [c.id, c]));
@@ -344,7 +344,10 @@ export class AdminService {
     const sortBy = query.sortBy ?? 'createdAt';
     const order = query.order ?? 'desc';
 
-    const where: any = { deletedAt: null };
+    const where: any = {
+      deletedAt: null,
+      community: { is: { deletedAt: null } },
+    };
 
     if (query.status) {
       where.status = query.status;

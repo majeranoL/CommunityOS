@@ -119,6 +119,20 @@ async function main() {
   // CLEAN DATABASE (FK-safe order, children first)
   // =====================================================
 
+  await prisma.notificationDelivery.deleteMany();
+  await prisma.notificationPreference.deleteMany();
+  await prisma.pushSubscription.deleteMany();
+  await prisma.householdCredit.deleteMany();
+  await prisma.stickerRequest.deleteMany();
+  await prisma.constructionBond.deleteMany();
+  await prisma.goodStandingQR.deleteMany();
+  await prisma.facilityItemLoan.deleteMany();
+  await prisma.facilityItem.deleteMany();
+  await prisma.residentHousehold.deleteMany();
+  await prisma.sequence.deleteMany();
+  await prisma.planFeature.deleteMany();
+  await prisma.paymentMethodConfig.deleteMany();
+  await prisma.expense.deleteMany();
   await prisma.otpVerification.deleteMany();
   await prisma.platformSetting.deleteMany();
   await prisma.session.deleteMany();

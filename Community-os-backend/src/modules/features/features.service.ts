@@ -710,7 +710,10 @@ export class FeaturesService {
 
   async listCommunities(featureId: string) {
     const assignments = await this.prisma.communityFeature.findMany({
-      where: { featureId },
+      where: {
+        featureId,
+        community: { is: { deletedAt: null } },
+      },
 
       include: {
         community: {
