@@ -44,6 +44,16 @@ function unitLabel(household: { block?: string | null; lot?: string | null; unit
   )
 }
 
+function blockLotLabel(household: { block?: string | null; lot?: string | null; unit?: string | null; address?: string | null }) {
+  if (household.block && household.lot) {
+    return `Block ${household.block} · Lot ${household.lot}`
+  }
+  if (household.block) return `Block ${household.block}`
+  if (household.lot) return `Lot ${household.lot}`
+  if (household.unit) return `Unit ${household.unit}`
+  return household.address || 'Unnamed household'
+}
+
 function MemberHouseholdView() {
   const { data: household, isLoading } = useMyHousehold()
   const [editId, setEditId] = useState<string | null>(null)
@@ -177,8 +187,8 @@ function OfficerHouseholdsView() {
 
   const columns: Column<HouseholdListItem>[] = [
     {
-      key: 'unit',
-      header: 'Unit',
+      key: 'blockLot',
+      header: 'Block / Lot',
       cell: (row) => (
         <button
           type="button"
@@ -188,15 +198,15 @@ function OfficerHouseholdsView() {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
             <Home className="h-4 w-4 text-muted-foreground" />
           </div>
-          <span className="font-medium">{unitLabel(row)}</span>
+          <span className="font-medium">{blockLotLabel(row)}</span>
         </button>
       ),
     },
     {
-      key: 'block',
-      header: 'Block',
+      key: 'address',
+      header: 'Address',
       cell: (row) => (
-        <span className="font-medium">{row.block || '—'}</span>
+        <span className="text-muted-foreground">{row.address || '—'}</span>
       ),
       hideBelow: 'md',
     },
@@ -305,7 +315,7 @@ function OfficerHouseholdsView() {
         <div className="relative sm:max-w-xs sm:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search block, lot, unit, or address…"
+            placeholder="Search block, lot, or address…"
             className="pl-9"
             value={search}
             onChange={(event) => {
