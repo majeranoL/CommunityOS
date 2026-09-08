@@ -928,6 +928,41 @@ export const permissions = [
     module: 'Vehicle Stickers',
     description: 'Approve or reject sticker applications',
   },
+  {
+    code: 'construction.create',
+    module: 'Construction',
+    description: 'Submit construction or renovation requests',
+  },
+  {
+    code: 'construction.view',
+    module: 'Construction',
+    description: 'View construction requests',
+  },
+  {
+    code: 'construction.review',
+    module: 'Construction',
+    description: 'Review construction requests',
+  },
+  {
+    code: 'construction.complete',
+    module: 'Construction',
+    description: 'Mark construction requests completed',
+  },
+  {
+    code: 'construction.close',
+    module: 'Construction',
+    description: 'Close construction requests',
+  },
+  {
+    code: 'construction.bond',
+    module: 'Construction',
+    description: 'Resolve construction bonds',
+  },
+  {
+    code: 'construction.requirements',
+    module: 'Construction',
+    description: 'Manage construction document requirements',
+  },
 ];
 
 // Permission codes granted to the non-officer system roles (Member / Renter).
@@ -965,6 +1000,8 @@ export const MEMBER_PERMISSIONS: string[] = [
   'vehicle.view',
   'sticker.create',
   'sticker.view',
+  'construction.create',
+  'construction.view',
   'pet.create',
   'pet.view',
 ];

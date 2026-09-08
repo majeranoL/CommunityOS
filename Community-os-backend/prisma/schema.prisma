@@ -51,6 +51,20 @@ enum ConstructionBondStatus {
   FORFEITED
 }
 
+enum ConstructionRequestType {
+  CONSTRUCTION
+  RENOVATION
+}
+
+enum ConstructionRequestStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
 enum Gender {
   MALE
   FEMALE
@@ -528,6 +542,9 @@ model Community {
   featureAuditLogs   FeatureAuditLog[]
   goodStandingQrs    GoodStandingQR[]
   constructionBonds  ConstructionBond[]
+  constructionRequests ConstructionRequest[]
+  constructionRequirements ConstructionRequirement[]
+  constructionRequestDocuments ConstructionRequestDocument[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -759,6 +776,10 @@ model User {
   recordedUtilityReadings UtilityReading[]   @relation("UtilityReadingRecordedBy")
   bondDepositsRecorded    ConstructionBond[] @relation("BondDepositRecordedBy")
   bondsResolved           ConstructionBond[] @relation("BondResolvedBy")
+  constructionRequestsSubmitted ConstructionRequest[] @relation("ConstructionRequestSubmittedBy")
+  constructionRequestsReviewed ConstructionRequest[] @relation("ConstructionRequestReviewedBy")
+  constructionRequestsCompleted ConstructionRequest[] @relation("ConstructionRequestCompletedBy")
+  constructionDocumentsUploaded ConstructionRequestDocument[] @relation("ConstructionDocumentUploadedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1289,6 +1310,7 @@ model Household {
   utilityReadings       UtilityReading[]
   goodStandingQrs       GoodStandingQR[]
   constructionBonds     ConstructionBond[]
+  constructionRequests  ConstructionRequest[]
 
   isImported    Boolean      @default(false)
   importBatchId String?      @db.Uuid
@@ -1387,6 +1409,92 @@ model ConstructionBond {
   @@index([householdId])
   @@index([status])
   @@index([communityId, status])
+}
+
+model ConstructionRequirement {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  name        String  @db.VarChar(120)
+  description String?
+  isRequired  Boolean @default(true)
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  documents ConstructionRequestDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([communityId, name])
+  @@index([communityId, isActive])
+}
+
+model ConstructionRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  communityId String    @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  householdId String    @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  submittedById String @db.Uuid
+  submittedBy   User   @relation("ConstructionRequestSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+
+  requestNumber String                  @db.VarChar(30)
+  type          ConstructionRequestType
+  title         String                  @db.VarChar(200)
+  description   String
+  location      String?                 @db.VarChar(200)
+  contractorName String?                @db.VarChar(200)
+  plannedStartDate DateTime
+  plannedEndDate   DateTime
+  bondAmount       Decimal               @default(0) @db.Decimal(10, 2)
+  status          ConstructionRequestStatus @default(SUBMITTED)
+  reviewNotes     String?
+  rejectionReason String?
+  reviewedById    String? @db.Uuid
+  reviewedBy      User?   @relation("ConstructionRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+  completedById   String? @db.Uuid
+  completedBy     User?   @relation("ConstructionRequestCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  completedAt     DateTime?
+  closedAt        DateTime?
+  cancelledAt     DateTime?
+
+  bond      ConstructionBond?
+  documents ConstructionRequestDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@unique([communityId, requestNumber])
+  @@index([communityId, status])
+  @@index([householdId])
+  @@index([submittedById])
+}
+
+model ConstructionRequestDocument {
+  id            String    @id @default(uuid()) @db.Uuid
+  requestId     String    @db.Uuid
+  request       ConstructionRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requirementId String?   @db.Uuid
+  requirement   ConstructionRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  communityId   String    @db.Uuid
+  community     Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  uploadedById  String    @db.Uuid
+  uploadedBy    User      @relation("ConstructionDocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  fileId       String? @db.Uuid
+  fileUrl      String?
+  originalName String  @db.VarChar(255)
+  documentType String  @db.VarChar(120)
+
+  createdAt DateTime @default(now())
+
+  @@index([requestId])
+  @@index([communityId])
 }
 
 /////////////////////////////////////////////////////
@@ -1891,6 +1999,9 @@ model HouseholdCredit {
   community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
   householdId String   @db.Uuid
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  requestId String? @unique @db.Uuid
+  request   ConstructionRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
   balance     Decimal  @default(0) @db.Decimal(10, 2)
   sourcePaymentId String? @db.Uuid
   sourcePayment Payment? @relation(fields: [sourcePaymentId], references: [id], onDelete: SetNull)

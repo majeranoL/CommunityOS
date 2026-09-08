@@ -163,6 +163,13 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: PERMISSIONS.facilityView,
       },
       {
+        label: 'Construction',
+        href: '/app/construction',
+        icon: Building2,
+        permission: PERMISSIONS.constructionView,
+        feature: 'construction-management',
+      },
+      {
         label: 'Gate',
         href: '/app/gate',
         icon: ScanLine,

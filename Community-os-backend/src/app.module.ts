@@ -45,6 +45,7 @@ import { S3Module } from './common/s3/s3.module';
 import { PaymentsGatewayModule } from './modules/payments-gateway/payments-gateway.module';
 import { GatewayWebhookModule } from './modules/gateway-webhook/gateway-webhook.module';
 import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.module';
+import { ConstructionModule } from './modules/construction/construction.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { PaymentMethodsModule } from './modules/payment-methods/payment-methods.
     PaymentsGatewayModule,
     GatewayWebhookModule,
     PaymentMethodsModule,
+    ConstructionModule,
     UsersModule,
     AuthModule,
     ResidentModule,

@@ -39,6 +39,14 @@ export const PERMISSIONS = {
   stickerDelete: 'sticker.delete',
   stickerVerify: 'sticker.verify',
 
+  constructionCreate: 'construction.create',
+  constructionView: 'construction.view',
+  constructionReview: 'construction.review',
+  constructionComplete: 'construction.complete',
+  constructionClose: 'construction.close',
+  constructionBond: 'construction.bond',
+  constructionRequirements: 'construction.requirements',
+
   petCreate: 'pet.create',
   petView: 'pet.view',
   petUpdate: 'pet.update',

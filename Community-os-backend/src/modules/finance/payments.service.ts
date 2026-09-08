@@ -432,6 +432,7 @@ export class PaymentsService {
     });
 
     await this.syncLinkedAssessments(payment.communityId, payment.id);
+    await this.activateConstructionBondsForPayment(payment.id);
     await this.reactivateCommunityIfInactive(payment.communityId);
     await this.notifyResident(
       payment.communityId,
@@ -1182,6 +1183,7 @@ export class PaymentsService {
     }
 
     await this.syncLinkedAssessments(communityId, id);
+    await this.activateConstructionBondsForPayment(id);
 
     await this.notifyResident(
       communityId,
@@ -1467,6 +1469,21 @@ export class PaymentsService {
     await this.prisma.householdCredit.updateMany({
       where: { sourcePaymentId: paymentId, balance: { gt: 0 } },
       data: { balance: 0 },
+    });
+  }
+
+  private async activateConstructionBondsForPayment(paymentId: string) {
+    const allocations = await this.prisma.paymentAllocation.findMany({
+      where: { paymentId, reversedAt: null },
+      include: { assessment: { select: { constructionBond: { select: { id: true } } } } },
+    });
+    const bondIds = allocations
+      .map((allocation) => allocation.assessment.constructionBond?.id)
+      .filter((id): id is string => Boolean(id));
+    if (!bondIds.length) return;
+    await this.prisma.constructionBond.updateMany({
+      where: { id: { in: bondIds }, status: 'OPEN' },
+      data: { status: 'ACTIVE' },
     });
   }
 
