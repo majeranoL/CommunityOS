@@ -787,6 +787,8 @@ model User {
   constructionRequestsReviewed ConstructionRequest[] @relation("ConstructionRequestReviewedBy")
   constructionRequestsCompleted ConstructionRequest[] @relation("ConstructionRequestCompletedBy")
   constructionDocumentsUploaded ConstructionRequestDocument[] @relation("ConstructionDocumentUploadedBy")
+  householdAcquisitionRequestsSubmitted HouseholdAcquisitionRequest[] @relation("HouseholdAcquisitionRequestedBy")
+  householdAcquisitionRequestsReviewed HouseholdAcquisitionRequest[] @relation("HouseholdAcquisitionReviewedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
