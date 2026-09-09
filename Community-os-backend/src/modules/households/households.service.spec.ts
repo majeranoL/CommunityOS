@@ -242,7 +242,11 @@ describe('HouseholdsService switchHousehold', () => {
       },
     };
 
-    service = new HouseholdsService(prismaMock, {} as any, { log: jest.fn() } as any);
+    service = new HouseholdsService(
+      prismaMock,
+      {} as any,
+      { log: jest.fn() } as any,
+    );
   });
 
   it('searches active households for member acquisition requests', async () => {
@@ -250,12 +254,17 @@ describe('HouseholdsService switchHousehold', () => {
       { id: 'h2', block: 'B', lot: '5', unit: null, address: 'Block B' },
     ]);
 
-    const result = await service.searchMemberHouseholds('c1', { search: 'B-5' });
+    const result = await service.searchMemberHouseholds('c1', {
+      search: 'B-5',
+    });
 
     expect(result.data).toHaveLength(1);
     expect(prismaMock.household.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ communityId: 'c1', status: HouseholdStatus.ACTIVE }),
+        where: expect.objectContaining({
+          communityId: 'c1',
+          status: HouseholdStatus.ACTIVE,
+        }),
         take: 20,
       }),
     );

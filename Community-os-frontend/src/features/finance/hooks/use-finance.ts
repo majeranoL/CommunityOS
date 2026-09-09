@@ -13,6 +13,7 @@ import {
   financeOverviewService,
   financeResidentsService,
   financeTransactionsService,
+  householdCreditsService,
   incomeStatementService,
   paymentsService,
   utilityBillingService,
@@ -26,6 +27,8 @@ import type {
   CreatePaymentInput,
   GenerateAssessmentsInput,
   GenerateBillingPeriodsInput,
+  HouseholdCreditApplyInput,
+  HouseholdCreditInput,
   ImportKind,
   PaymentCheckoutInput,
   UpdateAssessmentInput,
@@ -328,6 +331,89 @@ export function usePaymentCheckout(onSuccess?: () => void) {
     },
     onError: (error) =>
       toast.error(apiErrorMessage(error, 'Failed to start online payment.')),
+  })
+}
+
+function invalidateCredits(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['finance', 'credits'] })
+  queryClient.invalidateQueries({ queryKey: ['finance', 'payments'] })
+  queryClient.invalidateQueries({ queryKey: ['finance', 'assessments'] })
+  queryClient.invalidateQueries({ queryKey: ['finance', 'dues-tracker'] })
+  queryClient.invalidateQueries({
+    queryKey: ['households', 'my-household'],
+  })
+}
+
+export function useMyHouseholdCredits(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['finance', 'credits', 'mine'] as const,
+    queryFn: () => householdCreditsService.mine(),
+    enabled: options?.enabled ?? true,
+  })
+}
+
+export function useHouseholdCredits(
+  params: { householdId?: string } = {},
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ['finance', 'credits', 'list', params] as const,
+    queryFn: () => householdCreditsService.list(params),
+    enabled: options?.enabled ?? true,
+  })
+}
+
+export function useIssueHouseholdCredit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: HouseholdCreditInput) => householdCreditsService.issue(input),
+    onSuccess: () => {
+      toast.success('Household credit issued.')
+      invalidateCredits(queryClient)
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to issue household credit.')),
+  })
+}
+
+export function useAdjustHouseholdCredit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: number }) =>
+      householdCreditsService.adjust(id, amount),
+    onSuccess: () => {
+      toast.success('Household credit updated.')
+      invalidateCredits(queryClient)
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to update household credit.')),
+  })
+}
+
+export function useVoidHouseholdCredit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => householdCreditsService.void(id),
+    onSuccess: () => {
+      toast.success('Household credit voided.')
+      invalidateCredits(queryClient)
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to void household credit.')),
+  })
+}
+
+export function useApplyHouseholdCredit(onSuccess?: () => void) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: HouseholdCreditApplyInput) =>
+      householdCreditsService.apply(input),
+    onSuccess: () => {
+      invalidateCredits(queryClient)
+      onSuccess?.()
+    },
+    onError: (error) =>
+      toast.error(apiErrorMessage(error, 'Failed to apply household credit.')),
   })
 }
 

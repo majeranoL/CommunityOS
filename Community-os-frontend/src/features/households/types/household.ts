@@ -8,6 +8,8 @@ export interface HouseholdFinanceSummary {
   outstanding: number
   monthsBehind: number
   standing: HouseholdStanding
+  /** Total currently available household credit. */
+  availableCredit: number
 }
 
 export interface HouseholdResident {

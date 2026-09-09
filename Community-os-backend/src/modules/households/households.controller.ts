@@ -86,25 +86,43 @@ export class HouseholdsController {
   @Get('search')
   @Permissions('household.request')
   search(@Request() req: any, @Query() query: HouseholdSearchQueryDto) {
-    return this.householdsService.searchMemberHouseholds(req.user.community.id, query);
+    return this.householdsService.searchMemberHouseholds(
+      req.user.community.id,
+      query,
+    );
   }
 
   @Get('acquisition-requests')
   @Permissions('household.request_review')
   acquisitionRequests(@Request() req: any) {
-    return this.householdsService.acquisitionRequests(req.user.community.id, req.user.id, true);
+    return this.householdsService.acquisitionRequests(
+      req.user.community.id,
+      req.user.id,
+      true,
+    );
   }
 
   @Get('acquisition-requests/mine')
   @Permissions('household.request')
   myAcquisitionRequests(@Request() req: any) {
-    return this.householdsService.acquisitionRequests(req.user.community.id, req.user.id, false);
+    return this.householdsService.acquisitionRequests(
+      req.user.community.id,
+      req.user.id,
+      false,
+    );
   }
 
   @Post('acquisition-requests')
   @Permissions('household.request')
-  createAcquisitionRequest(@Request() req: any, @Body() dto: CreateHouseholdAcquisitionRequestDto) {
-    return this.householdsService.createAcquisitionRequest(req.user.community.id, req.user.id, dto);
+  createAcquisitionRequest(
+    @Request() req: any,
+    @Body() dto: CreateHouseholdAcquisitionRequestDto,
+  ) {
+    return this.householdsService.createAcquisitionRequest(
+      req.user.community.id,
+      req.user.id,
+      dto,
+    );
   }
 
   @Put('acquisition-requests/:id/review')
@@ -114,7 +132,12 @@ export class HouseholdsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewHouseholdAcquisitionRequestDto,
   ) {
-    return this.householdsService.reviewAcquisitionRequest(req.user.community.id, id, req.user.id, dto);
+    return this.householdsService.reviewAcquisitionRequest(
+      req.user.community.id,
+      id,
+      req.user.id,
+      dto,
+    );
   }
 
   // ==========================================

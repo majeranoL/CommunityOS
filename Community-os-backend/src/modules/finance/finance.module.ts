@@ -18,6 +18,8 @@ import { AssessmentsService } from './assessments.service';
 import { PaymentsService } from './payments.service';
 import { FinanceOptionsService } from './finance-options.service';
 import { FinanceSyncService } from './finance-sync.service';
+import { HouseholdCreditService } from './household-credit.service';
+import { HouseholdCreditController } from './household-credit.controller';
 import { ChargeTypesService } from './charge-types.service';
 import { BillingPeriodsService } from './billing-periods.service';
 import { FinanceTransactionsService } from './finance-transactions.service';
@@ -58,12 +60,14 @@ import { FinanceTransparencyGuard } from '../../common/guards/finance-transparen
     ExpensesController,
     IncomeStatementController,
     UtilityExpensesController,
+    HouseholdCreditController,
   ],
   providers: [
     AssessmentsService,
     PaymentsService,
     FinanceOptionsService,
     FinanceSyncService,
+    HouseholdCreditService,
     ChargeTypesService,
     BillingPeriodsService,
     FinanceTransactionsService,
@@ -78,6 +82,7 @@ import { FinanceTransparencyGuard } from '../../common/guards/finance-transparen
     AssessmentsService,
     PaymentsService,
     FinanceSyncService,
+    HouseholdCreditService,
     ChargeTypesService,
     BillingPeriodsService,
     ExpensesService,

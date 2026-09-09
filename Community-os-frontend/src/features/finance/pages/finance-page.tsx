@@ -88,6 +88,7 @@ import { ImportExportDialog } from '@/features/finance/components/import-export-
 import { DuesSettingsDialog } from '@/features/finance/components/dues-settings-dialog'
 import { MyDuesTab } from '@/features/finance/components/my-dues-tab'
 import { MyPaymentsTab } from '@/features/finance/components/my-payments-tab'
+import { HouseholdCreditsTab } from '@/features/finance/components/household-credits-tab'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { UtilityRateDialog } from '@/features/finance/components/utility-rate-dialog'
 import { UtilityReadingDialog } from '@/features/finance/components/utility-reading-dialog'
@@ -163,6 +164,7 @@ export default function FinancePage() {
 
   const isManager = canCreateAssessment || canManage
   const financeTransparencyEnabled = useIsFeatureEnabled('finance-transparency')
+  const creditsEnabled = useIsFeatureEnabled('household-credit')
   const showOverview = canViewAll && canManage
   const showMonthlyDues = canCreateAssessment || canViewAll || canManage
   const showOtherCharges = showMonthlyDues
@@ -178,6 +180,9 @@ export default function FinancePage() {
     (showChargeTypes || showBillingPeriods || showImportExport || showMonthlyDues || showPaymentMethodsConfig) &&
     isManager
 
+  const canViewCredits = useHasPermission(PERMISSIONS.creditView)
+  const showCredits = isManager && creditsEnabled && canViewCredits
+
   const tabs: Array<{ value: string; label: string }> = []
   if (!isManager) tabs.push({ value: 'my-dues', label: 'My dues' })
   if (!isManager) tabs.push({ value: 'my-payments', label: 'My payments' })
@@ -188,6 +193,7 @@ export default function FinancePage() {
   if (showExpenses) tabs.push({ value: 'expenses', label: 'Expenses' })
   if (showUtilities) tabs.push({ value: 'utilities', label: 'Utilities' })
   if (showReports) tabs.push({ value: 'reports', label: 'Reports' })
+  if (showCredits) tabs.push({ value: 'household-credits', label: 'Household credits' })
 
   const [searchParams] = useSearchParams()
   const urlTab = searchParams.get('tab')
@@ -312,6 +318,11 @@ export default function FinancePage() {
         {showReports ? (
           <TabsContent value="reports">
             <IncomeStatementTab />
+          </TabsContent>
+        ) : null}
+        {showCredits ? (
+          <TabsContent value="household-credits">
+            <HouseholdCreditsTab />
           </TabsContent>
         ) : null}
         {showChargeTypes ? (

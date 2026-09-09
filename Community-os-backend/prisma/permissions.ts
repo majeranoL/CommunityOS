@@ -89,6 +89,16 @@ export const permissions = [
     module: 'Billing',
     description: 'Run billing operations',
   },
+  {
+    code: 'credit.view',
+    module: 'Billing',
+    description: 'View household credit balances and history',
+  },
+  {
+    code: 'credit.manage',
+    module: 'Billing',
+    description: 'Issue, adjust, apply, and void household credits',
+  },
 
   // =====================================================
   // COMPLAINTS

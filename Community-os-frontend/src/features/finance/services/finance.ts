@@ -26,6 +26,11 @@ import type {
   GenerateAssessmentsInput,
   GenerateAssessmentsResult,
   GenerateBillingPeriodsInput,
+  HouseholdCredit,
+  HouseholdCreditApplyInput,
+  HouseholdCreditApplyResult,
+  HouseholdCreditInput,
+  HouseholdCreditListResult,
   ImportBatch,
   ImportKind,
   ImportPreviewResult,
@@ -214,6 +219,50 @@ async create(input: CreatePaymentInput) {
 
 async cancel(id: string) {
     const { data } = await api.patch<ApiEnvelope<Payment>>(`/payments/${id}/cancel`)
+    return data.data
+  },
+}
+
+export const householdCreditsService = {
+  async mine() {
+    const { data } = await api.get<ApiEnvelope<HouseholdCreditListResult>>(
+      '/finance/credits/mine',
+    )
+    return data.data
+  },
+
+  async list(params: { householdId?: string } = {}) {
+    const { data } = await api.get<HouseholdCredit[]>('/finance/credits', {
+      params,
+    })
+    return data
+  },
+
+  async issue(input: HouseholdCreditInput) {
+    const { data } = await api.post<HouseholdCredit>('/finance/credits', input)
+    return data
+  },
+
+  async adjust(id: string, amount: number) {
+    const { data } = await api.patch<HouseholdCredit>(
+      `/finance/credits/${id}`,
+      { amount },
+    )
+    return data
+  },
+
+  async void(id: string) {
+    const { data } = await api.post<{ success: boolean; message: string }>(
+      `/finance/credits/${id}/void`,
+    )
+    return data
+  },
+
+  async apply(input: HouseholdCreditApplyInput) {
+    const { data } = await api.post<ApiEnvelope<HouseholdCreditApplyResult>>(
+      '/finance/credits/apply',
+      input,
+    )
     return data.data
   },
 }

@@ -1,6 +1,9 @@
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
-import { ConstructionRequestStatus, ConstructionRequestType } from '@prisma/client';
+import {
+  ConstructionRequestStatus,
+  ConstructionRequestType,
+} from '@prisma/client';
 
 export class ConstructionQueryDto {
   @IsOptional()

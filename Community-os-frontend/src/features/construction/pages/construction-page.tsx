@@ -49,8 +49,9 @@ export default function ConstructionPage() {
       <PageHeader
         title="Construction and renovation"
         description="Submit and track household construction requests and bonds."
-        actions={canCreate ? <Button onClick={() => setFormOpen(true)}><Plus className="mr-2 h-4 w-4" />New request</Button> : undefined}
-      />
+      >
+        {canCreate ? <Button onClick={() => setFormOpen(true)}><Plus className="mr-2 h-4 w-4" />New request</Button> : undefined}
+      </PageHeader>
       {formOpen ? <RequestForm householdId={householdId} requirements={requirements} onClose={() => setFormOpen(false)} /> : null}
       {canRequirements ? <RequirementsPanel requirements={requirements} /> : null}
       <div className="grid gap-4">

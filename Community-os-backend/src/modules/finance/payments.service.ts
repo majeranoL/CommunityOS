@@ -10,6 +10,7 @@ import {
   AssessmentStatus,
   ChargeRecurrence,
   CommunityStatus,
+  HouseholdCreditApplicationSource,
   NotificationType,
   PaymentMethod,
   PaymentStatus,
@@ -20,6 +21,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 import { FinanceSyncService } from './finance-sync.service';
+import { HouseholdCreditService } from './household-credit.service';
 
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
@@ -36,6 +38,7 @@ export class PaymentsService {
     private readonly notificationsService: NotificationsService,
     private readonly financeSyncService: FinanceSyncService,
     private readonly gateway: PaymentsGatewayService,
+    private readonly householdCreditService: HouseholdCreditService,
   ) {}
 
   // ==========================================
@@ -116,10 +119,27 @@ export class PaymentsService {
       0,
     );
 
+    // ==========================================
+    // Apply household credit toward the selected items
+    // ==========================================
+
+    const applyCredit = dto.applyCredit === true && !isAdvance;
+    const availableCredit = applyCredit
+      ? await this.householdCreditService.availableBalance(
+          this.prisma,
+          communityId,
+          resident.householdId,
+        )
+      : 0;
+    const creditApplied = Math.min(availableCredit, allocatedTotal);
+
+    // The resident pays only the portion not covered by credit.
+    const payable = Math.max(allocatedTotal - creditApplied, 0);
+
     // Allow small rounding tolerance (e.g. 1200.0000001)
-    if (!isAdvance && Math.abs(allocatedTotal - dto.amount) > 0.005) {
+    if (Math.abs(payable - dto.amount) > 0.005) {
       throw new BadRequestException(
-        `Payment amount must equal the sum of selected items (${allocatedTotal.toFixed(
+        `Payment amount must equal the sum of selected items after applying credit (${payable.toFixed(
           2,
         )}).`,
       );
@@ -143,55 +163,105 @@ export class PaymentsService {
     // Create Payment + Allocations
     // ==========================================
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        communityId,
+    // Spread credit across targets (FIFO) so the payment's own allocations
+    // only cover the cash remainder. The credit portions are allocated from
+    // the credit's source payment (see applyToAssessment).
+    const creditPerTarget = new Map<string, number>();
+    let creditRemaining = creditApplied;
+    for (const target of targets) {
+      if (creditRemaining <= 0) break;
+      const covered = Math.min(target.amount, creditRemaining);
+      creditPerTarget.set(target.assessmentId, covered);
+      creditRemaining -= covered;
+    }
 
-        paymentNumber,
-        residentId: dto.residentId,
-        amount: dto.amount,
-        paymentDate: new Date(dto.paymentDate),
-        method: dto.method ?? 'CASH',
-        referenceNumber: dto.referenceNumber,
-        remarks: dto.remarks,
-        proofFileId: dto.proofFileId,
-        proofUrl: dto.proofUrl,
-        chargeTypeId: chargeTypeId ?? dto.chargeTypeId,
-
-        status: PaymentStatus.PENDING_VERIFICATION,
-        isAdvance,
-        advanceMonths: dto.advanceMonths,
-
-        allocations: {
-          create: targets.map((target) => ({
+    const { payment, creditAppliedTotal } = await this.prisma.$transaction(
+      async (tx) => {
+        const created = await tx.payment.create({
+          data: {
             communityId,
-            assessmentId: target.assessmentId,
-            allocatedAmount: target.amount,
-          })),
-        },
-      },
 
-      include: {
-        allocations: {
+            paymentNumber,
+            residentId: dto.residentId,
+            amount: dto.amount,
+            paymentDate: new Date(dto.paymentDate),
+            method: dto.method ?? 'CASH',
+            referenceNumber: dto.referenceNumber,
+            remarks: dto.remarks,
+            proofFileId: dto.proofFileId,
+            proofUrl: dto.proofUrl,
+            chargeTypeId: chargeTypeId ?? dto.chargeTypeId,
+
+            status: PaymentStatus.PENDING_VERIFICATION,
+            isAdvance,
+            advanceMonths: dto.advanceMonths,
+
+            allocations: {
+              create: targets
+                .map((target) => {
+                  const creditCovered =
+                    creditPerTarget.get(target.assessmentId) ?? 0;
+                  const cashPortion = Math.max(
+                    target.amount - creditCovered,
+                    0,
+                  );
+                  if (cashPortion <= 0) return null;
+                  return {
+                    communityId,
+                    assessmentId: target.assessmentId,
+                    allocatedAmount: cashPortion,
+                  };
+                })
+                .filter(
+                  (allocation): allocation is NonNullable<typeof allocation> =>
+                    allocation !== null,
+                ),
+            },
+          },
+
           include: {
-            assessment: {
+            allocations: {
+              include: {
+                assessment: {
+                  select: {
+                    id: true,
+                    assessmentNumber: true,
+                    title: true,
+                  },
+                },
+              },
+            },
+            resident: {
               select: {
                 id: true,
-                assessmentNumber: true,
-                title: true,
+                firstName: true,
+                lastName: true,
               },
             },
           },
-        },
-        resident: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+        });
+
+        let appliedTotal = 0;
+        for (const target of targets) {
+          const creditCovered = creditPerTarget.get(target.assessmentId) ?? 0;
+          if (creditCovered <= 0) continue;
+          const applied = await this.householdCreditService.applyToAssessment(
+            tx,
+            {
+              communityId,
+              householdId: resident.householdId!,
+              assessmentId: target.assessmentId,
+              amount: creditCovered,
+              source: HouseholdCreditApplicationSource.PAYMENT,
+              paymentId: created.id,
+            },
+          );
+          appliedTotal += applied.applied;
+        }
+
+        return { payment: created, creditAppliedTotal: appliedTotal };
       },
-    });
+    );
 
     // ==========================================
     // Notify Finance Staff
@@ -216,7 +286,12 @@ export class PaymentsService {
 
     return {
       success: true,
-      message: 'Payment recorded and awaiting verification.',
+      message:
+        creditAppliedTotal > 0
+          ? `Payment recorded and awaiting verification. Applied ${Number(
+              creditAppliedTotal,
+            )} in household credit.`
+          : 'Payment recorded and awaiting verification.',
       data: payment,
     };
   }
@@ -269,39 +344,112 @@ export class PaymentsService {
     }
 
     const allocatedTotal = targets.reduce((sum, t) => sum + t.amount, 0);
-    if (Math.abs(allocatedTotal - dto.amount) > 0.005) {
+
+    // ==========================================
+    // Apply household credit toward the selected items
+    // ==========================================
+
+    const applyCredit = dto.applyCredit === true;
+    const availableCredit = applyCredit
+      ? await this.householdCreditService.availableBalance(
+          this.prisma,
+          communityId,
+          resident.householdId,
+        )
+      : 0;
+    const creditApplied = Math.min(availableCredit, allocatedTotal);
+    const payable = Math.max(allocatedTotal - creditApplied, 0);
+
+    if (payable <= 0) {
+      // Nothing left to charge - settle the items entirely with credit.
+      await this.prisma.$transaction(async (tx) => {
+        for (const target of targets) {
+          await this.householdCreditService.applyToAssessment(tx, {
+            communityId,
+            householdId: resident.householdId!,
+            assessmentId: target.assessmentId,
+            amount: target.amount,
+            source: HouseholdCreditApplicationSource.PAYMENT,
+          });
+        }
+      });
+      return {
+        success: true,
+        message: 'Selected items were fully covered by household credit.',
+        data: { settledByCredit: true },
+      };
+    }
+
+    if (Math.abs(payable - dto.amount) > 0.005) {
       throw new BadRequestException(
-        `Payment amount must equal the sum of selected items (${allocatedTotal.toFixed(
+        `Amount to charge must equal the sum of selected items after applying credit (${payable.toFixed(
           2,
         )}).`,
       );
+    }
+
+    const creditPerTarget = new Map<string, number>();
+    let creditRemaining = creditApplied;
+    for (const target of targets) {
+      if (creditRemaining <= 0) break;
+      const covered = Math.min(target.amount, creditRemaining);
+      creditPerTarget.set(target.assessmentId, covered);
+      creditRemaining -= covered;
     }
 
     // ==========================================
     // Create Payment in PROCESSING state
     // ==========================================
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        communityId,
-        paymentNumber: await this.nextPaymentNumber(communityId),
-        residentId: dto.residentId,
-        amount: dto.amount,
-        paymentDate: new Date(),
-        method: PaymentMethod.ONLINE,
-        referenceNumber: dto.referenceNumber,
-        remarks: dto.remarks,
-        chargeTypeId: chargeTypeId ?? dto.chargeTypeId,
-        status: PaymentStatus.PROCESSING,
-        gatewayProvider: 'paymongo',
-        allocations: {
-          create: targets.map((target) => ({
-            communityId,
-            assessmentId: target.assessmentId,
-            allocatedAmount: target.amount,
-          })),
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.payment.create({
+        data: {
+          communityId,
+          paymentNumber: await this.nextPaymentNumber(communityId),
+          residentId: dto.residentId,
+          amount: dto.amount,
+          paymentDate: new Date(),
+          method: PaymentMethod.ONLINE,
+          referenceNumber: dto.referenceNumber,
+          remarks: dto.remarks,
+          chargeTypeId: chargeTypeId ?? dto.chargeTypeId,
+          status: PaymentStatus.PROCESSING,
+          gatewayProvider: 'paymongo',
+          allocations: {
+            create: targets
+              .map((target) => {
+                const creditCovered =
+                  creditPerTarget.get(target.assessmentId) ?? 0;
+                const cashPortion = Math.max(target.amount - creditCovered, 0);
+                if (cashPortion <= 0) return null;
+                return {
+                  communityId,
+                  assessmentId: target.assessmentId,
+                  allocatedAmount: cashPortion,
+                };
+              })
+              .filter(
+                (allocation): allocation is NonNullable<typeof allocation> =>
+                  allocation !== null,
+              ),
+          },
         },
-      },
+      });
+
+      for (const target of targets) {
+        const creditCovered = creditPerTarget.get(target.assessmentId) ?? 0;
+        if (creditCovered <= 0) continue;
+        await this.householdCreditService.applyToAssessment(tx, {
+          communityId,
+          householdId: resident.householdId!,
+          assessmentId: target.assessmentId,
+          amount: creditCovered,
+          source: HouseholdCreditApplicationSource.PAYMENT,
+          paymentId: created.id,
+        });
+      }
+
+      return created;
     });
 
     // ==========================================
@@ -411,7 +559,6 @@ export class PaymentsService {
   }
 
   private async markGatewaySucceededForPayment(payment: any) {
-
     if (!payment) {
       return { success: false, reason: 'NOT_FOUND' };
     }
@@ -457,11 +604,22 @@ export class PaymentsService {
     }
 
     await this.reverseAllocations(payment.communityId, payment.id);
+    const { assessmentIds: creditAssessmentIds } =
+      await this.householdCreditService.reverseForPayment(
+        this.prisma,
+        payment.id,
+        undefined,
+        payment.communityId,
+      );
     await this.prisma.payment.update({
       where: { id: payment.id },
       data: { status: PaymentStatus.FAILED },
     });
-    await this.syncLinkedAssessments(payment.communityId, payment.id);
+    await this.syncLinkedAssessments(
+      payment.communityId,
+      payment.id,
+      creditAssessmentIds,
+    );
 
     return { success: true };
   }
@@ -478,11 +636,22 @@ export class PaymentsService {
     }
 
     await this.reverseAllocations(payment.communityId, payment.id);
+    const { assessmentIds: creditAssessmentIds } =
+      await this.householdCreditService.reverseForPayment(
+        this.prisma,
+        payment.id,
+        undefined,
+        payment.communityId,
+      );
     await this.prisma.payment.update({
       where: { id: payment.id },
       data: { status: PaymentStatus.EXPIRED },
     });
-    await this.syncLinkedAssessments(payment.communityId, payment.id);
+    await this.syncLinkedAssessments(
+      payment.communityId,
+      payment.id,
+      creditAssessmentIds,
+    );
 
     return { success: true };
   }
@@ -1126,6 +1295,13 @@ export class PaymentsService {
 
     await this.reverseAllocations(communityId, id);
     await this.clearPaymentCredit(id);
+    const { assessmentIds: creditAssessmentIds } =
+      await this.householdCreditService.reverseForPayment(
+        this.prisma,
+        id,
+        undefined,
+        communityId,
+      );
 
     await this.prisma.payment.update({
       where: { id },
@@ -1134,7 +1310,10 @@ export class PaymentsService {
       },
     });
 
-    const assessmentIds = await this.allocatedAssessmentIds(id);
+    const assessmentIds = new Set([
+      ...(await this.allocatedAssessmentIds(id)),
+      ...creditAssessmentIds,
+    ]);
     for (const assessmentId of assessmentIds) {
       await this.financeSyncService.syncAssessment(communityId, assessmentId);
     }
@@ -1220,6 +1399,13 @@ export class PaymentsService {
 
     await this.reverseAllocations(communityId, id);
     await this.clearPaymentCredit(id);
+    const { assessmentIds: creditAssessmentIds } =
+      await this.householdCreditService.reverseForPayment(
+        this.prisma,
+        id,
+        userId,
+        communityId,
+      );
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },
@@ -1237,7 +1423,7 @@ export class PaymentsService {
       },
     });
 
-    await this.syncLinkedAssessments(communityId, id);
+    await this.syncLinkedAssessments(communityId, id, creditAssessmentIds);
 
     await this.notifyResident(
       communityId,
@@ -1269,6 +1455,13 @@ export class PaymentsService {
 
     await this.reverseAllocations(communityId, id);
     await this.clearPaymentCredit(id);
+    const { assessmentIds: creditAssessmentIds } =
+      await this.householdCreditService.reverseForPayment(
+        this.prisma,
+        id,
+        userId,
+        communityId,
+      );
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },
@@ -1285,7 +1478,7 @@ export class PaymentsService {
       },
     });
 
-    await this.syncLinkedAssessments(communityId, id);
+    await this.syncLinkedAssessments(communityId, id, creditAssessmentIds);
 
     await this.notifyResident(
       communityId,
@@ -1320,6 +1513,13 @@ export class PaymentsService {
 
     await this.reverseAllocations(communityId, id);
     await this.clearPaymentCredit(id);
+    const { assessmentIds: creditAssessmentIds } =
+      await this.householdCreditService.reverseForPayment(
+        this.prisma,
+        id,
+        userId,
+        communityId,
+      );
 
     const updatedPayment = await this.prisma.payment.update({
       where: { id },
@@ -1336,7 +1536,7 @@ export class PaymentsService {
       },
     });
 
-    await this.syncLinkedAssessments(communityId, id);
+    await this.syncLinkedAssessments(communityId, id, creditAssessmentIds);
 
     await this.notifyResident(
       communityId,
@@ -1381,8 +1581,15 @@ export class PaymentsService {
     return allocations.map((allocation) => allocation.assessmentId);
   }
 
-  private async syncLinkedAssessments(communityId: string, paymentId: string) {
-    const assessmentIds = await this.allocatedAssessmentIds(paymentId);
+  private async syncLinkedAssessments(
+    communityId: string,
+    paymentId: string,
+    extraAssessmentIds: string[] = [],
+  ) {
+    const assessmentIds = new Set([
+      ...(await this.allocatedAssessmentIds(paymentId)),
+      ...extraAssessmentIds,
+    ]);
     for (const assessmentId of assessmentIds) {
       await this.financeSyncService.syncAssessment(communityId, assessmentId);
     }
@@ -1475,7 +1682,9 @@ export class PaymentsService {
   private async activateConstructionBondsForPayment(paymentId: string) {
     const allocations = await this.prisma.paymentAllocation.findMany({
       where: { paymentId, reversedAt: null },
-      include: { assessment: { select: { constructionBond: { select: { id: true } } } } },
+      include: {
+        assessment: { select: { constructionBond: { select: { id: true } } } },
+      },
     });
     const bondIds = allocations
       .map((allocation) => allocation.assessment.constructionBond?.id)

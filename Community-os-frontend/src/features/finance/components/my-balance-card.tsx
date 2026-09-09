@@ -35,6 +35,8 @@ export function MyBalanceCard() {
   const [vehicleOpen, setVehicleOpen] = useState(false)
 
   const standingEnabled = useIsFeatureEnabled(GOOD_BAD_STANDING_FEATURE)
+  const creditsEnabled = useIsFeatureEnabled('household-credit')
+  const availableCredit = Number(household?.finance?.availableCredit ?? 0)
 
   return (
     <Card>
@@ -118,7 +120,27 @@ export function MyBalanceCard() {
                   {formatCurrency(household.finance?.totalPaid ?? 0)}
                 </p>
               </div>
+              {creditsEnabled ? (
+                <div>
+                  <p className="text-xs text-muted-foreground">
+                    Available credit
+                  </p>
+                  <p className="font-medium text-emerald-600">
+                    {formatCurrency(availableCredit)}
+                  </p>
+                </div>
+              ) : null}
             </div>
+            {creditsEnabled && availableCredit > 0 ? (
+              <p className="text-xs text-muted-foreground">
+                You have{' '}
+                <span className="font-medium text-emerald-600">
+                  {formatCurrency(availableCredit)}
+                </span>{' '}
+                of household credit available — it&apos;s automatically applied
+                when you pay dues.
+              </p>
+            ) : null}
             <HouseholdLedger
               assessments={household.assessments}
               finance={household.finance ?? null}

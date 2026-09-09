@@ -1,5 +1,6 @@
 import {
   Body,
+  Controller,
   Delete,
   Get,
   Param,
@@ -39,8 +40,15 @@ export class ConstructionController {
 
   @Post('requirements')
   @Permissions('construction.requirements')
-  createRequirement(@Request() req: any, @Body() dto: ConstructionRequirementDto) {
-    return this.construction.saveRequirement(req.user.community.id, req.user.id, dto);
+  createRequirement(
+    @Request() req: any,
+    @Body() dto: ConstructionRequirementDto,
+  ) {
+    return this.construction.saveRequirement(
+      req.user.community.id,
+      req.user.id,
+      dto,
+    );
   }
 
   @Patch('requirements/:id')
@@ -50,21 +58,36 @@ export class ConstructionController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ConstructionRequirementDto,
   ) {
-    return this.construction.saveRequirement(req.user.community.id, req.user.id, dto, id);
+    return this.construction.saveRequirement(
+      req.user.community.id,
+      req.user.id,
+      dto,
+      id,
+    );
   }
 
   @Get()
   @Permissions('construction.view')
   list(@Request() req: any, @Query() query: ConstructionQueryDto) {
     const includeAll = hasAnyPermission(req.user, ['construction.review']);
-    return this.construction.list(req.user.community.id, req.user, query, includeAll);
+    return this.construction.list(
+      req.user.community.id,
+      req.user,
+      query,
+      includeAll,
+    );
   }
 
   @Get(':id')
   @Permissions('construction.view')
   findOne(@Request() req: any, @Param('id', ParseUUIDPipe) id: string) {
     const includeAll = hasAnyPermission(req.user, ['construction.review']);
-    return this.construction.findOne(req.user.community.id, id, req.user, includeAll);
+    return this.construction.findOne(
+      req.user.community.id,
+      id,
+      req.user,
+      includeAll,
+    );
   }
 
   @Post()
@@ -80,7 +103,12 @@ export class ConstructionController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ReviewConstructionRequestDto,
   ) {
-    return this.construction.review(req.user.community.id, id, req.user.id, dto);
+    return this.construction.review(
+      req.user.community.id,
+      id,
+      req.user.id,
+      dto,
+    );
   }
 
   @Put(':id/complete')
@@ -108,6 +136,11 @@ export class ConstructionController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolveConstructionBondDto,
   ) {
-    return this.construction.resolveBond(req.user.community.id, id, req.user.id, dto);
+    return this.construction.resolveBond(
+      req.user.community.id,
+      id,
+      req.user.id,
+      dto,
+    );
   }
 }

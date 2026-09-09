@@ -29,12 +29,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useAuthStore } from '@/store/auth-store'
+import { useAuthStore, useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import {
+  useApplyHouseholdCredit,
   useAssessments,
   useBillingPeriods,
   useChargeTypes,
   useCreatePayment,
+  useHouseholdCredits,
+  useMyHouseholdCredits,
 } from '@/features/finance/hooks/use-finance'
 import { useGatewayStatus } from '@/features/billing/hooks/use-billing'
 import { paymentMethodsService, paymentsService } from '@/features/finance/services/finance'
@@ -113,8 +118,27 @@ function OnlineCheckoutDialogContent({
   } | null>(null)
   const [receiptId, setReceiptId] = useState<string | null>(null)
   const [receiptOpen, setReceiptOpen] = useState(false)
+  const [applyCredit, setApplyCredit] = useState(true)
 
   const createPayment = useCreatePayment()
+  const applyCreditMutation = useApplyHouseholdCredit()
+  const creditsEnabled = useIsFeatureEnabled('household-credit')
+  const canViewCredits = useHasPermission(PERMISSIONS.creditView)
+  const { data: myCredits } = useMyHouseholdCredits({
+    enabled: creditsEnabled && !canViewCredits,
+  })
+  const { data: householdCredits } = useHouseholdCredits(
+    { householdId: householdId ?? undefined },
+    { enabled: creditsEnabled && canViewCredits && Boolean(householdId) },
+  )
+
+  const availableCredit = canViewCredits
+    ? (householdCredits ?? []).reduce(
+        (sum, credit) =>
+          Number(credit.balance) > 0 ? sum + Number(credit.balance) : sum,
+        0,
+      )
+    : myCredits?.availableBalance ?? 0
 
   const { data: activeMethods, isLoading: methodsLoading } = useQuery({
     queryKey: ['payment-methods', 'active'],
@@ -180,6 +204,18 @@ function OnlineCheckoutDialogContent({
   const selectedItems = items.filter((item) => selected.has(item.key))
   const totalAmount = selectedItems.reduce((sum, item) => sum + item.amount, 0)
 
+  // Household credit only ever covers assessments (advance billing-period
+  // items are excluded), and only when the feature is enabled.
+  const canUseCredit =
+    creditsEnabled && selectedItems.every((item) => item.kind === 'assessment')
+  const effectiveApplyCredit = canUseCredit && applyCredit
+  const creditApplied = effectiveApplyCredit
+    ? Math.min(availableCredit, totalAmount)
+    : 0
+  const payable = Math.max(totalAmount - creditApplied, 0)
+  const settleByCredit =
+    effectiveApplyCredit && selectedItems.length > 0 && payable <= 0.005
+
   const loading =
     assessmentsLoading || periodsLoading || chargeTypesLoading
 
@@ -200,6 +236,8 @@ function OnlineCheckoutDialogContent({
   const hasItems = selectedItems.length > 0
   const canSubmitManual =
     hasItems &&
+    payable > 0.005 &&
+    !applyCreditMutation.isPending &&
     effectiveMethod !== null &&
     (!needsProof || Boolean(proof)) &&
     !uploading &&
@@ -240,7 +278,7 @@ function OnlineCheckoutDialogContent({
 
     const input: CreatePaymentInput = {
       residentId,
-      amount: totalAmount,
+      amount: payable,
       paymentDate: new Date().toISOString(),
       method: effectiveMethod,
       referenceNumber: reference.trim() || undefined,
@@ -252,6 +290,7 @@ function OnlineCheckoutDialogContent({
       billingPeriodIds: selectedItems
         .filter((item) => item.kind === 'billing-period')
         .map((item) => item.id),
+      applyCredit: effectiveApplyCredit || undefined,
     }
 
     createPayment.mutate(input, {
@@ -275,6 +314,26 @@ function OnlineCheckoutDialogContent({
     })
   }
 
+  const handleSettleByCredit = () => {
+    if (!householdId || settleByCredit === false) return
+    applyCreditMutation.mutate(
+      {
+        householdId,
+        allocations: selectedItems.map((item) => ({
+          assessmentId: item.id,
+          amount: item.amount,
+        })),
+      },
+      {
+        onSuccess: () => {
+          onOpenChange(false)
+          setSelected(new Set())
+          toast.success('Your household credit was applied to these items.')
+        },
+      },
+    )
+  }
+
   const handlePayOnline = () => {
     if (!residentId || selectedItems.length === 0) return
     // Reserve a tab during the click gesture; navigating after the API call
@@ -284,7 +343,7 @@ function OnlineCheckoutDialogContent({
 
     const input: PaymentCheckoutInput = {
       residentId,
-      amount: totalAmount,
+      amount: payable,
       allocations: selectedItems
         .filter((item) => item.kind === 'assessment')
         .map((item) => ({ assessmentId: item.id, amount: item.amount })),
@@ -292,6 +351,7 @@ function OnlineCheckoutDialogContent({
         .filter((item) => item.kind === 'billing-period')
         .map((item) => item.id),
       paymentDate: new Date().toISOString(),
+      applyCredit: effectiveApplyCredit || undefined,
     }
     paymentsService
       .checkout(input)
@@ -390,6 +450,44 @@ function OnlineCheckoutDialogContent({
         <span className="font-semibold">{formatCurrency(totalAmount)}</span>
       </div>
 
+      {creditsEnabled && hasItems && canUseCredit ? (
+        <div className="space-y-2 rounded-lg border p-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <Checkbox
+              checked={applyCredit}
+              onCheckedChange={(checked) => setApplyCredit(checked === true)}
+            />
+            Apply household credit (
+            {formatCurrency(availableCredit)} available)
+          </label>
+          {creditApplied > 0 ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Credit applied</span>
+              <span className="font-medium text-emerald-600">
+                −{formatCurrency(creditApplied)}
+              </span>
+            </div>
+          ) : null}
+          {creditApplied > 0 ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">You&apos;ll pay</span>
+              <span className="font-semibold">{formatCurrency(payable)}</span>
+            </div>
+          ) : null}
+          {!applyCredit && availableCredit > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Your household credit will not be applied to these items.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {creditsEnabled && hasItems && !canUseCredit ? (
+        <p className="text-xs text-muted-foreground">
+          Household credit can&apos;t be applied while an advance billing
+          period is selected.
+        </p>
+      ) : null}
+
       {mode === 'qr-bank' ? (
         <div className="space-y-3 rounded-lg border p-4">
           {methodsLoading ? (
@@ -476,23 +574,43 @@ function OnlineCheckoutDialogContent({
                   ) : null}
                 </div>
 
-                <Button
-                  className="w-full"
-                  onClick={handleSubmitManual}
-                  disabled={!canSubmitManual}
-                >
-                  {createPayment.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Submitting…
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4 w-4" />
-                      I&apos;ve paid — submit for verification
-                    </>
-                  )}
-                </Button>
+                {settleByCredit ? (
+                  <Button
+                    className="w-full"
+                    onClick={handleSettleByCredit}
+                    disabled={applyCreditMutation.isPending}
+                  >
+                    {applyCreditMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Applying credit…
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="h-4 w-4" />
+                        Settle with household credit
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    className="w-full"
+                    onClick={handleSubmitManual}
+                    disabled={!canSubmitManual}
+                  >
+                    {createPayment.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Submitting…
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="h-4 w-4" />
+                        I&apos;ve paid — submit for verification
+                      </>
+                    )}
+                  </Button>
+                )}
                 <p className="text-xs text-muted-foreground">
                   An officer will confirm your transfer, then your dues will be
                   marked as paid.
@@ -509,7 +627,25 @@ function OnlineCheckoutDialogContent({
         </div>
       ) : (
         <div className="space-y-3 rounded-lg border p-4">
-          {!onlineEnabled ? (
+          {settleByCredit ? (
+            <Button
+              className="w-full"
+              onClick={handleSettleByCredit}
+              disabled={applyCreditMutation.isPending}
+            >
+              {applyCreditMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Applying credit…
+                </>
+              ) : (
+                <>
+                  <Wallet className="h-4 w-4" />
+                  Settle with household credit
+                </>
+              )}
+            </Button>
+          ) : !onlineEnabled ? (
             <Alert variant="warning">
               <Info className="h-4 w-4" />
               <AlertTitle>Online payments unavailable</AlertTitle>
@@ -539,7 +675,7 @@ function OnlineCheckoutDialogContent({
         <Button
           variant="outline"
           onClick={() => onOpenChange(false)}
-          disabled={uploading || createPayment.isPending}
+          disabled={uploading || createPayment.isPending || applyCreditMutation.isPending}
         >
           Cancel
         </Button>

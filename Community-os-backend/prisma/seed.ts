@@ -10,7 +10,7 @@ import {
   FacilityType,
   Gender,
   CivilStatus,
-  ResidentStatus, 
+  ResidentStatus,
   VisitorStatus,
   VehicleType,
   VehicleStatus,
@@ -194,7 +194,8 @@ async function main() {
       displayName: 'CommunityOS Demo HOA',
       email: 'hoa@communityosdemo.com',
       contactNumber: '09123456789',
-      address: '123 Sampaguita Street, Barangay San Isidro, Antipolo City, Rizal',
+      address:
+        '123 Sampaguita Street, Barangay San Isidro, Antipolo City, Rizal',
       status: CommunityStatus.ACTIVE,
     },
   });
@@ -502,7 +503,8 @@ async function main() {
     {
       roleId: vicePresidentRole.id,
       codes: allPermissionCodes.filter(
-        (code) => !['community.delete', 'user.delete', 'audit.manage'].includes(code),
+        (code) =>
+          !['community.delete', 'user.delete', 'audit.manage'].includes(code),
       ),
     },
     {
@@ -527,6 +529,8 @@ async function main() {
         'billing.approve',
         'billing.view',
         'billing.manage',
+        'credit.view',
+        'credit.manage',
         'finance.view_own',
         'finance.view_all',
         'finance.verify',
@@ -630,7 +634,10 @@ async function main() {
     await prisma.rolePermission.createMany({
       data: codes
         .filter((code) => permissionIdByCode.has(code))
-        .map((code) => ({ roleId, permissionId: permissionIdByCode.get(code)! })),
+        .map((code) => ({
+          roleId,
+          permissionId: permissionIdByCode.get(code)!,
+        })),
     });
   }
 
@@ -729,20 +736,134 @@ async function main() {
   };
 
   const residentData: ResidentSeed[] = [
-    { firstName: 'Juan', middleName: 'Santos', lastName: 'Dela Cruz', gender: Gender.MALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234567', email: 'juan.delacruz@example.com', householdIndex: 0 },
-    { firstName: 'Maria', middleName: 'Lopez', lastName: 'Dela Cruz', gender: Gender.FEMALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234568', email: 'maria.delacruz@example.com', householdIndex: 0 },
-    { firstName: 'Pedro', lastName: 'Reyes', gender: Gender.MALE, civilStatus: CivilStatus.SINGLE, phoneNumber: '09171234569', email: 'pedro.reyes@example.com', householdIndex: 1 },
-    { firstName: 'Ana', lastName: 'Garcia', gender: Gender.FEMALE, civilStatus: CivilStatus.SINGLE, phoneNumber: '09171234570', email: 'ana.garcia@example.com', householdIndex: 2 },
-    { firstName: 'Carlo', lastName: 'Mendoza', gender: Gender.MALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234571', email: 'carlo.mendoza@example.com', householdIndex: 3 },
-    { firstName: 'Liwayway', lastName: 'Mendoza', gender: Gender.FEMALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234572', email: 'liwayway.mendoza@example.com', householdIndex: 3 },
-    { firstName: 'Rosa', lastName: 'Villanueva', gender: Gender.FEMALE, civilStatus: CivilStatus.WIDOWED, phoneNumber: '09171234573', email: 'rosa.villanueva@example.com', householdIndex: 4 },
-    { firstName: 'Miguel', lastName: 'Torres', gender: Gender.MALE, civilStatus: CivilStatus.SINGLE, phoneNumber: '09171234574', email: 'miguel.torres@example.com', householdIndex: 5 },
-    { firstName: 'Lorna', lastName: 'Bautista', gender: Gender.FEMALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234575', email: 'lorna.bautista@example.com', householdIndex: 6 },
-    { firstName: 'Efren', lastName: 'Ramos', gender: Gender.MALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234576', email: 'efren.ramos@example.com', householdIndex: 7 },
-    { firstName: 'Judith', lastName: 'Ramos', gender: Gender.FEMALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234577', email: 'judith.ramos@example.com', householdIndex: 7 },
-    { firstName: 'Grace', lastName: 'Lim', gender: Gender.FEMALE, civilStatus: CivilStatus.SINGLE, phoneNumber: '09171234578', email: 'grace.lim@example.com', householdIndex: 8 },
-    { firstName: 'Danilo', lastName: 'Aquino', gender: Gender.MALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234579', email: 'danilo.aquino@example.com', householdIndex: 9 },
-    { firstName: 'Susan', lastName: 'Aquino', gender: Gender.FEMALE, civilStatus: CivilStatus.MARRIED, phoneNumber: '09171234580', email: 'susan.aquino@example.com', householdIndex: 9 },
+    {
+      firstName: 'Juan',
+      middleName: 'Santos',
+      lastName: 'Dela Cruz',
+      gender: Gender.MALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234567',
+      email: 'juan.delacruz@example.com',
+      householdIndex: 0,
+    },
+    {
+      firstName: 'Maria',
+      middleName: 'Lopez',
+      lastName: 'Dela Cruz',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234568',
+      email: 'maria.delacruz@example.com',
+      householdIndex: 0,
+    },
+    {
+      firstName: 'Pedro',
+      lastName: 'Reyes',
+      gender: Gender.MALE,
+      civilStatus: CivilStatus.SINGLE,
+      phoneNumber: '09171234569',
+      email: 'pedro.reyes@example.com',
+      householdIndex: 1,
+    },
+    {
+      firstName: 'Ana',
+      lastName: 'Garcia',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.SINGLE,
+      phoneNumber: '09171234570',
+      email: 'ana.garcia@example.com',
+      householdIndex: 2,
+    },
+    {
+      firstName: 'Carlo',
+      lastName: 'Mendoza',
+      gender: Gender.MALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234571',
+      email: 'carlo.mendoza@example.com',
+      householdIndex: 3,
+    },
+    {
+      firstName: 'Liwayway',
+      lastName: 'Mendoza',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234572',
+      email: 'liwayway.mendoza@example.com',
+      householdIndex: 3,
+    },
+    {
+      firstName: 'Rosa',
+      lastName: 'Villanueva',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.WIDOWED,
+      phoneNumber: '09171234573',
+      email: 'rosa.villanueva@example.com',
+      householdIndex: 4,
+    },
+    {
+      firstName: 'Miguel',
+      lastName: 'Torres',
+      gender: Gender.MALE,
+      civilStatus: CivilStatus.SINGLE,
+      phoneNumber: '09171234574',
+      email: 'miguel.torres@example.com',
+      householdIndex: 5,
+    },
+    {
+      firstName: 'Lorna',
+      lastName: 'Bautista',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234575',
+      email: 'lorna.bautista@example.com',
+      householdIndex: 6,
+    },
+    {
+      firstName: 'Efren',
+      lastName: 'Ramos',
+      gender: Gender.MALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234576',
+      email: 'efren.ramos@example.com',
+      householdIndex: 7,
+    },
+    {
+      firstName: 'Judith',
+      lastName: 'Ramos',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234577',
+      email: 'judith.ramos@example.com',
+      householdIndex: 7,
+    },
+    {
+      firstName: 'Grace',
+      lastName: 'Lim',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.SINGLE,
+      phoneNumber: '09171234578',
+      email: 'grace.lim@example.com',
+      householdIndex: 8,
+    },
+    {
+      firstName: 'Danilo',
+      lastName: 'Aquino',
+      gender: Gender.MALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234579',
+      email: 'danilo.aquino@example.com',
+      householdIndex: 9,
+    },
+    {
+      firstName: 'Susan',
+      lastName: 'Aquino',
+      gender: Gender.FEMALE,
+      civilStatus: CivilStatus.MARRIED,
+      phoneNumber: '09171234580',
+      email: 'susan.aquino@example.com',
+      householdIndex: 9,
+    },
   ];
 
   const residents: { id: string }[] = [];
@@ -808,14 +929,70 @@ async function main() {
   // Note: Ana (H2), Rosa (H4), and Danilo (H9) live in households in BAD
   // standing, so they can demo the "bad standing" QR rejection.
   const demoUserData = [
-    { referenceNumber: 'USR-000002', email: 'juan.delacruz@example.com', firstName: 'Juan', lastName: 'Dela Cruz', residentIndex: 0, roleId: memberRole.id },
-    { referenceNumber: 'USR-000003', email: 'pedro.reyes@example.com', firstName: 'Pedro', lastName: 'Reyes', residentIndex: 2, roleId: memberRole.id },
-    { referenceNumber: 'USR-000004', email: 'maria.delacruz@example.com', firstName: 'Maria', lastName: 'Dela Cruz', residentIndex: 1, roleId: treasurerRole.id },
-    { referenceNumber: 'USR-000005', email: 'carlo.mendoza@example.com', firstName: 'Carlo', lastName: 'Mendoza', residentIndex: 4, roleId: secretaryRole.id },
-    { referenceNumber: 'USR-000006', email: 'lorna.bautista@example.com', firstName: 'Lorna', lastName: 'Bautista', residentIndex: 8, roleId: vicePresidentRole.id },
-    { referenceNumber: 'USR-000007', email: 'ana.garcia@example.com', firstName: 'Ana', lastName: 'Garcia', residentIndex: 3, roleId: memberRole.id },
-    { referenceNumber: 'USR-000008', email: 'rosa.villanueva@example.com', firstName: 'Rosa', lastName: 'Villanueva', residentIndex: 6, roleId: memberRole.id },
-    { referenceNumber: 'USR-000009', email: 'danilo.aquino@example.com', firstName: 'Danilo', lastName: 'Aquino', residentIndex: 12, roleId: memberRole.id },
+    {
+      referenceNumber: 'USR-000002',
+      email: 'juan.delacruz@example.com',
+      firstName: 'Juan',
+      lastName: 'Dela Cruz',
+      residentIndex: 0,
+      roleId: memberRole.id,
+    },
+    {
+      referenceNumber: 'USR-000003',
+      email: 'pedro.reyes@example.com',
+      firstName: 'Pedro',
+      lastName: 'Reyes',
+      residentIndex: 2,
+      roleId: memberRole.id,
+    },
+    {
+      referenceNumber: 'USR-000004',
+      email: 'maria.delacruz@example.com',
+      firstName: 'Maria',
+      lastName: 'Dela Cruz',
+      residentIndex: 1,
+      roleId: treasurerRole.id,
+    },
+    {
+      referenceNumber: 'USR-000005',
+      email: 'carlo.mendoza@example.com',
+      firstName: 'Carlo',
+      lastName: 'Mendoza',
+      residentIndex: 4,
+      roleId: secretaryRole.id,
+    },
+    {
+      referenceNumber: 'USR-000006',
+      email: 'lorna.bautista@example.com',
+      firstName: 'Lorna',
+      lastName: 'Bautista',
+      residentIndex: 8,
+      roleId: vicePresidentRole.id,
+    },
+    {
+      referenceNumber: 'USR-000007',
+      email: 'ana.garcia@example.com',
+      firstName: 'Ana',
+      lastName: 'Garcia',
+      residentIndex: 3,
+      roleId: memberRole.id,
+    },
+    {
+      referenceNumber: 'USR-000008',
+      email: 'rosa.villanueva@example.com',
+      firstName: 'Rosa',
+      lastName: 'Villanueva',
+      residentIndex: 6,
+      roleId: memberRole.id,
+    },
+    {
+      referenceNumber: 'USR-000009',
+      email: 'danilo.aquino@example.com',
+      firstName: 'Danilo',
+      lastName: 'Aquino',
+      residentIndex: 12,
+      roleId: memberRole.id,
+    },
   ];
 
   const demoUsers: { id: string }[] = [];
@@ -865,12 +1042,7 @@ async function main() {
   // =====================================================
 
   type DuesOutcome =
-    | 'PAID'
-    | 'PARTIAL'
-    | 'PENDING_PAYMENT'
-    | 'OVERDUE'
-    | 'WAIVED'
-    | 'ISSUED';
+    'PAID' | 'PARTIAL' | 'PENDING_PAYMENT' | 'OVERDUE' | 'WAIVED' | 'ISSUED';
 
   const monthPlans: {
     key: string;
@@ -880,31 +1052,91 @@ async function main() {
     {
       key: '2026-04',
       label: 'April 2026',
-      outcomes: ['PAID', 'PAID', 'OVERDUE', 'PAID', 'OVERDUE', 'PAID', 'PAID', 'PAID', 'PAID', 'OVERDUE'],
+      outcomes: [
+        'PAID',
+        'PAID',
+        'OVERDUE',
+        'PAID',
+        'OVERDUE',
+        'PAID',
+        'PAID',
+        'PAID',
+        'PAID',
+        'OVERDUE',
+      ],
     },
     {
       key: '2026-05',
       label: 'May 2026',
-      outcomes: ['PAID', 'PAID', 'OVERDUE', 'PAID', 'OVERDUE', 'PAID', 'PAID', 'PAID', 'PAID', 'OVERDUE'],
+      outcomes: [
+        'PAID',
+        'PAID',
+        'OVERDUE',
+        'PAID',
+        'OVERDUE',
+        'PAID',
+        'PAID',
+        'PAID',
+        'PAID',
+        'OVERDUE',
+      ],
     },
     {
       key: '2026-06',
       label: 'June 2026',
-      outcomes: ['PAID', 'PAID', 'PARTIAL', 'PAID', 'OVERDUE', 'PAID', 'PARTIAL', 'PAID', 'PAID', 'OVERDUE'],
+      outcomes: [
+        'PAID',
+        'PAID',
+        'PARTIAL',
+        'PAID',
+        'OVERDUE',
+        'PAID',
+        'PARTIAL',
+        'PAID',
+        'PAID',
+        'OVERDUE',
+      ],
     },
     {
       key: '2026-07',
       label: 'July 2026',
-      outcomes: ['PAID', 'PAID', 'PARTIAL', 'PAID', 'OVERDUE', 'PAID', 'WAIVED', 'PAID', 'PAID', 'OVERDUE'],
+      outcomes: [
+        'PAID',
+        'PAID',
+        'PARTIAL',
+        'PAID',
+        'OVERDUE',
+        'PAID',
+        'WAIVED',
+        'PAID',
+        'PAID',
+        'OVERDUE',
+      ],
     },
     {
       key: '2026-08',
       label: 'August 2026',
-      outcomes: ['PAID', 'ISSUED', 'ISSUED', 'PENDING_PAYMENT', 'ISSUED', 'PARTIAL', 'ISSUED', 'PAID', 'ISSUED', 'ISSUED'],
+      outcomes: [
+        'PAID',
+        'ISSUED',
+        'ISSUED',
+        'PENDING_PAYMENT',
+        'ISSUED',
+        'PARTIAL',
+        'ISSUED',
+        'PAID',
+        'ISSUED',
+        'ISSUED',
+      ],
     },
   ];
 
-  const methods = [PaymentMethod.CASH, PaymentMethod.GCASH, PaymentMethod.BANK_TRANSFER, PaymentMethod.CHEQUE];
+  const methods = [
+    PaymentMethod.CASH,
+    PaymentMethod.GCASH,
+    PaymentMethod.BANK_TRANSFER,
+    PaymentMethod.CHEQUE,
+  ];
 
   let assessmentCounter = 1;
   let paymentCounter = 1;
@@ -964,9 +1196,17 @@ async function main() {
         },
       });
 
-      if (outcome === 'PAID' || outcome === 'PARTIAL' || outcome === 'PENDING_PAYMENT') {
-        const day = String(Math.min(4 + householdIndex * 2, 27)).padStart(2, '0');
-        const residentIndex = householdIndex < residentData.length ? householdIndex : 0;
+      if (
+        outcome === 'PAID' ||
+        outcome === 'PARTIAL' ||
+        outcome === 'PENDING_PAYMENT'
+      ) {
+        const day = String(Math.min(4 + householdIndex * 2, 27)).padStart(
+          2,
+          '0',
+        );
+        const residentIndex =
+          householdIndex < residentData.length ? householdIndex : 0;
 
         const payment = await prisma.payment.create({
           data: {
@@ -976,7 +1216,12 @@ async function main() {
             paymentNumber: `PAY-${String(paymentCounter++).padStart(6, '0')}`,
             amount: outcome === 'PARTIAL' ? paidAmount : DUES_AMOUNT,
             paymentDate: date(`${plan.key}-${day}`),
-            method: outcome === 'PENDING_PAYMENT' ? PaymentMethod.GCASH : methods[(householdIndex + monthPlans.indexOf(plan)) % methods.length],
+            method:
+              outcome === 'PENDING_PAYMENT'
+                ? PaymentMethod.GCASH
+                : methods[
+                    (householdIndex + monthPlans.indexOf(plan)) % methods.length
+                  ],
             referenceNumber:
               outcome === 'PENDING_PAYMENT'
                 ? 'GC-991827'
@@ -1056,11 +1301,47 @@ async function main() {
   // =====================================================
 
   const expenseData = [
-    { title: 'Security guard services', category: ExpenseCategory.SALARIES, amount: 5000, expenseDate: date('2026-06-30'), method: PaymentMethod.CASH, payee: 'Ramon Aquino' },
-    { title: 'Security guard services', category: ExpenseCategory.SALARIES, amount: 5000, expenseDate: date('2026-07-31'), method: PaymentMethod.CASH, payee: 'Ramon Aquino' },
-    { title: 'Pool pump repair', category: ExpenseCategory.MAINTENANCE, amount: 2500, expenseDate: date('2026-07-18'), method: PaymentMethod.GCASH, payee: 'AquaFix Services', referenceNumber: 'GC-77120' },
-    { title: 'Security guard services', category: ExpenseCategory.SALARIES, amount: 5000, expenseDate: date('2026-08-15'), method: PaymentMethod.CASH, payee: 'Ramon Aquino' },
-    { title: 'Clubhouse cleaning supplies', category: ExpenseCategory.SUPPLIES, amount: 1850, expenseDate: date('2026-08-12'), method: PaymentMethod.CASH, payee: 'DMCI Hardware' },
+    {
+      title: 'Security guard services',
+      category: ExpenseCategory.SALARIES,
+      amount: 5000,
+      expenseDate: date('2026-06-30'),
+      method: PaymentMethod.CASH,
+      payee: 'Ramon Aquino',
+    },
+    {
+      title: 'Security guard services',
+      category: ExpenseCategory.SALARIES,
+      amount: 5000,
+      expenseDate: date('2026-07-31'),
+      method: PaymentMethod.CASH,
+      payee: 'Ramon Aquino',
+    },
+    {
+      title: 'Pool pump repair',
+      category: ExpenseCategory.MAINTENANCE,
+      amount: 2500,
+      expenseDate: date('2026-07-18'),
+      method: PaymentMethod.GCASH,
+      payee: 'AquaFix Services',
+      referenceNumber: 'GC-77120',
+    },
+    {
+      title: 'Security guard services',
+      category: ExpenseCategory.SALARIES,
+      amount: 5000,
+      expenseDate: date('2026-08-15'),
+      method: PaymentMethod.CASH,
+      payee: 'Ramon Aquino',
+    },
+    {
+      title: 'Clubhouse cleaning supplies',
+      category: ExpenseCategory.SUPPLIES,
+      amount: 1850,
+      expenseDate: date('2026-08-12'),
+      method: PaymentMethod.CASH,
+      payee: 'DMCI Hardware',
+    },
   ];
 
   for (const [index, item] of expenseData.entries()) {
@@ -1077,14 +1358,45 @@ async function main() {
   }
 
   const utilityExpenseData = [
-    { providerName: 'Meralco', utilityType: UtilityType.ELECTRICITY, amount: 2380, expenseDate: date('2026-06-25'), billingPeriod: '2026-06', referenceNumber: 'MRL-66120' },
-    { providerName: 'Manila Water', utilityType: UtilityType.WATER, amount: 1650, expenseDate: date('2026-07-22'), billingPeriod: '2026-07', referenceNumber: 'MW-33401' },
-    { providerName: 'GreenWaste Solutions', utilityType: UtilityType.GARBAGE, amount: 900, expenseDate: date('2026-07-28'), billingPeriod: '2026-07', referenceNumber: null },
-    { providerName: 'Meralco', utilityType: UtilityType.ELECTRICITY, amount: 2420, expenseDate: date('2026-08-20'), billingPeriod: '2026-08', referenceNumber: 'MRL-68455' },
+    {
+      providerName: 'Meralco',
+      utilityType: UtilityType.ELECTRICITY,
+      amount: 2380,
+      expenseDate: date('2026-06-25'),
+      billingPeriod: '2026-06',
+      referenceNumber: 'MRL-66120',
+    },
+    {
+      providerName: 'Manila Water',
+      utilityType: UtilityType.WATER,
+      amount: 1650,
+      expenseDate: date('2026-07-22'),
+      billingPeriod: '2026-07',
+      referenceNumber: 'MW-33401',
+    },
+    {
+      providerName: 'GreenWaste Solutions',
+      utilityType: UtilityType.GARBAGE,
+      amount: 900,
+      expenseDate: date('2026-07-28'),
+      billingPeriod: '2026-07',
+      referenceNumber: null,
+    },
+    {
+      providerName: 'Meralco',
+      utilityType: UtilityType.ELECTRICITY,
+      amount: 2420,
+      expenseDate: date('2026-08-20'),
+      billingPeriod: '2026-08',
+      referenceNumber: 'MRL-68455',
+    },
   ];
 
   for (const [index, item] of utilityExpenseData.entries()) {
-    const paymentMethod = item.utilityType === UtilityType.GARBAGE ? PaymentMethod.CASH : PaymentMethod.BANK_TRANSFER;
+    const paymentMethod =
+      item.utilityType === UtilityType.GARBAGE
+        ? PaymentMethod.CASH
+        : PaymentMethod.BANK_TRANSFER;
     await prisma.utilityExpense.create({
       data: {
         communityId: community.id,
@@ -1128,10 +1440,38 @@ async function main() {
   // =====================================================
 
   const facilityData = [
-    { name: 'Clubhouse Main Hall', type: FacilityType.CLUBHOUSE, description: 'Main clubhouse hall for events and gatherings.', location: 'Phase 1 Clubhouse', capacity: 100, hourlyRate: 500 },
-    { name: 'Swimming Pool', type: FacilityType.POOL, description: 'Community swimming pool.', location: 'Phase 1, near the park', capacity: 50, hourlyRate: 200 },
-    { name: 'Covered Court', type: FacilityType.COURT, description: 'Multi-purpose covered court for sports.', location: 'Phase 2, open area', capacity: 80, hourlyRate: 150 },
-    { name: 'Function Room A', type: FacilityType.FUNCTION_ROOM, description: 'Small function room for meetings and birthdays.', location: 'Clubhouse, 2nd floor', capacity: 30, hourlyRate: 300 },
+    {
+      name: 'Clubhouse Main Hall',
+      type: FacilityType.CLUBHOUSE,
+      description: 'Main clubhouse hall for events and gatherings.',
+      location: 'Phase 1 Clubhouse',
+      capacity: 100,
+      hourlyRate: 500,
+    },
+    {
+      name: 'Swimming Pool',
+      type: FacilityType.POOL,
+      description: 'Community swimming pool.',
+      location: 'Phase 1, near the park',
+      capacity: 50,
+      hourlyRate: 200,
+    },
+    {
+      name: 'Covered Court',
+      type: FacilityType.COURT,
+      description: 'Multi-purpose covered court for sports.',
+      location: 'Phase 2, open area',
+      capacity: 80,
+      hourlyRate: 150,
+    },
+    {
+      name: 'Function Room A',
+      type: FacilityType.FUNCTION_ROOM,
+      description: 'Small function room for meetings and birthdays.',
+      location: 'Clubhouse, 2nd floor',
+      capacity: 30,
+      hourlyRate: 300,
+    },
   ];
 
   const facilities: { id: string }[] = [];
@@ -1166,11 +1506,41 @@ async function main() {
   // =====================================================
 
   const itemData = [
-    { name: 'Monobloc Chair', category: 'CHAIRS', description: 'White monobloc chair.', quantityTotal: 100, borrowFee: null },
-    { name: 'Long Table', category: 'TABLES', description: '6-ft plastic long table.', quantityTotal: 20, borrowFee: null },
-    { name: 'Canopy Tent (3x3m)', category: 'TENTS', description: 'Foldable canopy tent with frame.', quantityTotal: 6, borrowFee: 150 },
-    { name: 'Portable Sound System', category: 'SOUND_SYSTEM', description: 'Speaker with wireless mic; handle with care.', quantityTotal: 2, borrowFee: 300 },
-    { name: 'Folding Table (Round)', category: 'TABLES', description: '5-ft round folding table.', quantityTotal: 10, borrowFee: 50 },
+    {
+      name: 'Monobloc Chair',
+      category: 'CHAIRS',
+      description: 'White monobloc chair.',
+      quantityTotal: 100,
+      borrowFee: null,
+    },
+    {
+      name: 'Long Table',
+      category: 'TABLES',
+      description: '6-ft plastic long table.',
+      quantityTotal: 20,
+      borrowFee: null,
+    },
+    {
+      name: 'Canopy Tent (3x3m)',
+      category: 'TENTS',
+      description: 'Foldable canopy tent with frame.',
+      quantityTotal: 6,
+      borrowFee: 150,
+    },
+    {
+      name: 'Portable Sound System',
+      category: 'SOUND_SYSTEM',
+      description: 'Speaker with wireless mic; handle with care.',
+      quantityTotal: 2,
+      borrowFee: 300,
+    },
+    {
+      name: 'Folding Table (Round)',
+      category: 'TABLES',
+      description: '5-ft round folding table.',
+      quantityTotal: 10,
+      borrowFee: 50,
+    },
   ];
 
   for (const data of itemData) {
@@ -1191,10 +1561,38 @@ async function main() {
   // =====================================================
 
   const vehicleData = [
-    { plateNumber: 'ABC-1234', make: 'Toyota', model: 'Vios', color: 'White', type: VehicleType.CAR, residentIndex: 0 },
-    { plateNumber: 'XYZ-5678', make: 'Honda', model: 'Civic', color: 'Black', type: VehicleType.CAR, residentIndex: 1 },
-    { plateNumber: 'MNO-9012', make: 'Yamaha', model: 'Mio', color: 'Red', type: VehicleType.MOTORCYCLE, residentIndex: 2 },
-    { plateNumber: 'QRS-3456', make: 'Toyota', model: 'Fortuner', color: 'Silver', type: VehicleType.CAR, residentIndex: 4 },
+    {
+      plateNumber: 'ABC-1234',
+      make: 'Toyota',
+      model: 'Vios',
+      color: 'White',
+      type: VehicleType.CAR,
+      residentIndex: 0,
+    },
+    {
+      plateNumber: 'XYZ-5678',
+      make: 'Honda',
+      model: 'Civic',
+      color: 'Black',
+      type: VehicleType.CAR,
+      residentIndex: 1,
+    },
+    {
+      plateNumber: 'MNO-9012',
+      make: 'Yamaha',
+      model: 'Mio',
+      color: 'Red',
+      type: VehicleType.MOTORCYCLE,
+      residentIndex: 2,
+    },
+    {
+      plateNumber: 'QRS-3456',
+      make: 'Toyota',
+      model: 'Fortuner',
+      color: 'Silver',
+      type: VehicleType.CAR,
+      residentIndex: 4,
+    },
   ];
 
   const vehicles: { id: string }[] = [];
@@ -1246,9 +1644,41 @@ async function main() {
   // =====================================================
 
   const petData = [
-    { petNumber: 'PET-000001', name: 'Bantay', species: PetSpecies.DOG, breed: 'Aspin', sex: 'Male', color: 'Brown', registrationNumber: 'PET-LIC-001', status: PetStatus.ACTIVE, residentIndex: 0, householdIndex: 0 },
-    { petNumber: 'PET-000002', name: 'Miming', species: PetSpecies.CAT, breed: 'Persian', sex: 'Female', color: 'White', registrationNumber: 'PET-LIC-002', status: PetStatus.APPROVED, residentIndex: 1, householdIndex: 0 },
-    { petNumber: 'PET-000003', name: 'Tweety', species: PetSpecies.BIRD, breed: 'Parakeet', sex: 'Male', color: 'Green', status: PetStatus.PENDING, residentIndex: 3, householdIndex: 2 },
+    {
+      petNumber: 'PET-000001',
+      name: 'Bantay',
+      species: PetSpecies.DOG,
+      breed: 'Aspin',
+      sex: 'Male',
+      color: 'Brown',
+      registrationNumber: 'PET-LIC-001',
+      status: PetStatus.ACTIVE,
+      residentIndex: 0,
+      householdIndex: 0,
+    },
+    {
+      petNumber: 'PET-000002',
+      name: 'Miming',
+      species: PetSpecies.CAT,
+      breed: 'Persian',
+      sex: 'Female',
+      color: 'White',
+      registrationNumber: 'PET-LIC-002',
+      status: PetStatus.APPROVED,
+      residentIndex: 1,
+      householdIndex: 0,
+    },
+    {
+      petNumber: 'PET-000003',
+      name: 'Tweety',
+      species: PetSpecies.BIRD,
+      breed: 'Parakeet',
+      sex: 'Male',
+      color: 'Green',
+      status: PetStatus.PENDING,
+      residentIndex: 3,
+      householdIndex: 2,
+    },
   ];
 
   for (const item of petData) {
@@ -1270,9 +1700,30 @@ async function main() {
   // =====================================================
 
   const staffData = [
-    { staffNumber: 'STF-000001', firstName: 'Ramon', lastName: 'Aquino', role: StaffRole.SECURITY, phoneNumber: '09171111111', email: 'ramon.aquino@example.com' },
-    { staffNumber: 'STF-000002', firstName: 'Elena', lastName: 'Mercado', role: StaffRole.CLEANING, phoneNumber: '09172222222', email: 'elena.mercado@example.com' },
-    { staffNumber: 'STF-000003', firstName: 'Dante', lastName: 'Flores', role: StaffRole.MAINTENANCE, phoneNumber: '09173333333', email: 'dante.flores@example.com' },
+    {
+      staffNumber: 'STF-000001',
+      firstName: 'Ramon',
+      lastName: 'Aquino',
+      role: StaffRole.SECURITY,
+      phoneNumber: '09171111111',
+      email: 'ramon.aquino@example.com',
+    },
+    {
+      staffNumber: 'STF-000002',
+      firstName: 'Elena',
+      lastName: 'Mercado',
+      role: StaffRole.CLEANING,
+      phoneNumber: '09172222222',
+      email: 'elena.mercado@example.com',
+    },
+    {
+      staffNumber: 'STF-000003',
+      firstName: 'Dante',
+      lastName: 'Flores',
+      role: StaffRole.MAINTENANCE,
+      phoneNumber: '09173333333',
+      email: 'dante.flores@example.com',
+    },
   ];
 
   const staff: { id: string }[] = [];
@@ -1285,9 +1736,38 @@ async function main() {
   }
 
   const maintenanceData = [
-    { maintenanceNumber: 'MNT-000001', title: 'Repair broken streetlight', description: 'Streetlight along Phase 1 entrance is not working.', category: MaintenanceCategory.ELECTRICAL, priority: MaintenancePriority.HIGH, status: MaintenanceStatus.IN_PROGRESS, assignedIndex: 2, scheduledAt: date('2026-08-24') },
-    { maintenanceNumber: 'MNT-000002', title: 'Clean clubhouse function rooms', description: 'Deep cleaning of Function Room A after an event.', category: MaintenanceCategory.CLEANING, priority: MaintenancePriority.MEDIUM, status: MaintenanceStatus.OPEN, facilityIndex: 3, scheduledAt: date('2026-08-26') },
-    { maintenanceNumber: 'MNT-000003', title: 'Fix leaking pool pump', description: 'Pool pump leaking near the filter area.', category: MaintenanceCategory.FACILITY, priority: MaintenancePriority.URGENT, status: MaintenanceStatus.RESOLVED, assignedIndex: 2, facilityIndex: 1, scheduledAt: date('2026-07-18'), cost: 2500 },
+    {
+      maintenanceNumber: 'MNT-000001',
+      title: 'Repair broken streetlight',
+      description: 'Streetlight along Phase 1 entrance is not working.',
+      category: MaintenanceCategory.ELECTRICAL,
+      priority: MaintenancePriority.HIGH,
+      status: MaintenanceStatus.IN_PROGRESS,
+      assignedIndex: 2,
+      scheduledAt: date('2026-08-24'),
+    },
+    {
+      maintenanceNumber: 'MNT-000002',
+      title: 'Clean clubhouse function rooms',
+      description: 'Deep cleaning of Function Room A after an event.',
+      category: MaintenanceCategory.CLEANING,
+      priority: MaintenancePriority.MEDIUM,
+      status: MaintenanceStatus.OPEN,
+      facilityIndex: 3,
+      scheduledAt: date('2026-08-26'),
+    },
+    {
+      maintenanceNumber: 'MNT-000003',
+      title: 'Fix leaking pool pump',
+      description: 'Pool pump leaking near the filter area.',
+      category: MaintenanceCategory.FACILITY,
+      priority: MaintenancePriority.URGENT,
+      status: MaintenanceStatus.RESOLVED,
+      assignedIndex: 2,
+      facilityIndex: 1,
+      scheduledAt: date('2026-07-18'),
+      cost: 2500,
+    },
   ];
 
   for (const item of maintenanceData) {
@@ -1295,8 +1775,12 @@ async function main() {
     await prisma.maintenance.create({
       data: {
         communityId: community.id,
-        assignedToId: assignedIndex !== undefined ? staff[assignedIndex].id : undefined,
-        facilityId: facilityIndex !== undefined ? facilities[facilityIndex].id : undefined,
+        assignedToId:
+          assignedIndex !== undefined ? staff[assignedIndex].id : undefined,
+        facilityId:
+          facilityIndex !== undefined
+            ? facilities[facilityIndex].id
+            : undefined,
         ...data,
       },
     });
@@ -1309,9 +1793,31 @@ async function main() {
   // =====================================================
 
   const visitorData = [
-    { name: 'Andres Bonifacio', phoneNumber: '09174444444', purpose: 'Family visit', hostResidentIndex: 0, status: VisitorStatus.CHECKED_IN, entryAt: date('2026-08-23') },
-    { name: 'Jose Rizal', phoneNumber: '09175555555', purpose: 'Food delivery', hostResidentIndex: 2, status: VisitorStatus.EXPECTED, entryAt: date('2026-08-24') },
-    { name: 'Corazon Aquino', phoneNumber: '09176666666', purpose: 'Family visit', hostResidentIndex: 1, status: VisitorStatus.CHECKED_OUT, entryAt: date('2026-08-22'), exitAt: date('2026-08-22') },
+    {
+      name: 'Andres Bonifacio',
+      phoneNumber: '09174444444',
+      purpose: 'Family visit',
+      hostResidentIndex: 0,
+      status: VisitorStatus.CHECKED_IN,
+      entryAt: date('2026-08-23'),
+    },
+    {
+      name: 'Jose Rizal',
+      phoneNumber: '09175555555',
+      purpose: 'Food delivery',
+      hostResidentIndex: 2,
+      status: VisitorStatus.EXPECTED,
+      entryAt: date('2026-08-24'),
+    },
+    {
+      name: 'Corazon Aquino',
+      phoneNumber: '09176666666',
+      purpose: 'Family visit',
+      hostResidentIndex: 1,
+      status: VisitorStatus.CHECKED_OUT,
+      entryAt: date('2026-08-22'),
+      exitAt: date('2026-08-22'),
+    },
   ];
 
   for (const item of visitorData) {
@@ -1332,9 +1838,26 @@ async function main() {
   // =====================================================
 
   const announcementData = [
-    { title: 'Water Interruption on August 25', content: 'Manila Water will conduct a pipeline maintenance on Tuesday, August 25 from 9:00 AM to 4:00 PM. Please store enough water for the day.', status: AnnouncementStatus.PUBLISHED, publishedAt: date('2026-08-20') },
-    { title: 'General Assembly on August 30', content: 'Everyone is invited to the quarterly general assembly at the Clubhouse Main Hall, 2:00 PM. Agenda: 2026 budget review, upcoming projects, and open forum.', status: AnnouncementStatus.PUBLISHED, publishedAt: date('2026-08-18') },
-    { title: 'Holiday Bazaar Sponsorship', content: 'Draft guidelines for booth rentals and sponsorships for the December holiday bazaar.', status: AnnouncementStatus.DRAFT },
+    {
+      title: 'Water Interruption on August 25',
+      content:
+        'Manila Water will conduct a pipeline maintenance on Tuesday, August 25 from 9:00 AM to 4:00 PM. Please store enough water for the day.',
+      status: AnnouncementStatus.PUBLISHED,
+      publishedAt: date('2026-08-20'),
+    },
+    {
+      title: 'General Assembly on August 30',
+      content:
+        'Everyone is invited to the quarterly general assembly at the Clubhouse Main Hall, 2:00 PM. Agenda: 2026 budget review, upcoming projects, and open forum.',
+      status: AnnouncementStatus.PUBLISHED,
+      publishedAt: date('2026-08-18'),
+    },
+    {
+      title: 'Holiday Bazaar Sponsorship',
+      content:
+        'Draft guidelines for booth rentals and sponsorships for the December holiday bazaar.',
+      status: AnnouncementStatus.DRAFT,
+    },
   ];
 
   for (const item of announcementData) {
@@ -1355,7 +1878,8 @@ async function main() {
       residentId: residents[3].id,
       complaintNumber: 'CMP-000001',
       title: 'Barking dogs at night',
-      description: 'The dogs next door bark loudly past midnight almost every night.',
+      description:
+        'The dogs next door bark loudly past midnight almost every night.',
       category: ComplaintCategory.PETS,
       priority: ComplaintPriority.MEDIUM,
       status: ComplaintStatus.OPEN,
@@ -1369,12 +1893,14 @@ async function main() {
       residentId: residents[2].id,
       complaintNumber: 'CMP-000002',
       title: 'Vehicle blocking driveway',
-      description: 'A white sedan has been parked across our driveway for two days.',
+      description:
+        'A white sedan has been parked across our driveway for two days.',
       category: ComplaintCategory.PARKING,
       priority: ComplaintPriority.HIGH,
       status: ComplaintStatus.RESOLVED,
       remarks: 'Owner was identified and reminded of parking rules.',
-      resolutionRemarks: 'Vehicle moved. Owner advised to use designated visitor parking.',
+      resolutionRemarks:
+        'Vehicle moved. Owner advised to use designated visitor parking.',
       resolvedAt: date('2026-07-21'),
     },
   });
@@ -1386,9 +1912,33 @@ async function main() {
   // =====================================================
 
   const eventData = [
-    { title: 'Community General Assembly', description: 'Quarterly general assembly for all residents.', location: 'Clubhouse Main Hall', startAt: date('2026-08-30'), endAt: hoursAfter('2026-08-30', 3), status: EventStatus.PUBLISHED, attendees: [demoUsers[0], demoUsers[1]] },
-    { title: 'Zumba Session', description: 'Weekly community zumba at the covered court.', location: 'Covered Court', startAt: date('2026-08-26'), endAt: hoursAfter('2026-08-26', 1), status: EventStatus.PUBLISHED, attendees: [] },
-    { title: 'Holiday Bazaar Planning', description: 'Initial planning meeting for the holiday bazaar.', location: 'Function Room A', startAt: date('2026-09-05'), endAt: hoursAfter('2026-09-05', 2), status: EventStatus.DRAFT, attendees: [] },
+    {
+      title: 'Community General Assembly',
+      description: 'Quarterly general assembly for all residents.',
+      location: 'Clubhouse Main Hall',
+      startAt: date('2026-08-30'),
+      endAt: hoursAfter('2026-08-30', 3),
+      status: EventStatus.PUBLISHED,
+      attendees: [demoUsers[0], demoUsers[1]],
+    },
+    {
+      title: 'Zumba Session',
+      description: 'Weekly community zumba at the covered court.',
+      location: 'Covered Court',
+      startAt: date('2026-08-26'),
+      endAt: hoursAfter('2026-08-26', 1),
+      status: EventStatus.PUBLISHED,
+      attendees: [],
+    },
+    {
+      title: 'Holiday Bazaar Planning',
+      description: 'Initial planning meeting for the holiday bazaar.',
+      location: 'Function Room A',
+      startAt: date('2026-09-05'),
+      endAt: hoursAfter('2026-09-05', 2),
+      status: EventStatus.DRAFT,
+      attendees: [],
+    },
   ];
 
   for (const item of eventData) {
@@ -1415,7 +1965,8 @@ async function main() {
       communityId: community.id,
       createdById: admin.id,
       title: 'Should monthly HOA dues be adjusted?',
-      description: 'Vote on whether we should review the current monthly dues rate.',
+      description:
+        'Vote on whether we should review the current monthly dues rate.',
       status: PollStatus.OPEN,
       isAnonymous: false,
       allowMultiple: false,
@@ -1435,8 +1986,16 @@ async function main() {
 
   await prisma.pollVote.createMany({
     data: [
-      { pollId: poll.id, optionId: poll.options[0].id, userId: demoUsers[0].id },
-      { pollId: poll.id, optionId: poll.options[1].id, userId: demoUsers[1].id },
+      {
+        pollId: poll.id,
+        optionId: poll.options[0].id,
+        userId: demoUsers[0].id,
+      },
+      {
+        pollId: poll.id,
+        optionId: poll.options[1].id,
+        userId: demoUsers[1].id,
+      },
       { pollId: poll.id, optionId: poll.options[0].id, userId: admin.id },
     ],
   });
@@ -1448,9 +2007,31 @@ async function main() {
   // =====================================================
 
   const documentData = [
-    { title: 'Community Rules and Regulations', description: 'Official rules and regulations of the HOA.', category: DocumentCategory.POLICY, fileName: 'rules-and-regulations.pdf', mimeType: 'application/pdf', status: DocumentStatus.PUBLISHED },
-    { title: 'Board Meeting Minutes - July 2026', description: 'Minutes from the July 2026 board meeting.', category: DocumentCategory.MINUTES, fileName: 'minutes-july-2026.pdf', mimeType: 'application/pdf', status: DocumentStatus.PUBLISHED },
-    { title: 'Annual Budget 2026 (Draft)', description: 'Draft of the 2026 annual budget for review.', category: DocumentCategory.FINANCIAL, fileName: 'budget-2026-draft.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', status: DocumentStatus.DRAFT },
+    {
+      title: 'Community Rules and Regulations',
+      description: 'Official rules and regulations of the HOA.',
+      category: DocumentCategory.POLICY,
+      fileName: 'rules-and-regulations.pdf',
+      mimeType: 'application/pdf',
+      status: DocumentStatus.PUBLISHED,
+    },
+    {
+      title: 'Board Meeting Minutes - July 2026',
+      description: 'Minutes from the July 2026 board meeting.',
+      category: DocumentCategory.MINUTES,
+      fileName: 'minutes-july-2026.pdf',
+      mimeType: 'application/pdf',
+      status: DocumentStatus.PUBLISHED,
+    },
+    {
+      title: 'Annual Budget 2026 (Draft)',
+      description: 'Draft of the 2026 annual budget for review.',
+      category: DocumentCategory.FINANCIAL,
+      fileName: 'budget-2026-draft.xlsx',
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      status: DocumentStatus.DRAFT,
+    },
   ];
 
   const uploadsDir = join(process.cwd(), 'uploads');
@@ -1555,6 +2136,19 @@ async function main() {
       dependencies: [] as string[],
     },
     {
+      code: 'household-credit',
+      name: 'Household Credit',
+      description:
+        'Let finance officers and superadmins issue, adjust, and void household credits which automatically offset future dues.',
+      type: FeatureType.OPTIONAL,
+      dependencies: [] as string[],
+      configSchema: {
+        properties: {
+          autoApplyOnPayment: { type: 'boolean' },
+        },
+      },
+    },
+    {
       code: 'finance-transparency',
       name: 'Finance Transparency',
       description:
@@ -1625,6 +2219,9 @@ async function main() {
       delinquencyThresholdMonths: 3,
       restrictedServices: ['facility_reservations'],
     },
+    'household-credit': {
+      autoApplyOnPayment: true,
+    },
   };
 
   // =====================================================
@@ -1635,9 +2232,34 @@ async function main() {
   // Standard plan: basic + pet-registration, vehicle-stickers
   // Premium plan: everything
   const planFeatureMap: Record<string, string[]> = {
-    [planIds.basic ?? '']: ['complaints', 'documents', 'events-calendar', 'reports-analytics'],
-    [planIds.standard ?? '']: ['complaints', 'documents', 'events-calendar', 'reports-analytics', 'pet-registration', 'vehicle-stickers'],
-    [planIds.premium ?? '']: ['complaints', 'documents', 'events-calendar', 'reports-analytics', 'pet-registration', 'good-bad-standing', 'vehicle-stickers', 'construction-management', 'visitor-gate-management', 'finance-transparency'],
+    [planIds.basic ?? '']: [
+      'complaints',
+      'documents',
+      'events-calendar',
+      'reports-analytics',
+    ],
+    [planIds.standard ?? '']: [
+      'complaints',
+      'documents',
+      'events-calendar',
+      'reports-analytics',
+      'pet-registration',
+      'vehicle-stickers',
+      'household-credit',
+    ],
+    [planIds.premium ?? '']: [
+      'complaints',
+      'documents',
+      'events-calendar',
+      'reports-analytics',
+      'pet-registration',
+      'good-bad-standing',
+      'vehicle-stickers',
+      'construction-management',
+      'visitor-gate-management',
+      'finance-transparency',
+      'household-credit',
+    ],
   };
 
   for (const [planId, featureCodes] of Object.entries(planFeatureMap)) {
@@ -1675,7 +2297,12 @@ async function main() {
     });
   }
 
-  const standardFeatureCodes = ['complaints', 'documents', 'events-calendar', 'reports-analytics'];
+  const standardFeatureCodes = [
+    'complaints',
+    'documents',
+    'events-calendar',
+    'reports-analytics',
+  ];
   for (const code of standardFeatureCodes) {
     const featureId = features.get(code);
     if (!featureId) continue;
@@ -1702,13 +2329,48 @@ async function main() {
   // =====================================================
 
   const settingData = [
-    { key: 'communityName', value: 'CommunityOS Demo HOA', group: 'general', isPublic: true },
-    { key: 'communityDescription', value: 'Demo community for the CommunityOS platform.', group: 'general', isPublic: true },
-    { key: 'contactEmail', value: 'hoa@communityosdemo.com', group: 'general', isPublic: true },
-    { key: 'contactNumber', value: '09123456789', group: 'general', isPublic: true },
-    { key: 'address', value: '123 Sampaguita Street, Barangay San Isidro, Antipolo City', group: 'general', isPublic: true },
-    { key: 'pollReminders', value: true, group: 'notifications', isPublic: false },
-    { key: 'eventReminders', value: true, group: 'notifications', isPublic: false },
+    {
+      key: 'communityName',
+      value: 'CommunityOS Demo HOA',
+      group: 'general',
+      isPublic: true,
+    },
+    {
+      key: 'communityDescription',
+      value: 'Demo community for the CommunityOS platform.',
+      group: 'general',
+      isPublic: true,
+    },
+    {
+      key: 'contactEmail',
+      value: 'hoa@communityosdemo.com',
+      group: 'general',
+      isPublic: true,
+    },
+    {
+      key: 'contactNumber',
+      value: '09123456789',
+      group: 'general',
+      isPublic: true,
+    },
+    {
+      key: 'address',
+      value: '123 Sampaguita Street, Barangay San Isidro, Antipolo City',
+      group: 'general',
+      isPublic: true,
+    },
+    {
+      key: 'pollReminders',
+      value: true,
+      group: 'notifications',
+      isPublic: false,
+    },
+    {
+      key: 'eventReminders',
+      value: true,
+      group: 'notifications',
+      isPublic: false,
+    },
     { key: 'currency', value: 'PHP', group: 'billing', isPublic: false },
     { key: 'paymentTermsDays', value: 30, group: 'billing', isPublic: false },
   ];
@@ -1743,9 +2405,40 @@ async function main() {
 
     await prisma.invoice.createMany({
       data: [
-        { communityId: community.id, subscriptionId: subscription.id, invoiceNumber: 'INV-000001', amount: standardPlan.price, billingCycle: BillingCycle.MONTHLY, status: InvoiceStatus.PAID, dueDate: date('2026-06-05'), paidAt: date('2026-06-03'), paymentMethod: 'bank-transfer', notes: 'June 2026 subscription' },
-        { communityId: community.id, subscriptionId: subscription.id, invoiceNumber: 'INV-000002', amount: standardPlan.price, billingCycle: BillingCycle.MONTHLY, status: InvoiceStatus.PAID, dueDate: date('2026-07-05'), paidAt: date('2026-07-04'), paymentMethod: 'bank-transfer', notes: 'July 2026 subscription' },
-        { communityId: community.id, subscriptionId: subscription.id, invoiceNumber: 'INV-000003', amount: standardPlan.price, billingCycle: BillingCycle.MONTHLY, status: InvoiceStatus.ISSUED, dueDate: date('2026-08-05'), notes: 'August 2026 subscription' },
+        {
+          communityId: community.id,
+          subscriptionId: subscription.id,
+          invoiceNumber: 'INV-000001',
+          amount: standardPlan.price,
+          billingCycle: BillingCycle.MONTHLY,
+          status: InvoiceStatus.PAID,
+          dueDate: date('2026-06-05'),
+          paidAt: date('2026-06-03'),
+          paymentMethod: 'bank-transfer',
+          notes: 'June 2026 subscription',
+        },
+        {
+          communityId: community.id,
+          subscriptionId: subscription.id,
+          invoiceNumber: 'INV-000002',
+          amount: standardPlan.price,
+          billingCycle: BillingCycle.MONTHLY,
+          status: InvoiceStatus.PAID,
+          dueDate: date('2026-07-05'),
+          paidAt: date('2026-07-04'),
+          paymentMethod: 'bank-transfer',
+          notes: 'July 2026 subscription',
+        },
+        {
+          communityId: community.id,
+          subscriptionId: subscription.id,
+          invoiceNumber: 'INV-000003',
+          amount: standardPlan.price,
+          billingCycle: BillingCycle.MONTHLY,
+          status: InvoiceStatus.ISSUED,
+          dueDate: date('2026-08-05'),
+          notes: 'August 2026 subscription',
+        },
       ],
     });
 
@@ -1877,6 +2570,108 @@ async function main() {
   console.log('✅ Community payment methods configured');
 
   // =====================================================
+  // HOUSEHOLD CREDIT DEMO
+  //
+  // Mirrors HouseholdCreditService.issueCredit (synthetic VERIFIED
+  // "credit issue" payment + HouseholdCredit row) so existing finance
+  // accounting/order keep working. Three households demo three states:
+  //   H1 (Juan, member) -> open P1,500 credit  (resident "Available credit" flow)
+  //   H4 (Carlo)         -> open P1,200 credit  (officer balance listing)
+  //   H8 (Grace)         -> P1,200 credit fully applied to her Aug dues
+  // =====================================================
+
+  const creditIssueData = [
+    {
+      householdIndex: 0,
+      residentIndex: 0,
+      amount: 1500,
+      reason: 'Refund of over-collected gate repair special assessment.',
+      paymentDate: '2026-08-20',
+    },
+    {
+      householdIndex: 3,
+      residentIndex: 4,
+      amount: 1200,
+      reason: 'Board-approved goodwill credit for community day participation.',
+      paymentDate: '2026-08-20',
+    },
+    {
+      householdIndex: 8,
+      residentIndex: 8,
+      amount: 1200,
+      reason: 'Board-approved rebate for reliable monthly settlement.',
+      paymentDate: '2026-08-20',
+    },
+  ];
+
+  const createdCreditIds: string[] = [];
+
+  for (const item of creditIssueData) {
+    const paymentNumber = `PAY-${String(paymentCounter++).padStart(6, '0')}`;
+
+    const creditPayment = await prisma.payment.create({
+      data: {
+        communityId: community.id,
+        paymentNumber,
+        residentId: residents[item.residentIndex].id,
+        amount: item.amount,
+        paymentDate: date(item.paymentDate),
+        method: PaymentMethod.OTHER,
+        referenceNumber: `CREDIT-${paymentNumber}`,
+        remarks: item.reason,
+        status: PaymentStatus.VERIFIED,
+        paidAt: date(item.paymentDate),
+        verifiedAt: date(item.paymentDate),
+        isCreditIssue: true,
+      },
+    });
+
+    const credit = await prisma.householdCredit.create({
+      data: {
+        communityId: community.id,
+        householdId: households[item.householdIndex].id,
+        balance: item.amount,
+        sourcePaymentId: creditPayment.id,
+      },
+    });
+
+    createdCreditIds.push(credit.id);
+  }
+
+  // Apply Grace's full P1,200 credit to her August dues so the credit
+  // applications table + assessment sinking show up in the demo.
+  const graceAugustAssessment = await prisma.assessment.findFirst({
+    where: {
+      communityId: community.id,
+      householdId: households[8].id,
+      period: '2026-08',
+    },
+  });
+
+  if (graceAugustAssessment) {
+    await prisma.householdCreditApplication.create({
+      data: {
+        communityId: community.id,
+        householdId: households[8].id,
+        creditId: createdCreditIds[2],
+        assessmentId: graceAugustAssessment.id,
+        amount: 1200,
+        appliedAt: date('2026-08-25'),
+      },
+    });
+
+    await prisma.assessment.update({
+      where: { id: graceAugustAssessment.id },
+      data: {
+        paidAmount: 1200,
+        status: AssessmentStatus.PAID,
+      },
+    });
+  }
+
+  console.log('✅ Household credit demo created');
+
+  // =====================================================
   // LOGIN INFO
   // =====================================================
 
@@ -1894,6 +2689,15 @@ async function main() {
   console.log('  Member         : ana.garcia@example.com / Admin123!');
   console.log('  Member         : rosa.villanueva@example.com / Admin123!');
   console.log('  Member         : danilo.aquino@example.com / Admin123!');
+  console.log('');
+  console.log('  Household credit demo:');
+  console.log(
+    '  H1 Dela Cruz    : open P1,500 credit (member "Available credit" flow)',
+  );
+  console.log('  H4 Mendoza      : open P1,200 credit (officer balance list)');
+  console.log(
+    '  H8 Lim          : P1,200 credit applied to August dues (applied history)',
+  );
   console.log('===================================');
 }
 

@@ -1,6 +1,7 @@
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsNumber,
@@ -85,4 +86,13 @@ export class CreatePaymentDto {
   @IsNumber()
   @Min(1)
   advanceMonths?: number;
+
+  /**
+   * When true, any available household credit is applied toward the selected
+   * items and only the remainder is charged/recorded as the payment amount.
+   * Credit application happens at payment creation time.
+   */
+  @IsOptional()
+  @IsBoolean()
+  applyCredit?: boolean;
 }

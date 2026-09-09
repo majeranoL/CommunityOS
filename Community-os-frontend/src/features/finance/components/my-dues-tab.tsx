@@ -7,6 +7,7 @@ import { PaymentFormDialog } from '@/features/finance/components/payment-form-di
 import { OnlineCheckoutDialog } from '@/features/finance/components/online-checkout-dialog'
 import { useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { formatCurrency } from '@/lib/format'
 
 function unitLabel(household: {
@@ -25,6 +26,7 @@ function unitLabel(household: {
 export function MyDuesTab() {
   const { data: household, isLoading, isError } = useMyHousehold()
   const canPay = useHasPermission(PERMISSIONS.paymentCreate)
+  const creditsEnabled = useIsFeatureEnabled('household-credit')
   const [payOpen, setPayOpen] = useState(false)
   const [onlineOpen, setOnlineOpen] = useState(false)
 
@@ -46,6 +48,7 @@ export function MyDuesTab() {
   }
 
   const outstanding = household.finance?.outstanding ?? 0
+  const availableCredit = Number(household.finance?.availableCredit ?? 0)
 
   return (
     <div className="space-y-4">
@@ -65,6 +68,14 @@ export function MyDuesTab() {
             <p className="text-xs text-muted-foreground">Total paid</p>
             <p className="font-medium">{formatCurrency(household.finance?.totalPaid ?? 0)}</p>
           </div>
+          {creditsEnabled ? (
+            <div>
+              <p className="text-xs text-muted-foreground">Available credit</p>
+              <p className="font-medium text-emerald-600">
+                {formatCurrency(availableCredit)}
+              </p>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {canPay && outstanding > 0 ? (

@@ -223,6 +223,8 @@ export interface CreatePaymentInput {
   proofFileId?: string
   proofUrl?: string
   chargeTypeId?: string
+  /** When true and the household-credit feature is enabled, available household credit is applied and only the remainder is charged. */
+  applyCredit?: boolean
 }
 
 export interface UpdatePaymentInput {
@@ -247,6 +249,8 @@ export interface PaymentCheckoutInput {
   allocations?: PaymentAllocationInput[]
   billingPeriodIds?: string[]
   paymentDate: string
+  /** When true, available household credit is applied and only the remainder is charged. */
+  applyCredit?: boolean
 }
 
 export interface PaymentCheckoutResult {
@@ -805,4 +809,94 @@ export interface UtilityBillingResult {
   createdCount: number
   skippedExisting: number
   noReadings: number
+}
+
+// ==============================================
+// Household credits
+// ==============================================
+
+export type HouseholdCreditApplicationSource =
+  | 'PAYMENT'
+  | 'ASSESSMENT_GENERATION'
+  | 'DUES_AUTOMATION'
+  | 'MANUAL'
+
+export interface HouseholdCreditApplication {
+  id: string
+  householdId: string
+  creditId: string
+  assessmentId: string
+  paymentId: string | null
+  amount: string | number
+  source: HouseholdCreditApplicationSource
+  appliedAt: string
+  reversedAt: string | null
+  reversedById: string | null
+  assessment: {
+    id: string
+    assessmentNumber: string
+    title: string
+    amount: string | number
+  }
+}
+
+export interface HouseholdCredit {
+  id: string
+  communityId: string
+  householdId: string
+  requestId: string | null
+  balance: string | number
+  sourcePaymentId: string | null
+  createdAt: string
+  updatedAt: string
+  community: {
+    id: string
+    displayName: string
+    slug: string
+  }
+  household: {
+    id: string
+    block: string | null
+    lot: string | null
+    unit: string | null
+    address: string | null
+  }
+  sourcePayment: {
+    id: string
+    paymentNumber: string
+    amount: string | number
+    isCreditIssue: boolean
+    status: PaymentStatus
+  } | null
+  request: { id: string; requestNumber: string; title: string } | null
+  creditApplications: HouseholdCreditApplication[]
+}
+
+export interface HouseholdCreditListResult {
+  credits: HouseholdCredit[]
+  availableBalance: number
+}
+
+export interface HouseholdCreditInput {
+  householdId: string
+  amount: number
+  reason?: string
+  constructionRequestId?: string
+  referenceNumber?: string
+}
+
+export interface HouseholdCreditApplyItem {
+  assessmentId: string
+  amount?: number
+}
+
+export interface HouseholdCreditApplyInput {
+  householdId: string
+  allocations?: HouseholdCreditApplyItem[]
+  assessmentIds?: string[]
+}
+
+export interface HouseholdCreditApplyResult {
+  totalApplied: number
+  appliedByAssessment: { assessmentId: string; applied: number }[]
 }

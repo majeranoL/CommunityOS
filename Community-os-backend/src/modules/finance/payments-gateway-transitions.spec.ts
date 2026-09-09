@@ -6,6 +6,7 @@ import { PaymentsService } from './payments.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FinanceSyncService } from './finance-sync.service';
+import { HouseholdCreditService } from './household-credit.service';
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
 
 describe('PaymentsService gateway transitions', () => {
@@ -76,6 +77,14 @@ describe('PaymentsService gateway transitions', () => {
         {
           provide: PaymentsGatewayService,
           useValue: { enabled: true },
+        },
+        {
+          provide: HouseholdCreditService,
+          useValue: {
+            reverseForPayment: jest
+              .fn()
+              .mockResolvedValue({ assessmentIds: [] }),
+          },
         },
       ],
     }).compile();

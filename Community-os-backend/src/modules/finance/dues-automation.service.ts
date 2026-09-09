@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   AssessmentStatus,
   BillingPeriodStatus,
+  HouseholdCreditApplicationSource,
   HouseholdStatus,
   LateFeeType,
 } from '@prisma/client';
@@ -11,6 +12,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { FinanceSyncService } from './finance-sync.service';
+import { HouseholdCreditService } from './household-credit.service';
 
 interface ChargeTypeLike {
   id: string;
@@ -26,6 +28,7 @@ export class DuesAutomationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly financeSyncService: FinanceSyncService,
+    private readonly householdCreditService: HouseholdCreditService,
   ) {}
 
   // ==========================================
@@ -154,17 +157,12 @@ export class DuesAutomationService {
           if (collectible <= 0) break;
           if (!credit.sourcePaymentId) continue;
           const applied = Math.min(collectible, credit.balance.toNumber());
-          await this.prisma.paymentAllocation.create({
-            data: {
-              communityId,
-              paymentId: credit.sourcePaymentId,
-              assessmentId: assessment.id,
-              allocatedAmount: applied,
-            },
-          });
-          await this.prisma.householdCredit.update({
-            where: { id: credit.id },
-            data: { balance: { decrement: applied } },
+          await this.householdCreditService.applyToAssessment(this.prisma, {
+            communityId,
+            householdId: household.id,
+            assessmentId: assessment.id,
+            amount: applied,
+            source: HouseholdCreditApplicationSource.DUES_AUTOMATION,
           });
           collectible -= applied;
         }

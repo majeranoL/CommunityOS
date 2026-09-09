@@ -46,7 +46,8 @@ export class ConstructionService {
       const existing = await this.prisma.constructionRequirement.findFirst({
         where: { id, communityId },
       });
-      if (!existing) throw new NotFoundException('Construction requirement not found.');
+      if (!existing)
+        throw new NotFoundException('Construction requirement not found.');
     }
     const data = {
       name: dto.name.trim(),
@@ -66,10 +67,12 @@ export class ConstructionService {
     await this.auditLogs.log({
       communityId,
       actorId,
-      action: id ? 'CONSTRUCTION_REQUIREMENT_UPDATED' : 'CONSTRUCTION_REQUIREMENT_CREATED',
+      action: id
+        ? 'CONSTRUCTION_REQUIREMENT_UPDATED'
+        : 'CONSTRUCTION_REQUIREMENT_CREATED',
       entity: 'ConstructionRequirement',
       entityId: requirement.id,
-      after: requirement as unknown as Prisma.InputJsonValue,
+      after: requirement,
     });
     return { success: true, data: requirement };
   }
@@ -91,13 +94,18 @@ export class ConstructionService {
         ...(query.search
           ? {
               OR: [
-                { requestNumber: { contains: query.search, mode: 'insensitive' } },
+                {
+                  requestNumber: {
+                    contains: query.search,
+                    mode: 'insensitive',
+                  },
+                },
                 { title: { contains: query.search, mode: 'insensitive' } },
               ],
             }
           : {}),
         ...(residentId && !includeAll
-          ? { household: { residentHouseholds: { some: { residentId } } } }
+          ? { household: { residentMemberships: { some: { residentId } } } }
           : {}),
       },
       include: {
@@ -112,7 +120,12 @@ export class ConstructionService {
     return { success: true, data: requests };
   }
 
-  async findOne(communityId: string, id: string, user: any, includeAll: boolean) {
+  async findOne(
+    communityId: string,
+    id: string,
+    user: any,
+    includeAll: boolean,
+  ) {
     const request = await this.prisma.constructionRequest.findFirst({
       where: {
         id,
@@ -129,28 +142,55 @@ export class ConstructionService {
         bond: { include: { assessment: true } },
       },
     });
-    if (!request) throw new NotFoundException('Construction request not found.');
+    if (!request)
+      throw new NotFoundException('Construction request not found.');
     return { success: true, data: request };
   }
 
-  async create(communityId: string, user: any, dto: CreateConstructionRequestDto) {
+  async create(
+    communityId: string,
+    user: any,
+    dto: CreateConstructionRequestDto,
+  ) {
     const residentId = user.resident?.id;
-    if (!residentId) throw new BadRequestException('A resident household is required.');
+    if (!residentId)
+      throw new BadRequestException('A resident household is required.');
     const start = new Date(dto.plannedStartDate);
     const end = new Date(dto.plannedEndDate);
-    if (end <= start) throw new BadRequestException('Planned end date must be after the start date.');
+    if (end <= start)
+      throw new BadRequestException(
+        'Planned end date must be after the start date.',
+      );
 
     const membership = await this.prisma.residentHousehold.findFirst({
-      where: { communityId, residentId, householdId: dto.householdId, status: 'ACTIVE' },
+      where: {
+        communityId,
+        residentId,
+        householdId: dto.householdId,
+        status: 'ACTIVE',
+      },
     });
-    if (!membership) throw new NotFoundException('Household membership not found.');
+    if (!membership)
+      throw new NotFoundException('Household membership not found.');
 
     const requirements = await this.listRequirements(communityId);
-    const supplied = new Set(dto.documents.map((document) => document.requirementId ?? document.documentType));
+    const supplied = new Set(
+      dto.documents.map(
+        (document) => document.requirementId ?? document.documentType,
+      ),
+    );
     const missing = requirements
-      .filter((requirement) => requirement.isRequired && !supplied.has(requirement.id) && !supplied.has(requirement.name))
+      .filter(
+        (requirement) =>
+          requirement.isRequired &&
+          !supplied.has(requirement.id) &&
+          !supplied.has(requirement.name),
+      )
       .map((requirement) => requirement.name);
-    if (missing.length) throw new BadRequestException(`Missing required documents: ${missing.join(', ')}`);
+    if (missing.length)
+      throw new BadRequestException(
+        `Missing required documents: ${missing.join(', ')}`,
+      );
 
     const fileIds = dto.documents
       .map((document) => document.fileId)
@@ -161,7 +201,9 @@ export class ConstructionService {
         select: { id: true },
       });
       if (files.length !== new Set(fileIds).size) {
-        throw new BadRequestException('One or more uploaded documents are invalid.');
+        throw new BadRequestException(
+          'One or more uploaded documents are invalid.',
+        );
       }
     }
 
@@ -199,18 +241,28 @@ export class ConstructionService {
       action: 'CONSTRUCTION_REQUEST_SUBMITTED',
       entity: 'ConstructionRequest',
       entityId: request.id,
-      after: request as unknown as Prisma.InputJsonValue,
+      after: request,
     });
     return { success: true, data: request };
   }
 
-  async review(communityId: string, id: string, actorId: string, dto: ReviewConstructionRequestDto) {
+  async review(
+    communityId: string,
+    id: string,
+    actorId: string,
+    dto: ReviewConstructionRequestDto,
+  ) {
     const request = await this.getRequest(communityId, id);
     if (request.status !== ConstructionRequestStatus.SUBMITTED) {
       throw new ConflictException('Only submitted requests can be reviewed.');
     }
-    if (![ConstructionRequestStatus.APPROVED, ConstructionRequestStatus.REJECTED].includes(dto.status)) {
-      throw new BadRequestException('Review status must be APPROVED or REJECTED.');
+    if (
+      dto.status !== ConstructionRequestStatus.APPROVED &&
+      dto.status !== ConstructionRequestStatus.REJECTED
+    ) {
+      throw new BadRequestException(
+        'Review status must be APPROVED or REJECTED.',
+      );
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -219,14 +271,22 @@ export class ConstructionService {
         data: {
           status: dto.status,
           reviewNotes: dto.notes?.trim(),
-          rejectionReason: dto.status === ConstructionRequestStatus.REJECTED ? dto.notes?.trim() : null,
+          rejectionReason:
+            dto.status === ConstructionRequestStatus.REJECTED
+              ? dto.notes?.trim()
+              : null,
           reviewedById: actorId,
           reviewedAt: new Date(),
         },
       });
-      if (dto.status === ConstructionRequestStatus.APPROVED && request.bondAmount.toNumber() > 0) {
+      if (
+        dto.status === ConstructionRequestStatus.APPROVED &&
+        request.bondAmount.toNumber() > 0
+      ) {
         const chargeType = await tx.chargeType.upsert({
-          where: { communityId_code: { communityId, code: 'CONSTRUCTION_BOND' } },
+          where: {
+            communityId_code: { communityId, code: 'CONSTRUCTION_BOND' },
+          },
           create: {
             communityId,
             code: 'CONSTRUCTION_BOND',
@@ -271,45 +331,89 @@ export class ConstructionService {
       action: `CONSTRUCTION_REQUEST_${dto.status}`,
       entity: 'ConstructionRequest',
       entityId: id,
-      after: updated as unknown as Prisma.InputJsonValue,
+      after: updated,
     });
     return { success: true, data: updated };
   }
 
   async complete(communityId: string, id: string, actorId: string) {
-    return this.transition(communityId, id, actorId, ConstructionRequestStatus.COMPLETED, 'CONSTRUCTION_REQUEST_COMPLETED');
+    return this.transition(
+      communityId,
+      id,
+      actorId,
+      ConstructionRequestStatus.COMPLETED,
+      'CONSTRUCTION_REQUEST_COMPLETED',
+    );
   }
 
   async close(communityId: string, id: string, actorId: string) {
-    return this.transition(communityId, id, actorId, ConstructionRequestStatus.CLOSED, 'CONSTRUCTION_REQUEST_CLOSED');
+    return this.transition(
+      communityId,
+      id,
+      actorId,
+      ConstructionRequestStatus.CLOSED,
+      'CONSTRUCTION_REQUEST_CLOSED',
+    );
   }
 
   async cancel(communityId: string, id: string, user: any) {
     const request = await this.getRequest(communityId, id);
-    if (request.submittedById !== user.id || request.status !== ConstructionRequestStatus.SUBMITTED) {
-      throw new ConflictException('Only submitted requests can be cancelled by the submitter.');
+    if (
+      request.submittedById !== user.id ||
+      request.status !== ConstructionRequestStatus.SUBMITTED
+    ) {
+      throw new ConflictException(
+        'Only submitted requests can be cancelled by the submitter.',
+      );
     }
     const updated = await this.prisma.constructionRequest.update({
       where: { id },
-      data: { status: ConstructionRequestStatus.CANCELLED, cancelledAt: new Date() },
+      data: {
+        status: ConstructionRequestStatus.CANCELLED,
+        cancelledAt: new Date(),
+      },
     });
     return { success: true, data: updated };
   }
 
-  async resolveBond(communityId: string, id: string, actorId: string, dto: ResolveConstructionBondDto) {
+  async resolveBond(
+    communityId: string,
+    id: string,
+    actorId: string,
+    dto: ResolveConstructionBondDto,
+  ) {
     const bond = await this.prisma.constructionBond.findFirst({
-      where: { id, communityId, status: { in: [ConstructionBondStatus.OPEN, ConstructionBondStatus.ACTIVE] } },
+      where: {
+        id,
+        communityId,
+        status: {
+          in: [ConstructionBondStatus.OPEN, ConstructionBondStatus.ACTIVE],
+        },
+      },
     });
-    if (!bond) throw new NotFoundException('Construction bond not found or already resolved.');
-    if (![ConstructionBondStatus.REFUNDED, ConstructionBondStatus.FORFEITED].includes(dto.status)) {
-      throw new BadRequestException('Bond must be resolved as REFUNDED or FORFEITED.');
+    if (!bond)
+      throw new NotFoundException(
+        'Construction bond not found or already resolved.',
+      );
+    if (
+      dto.status !== ConstructionBondStatus.REFUNDED &&
+      dto.status !== ConstructionBondStatus.FORFEITED
+    ) {
+      throw new BadRequestException(
+        'Bond must be resolved as REFUNDED or FORFEITED.',
+      );
     }
     if (dto.status === ConstructionBondStatus.REFUNDED && bond.assessmentId) {
       const payments = await this.prisma.payment.findMany({
-        where: { communityId, status: 'VERIFIED', allocations: { some: { assessmentId: bond.assessmentId } } },
+        where: {
+          communityId,
+          status: 'VERIFIED',
+          allocations: { some: { assessmentId: bond.assessmentId } },
+        },
         select: { id: true },
       });
-      for (const payment of payments) await this.payments.refund(communityId, payment.id, actorId);
+      for (const payment of payments)
+        await this.payments.refund(communityId, payment.id, actorId);
     }
     const updated = await this.prisma.constructionBond.update({
       where: { id: bond.id },
@@ -317,8 +421,10 @@ export class ConstructionService {
         status: dto.status,
         resolvedById: actorId,
         resolvedAt: new Date(),
-        refundedAt: dto.status === ConstructionBondStatus.REFUNDED ? new Date() : null,
-        forfeitedAt: dto.status === ConstructionBondStatus.FORFEITED ? new Date() : null,
+        refundedAt:
+          dto.status === ConstructionBondStatus.REFUNDED ? new Date() : null,
+        forfeitedAt:
+          dto.status === ConstructionBondStatus.FORFEITED ? new Date() : null,
         refundNotes: dto.notes,
       },
     });
@@ -328,48 +434,93 @@ export class ConstructionService {
       action: `CONSTRUCTION_BOND_${dto.status}`,
       entity: 'ConstructionBond',
       entityId: bond.id,
-      after: updated as unknown as Prisma.InputJsonValue,
+      after: updated,
     });
     return { success: true, data: updated };
   }
 
-  private async transition(communityId: string, id: string, actorId: string, status: ConstructionRequestStatus, action: string) {
+  private async transition(
+    communityId: string,
+    id: string,
+    actorId: string,
+    status: ConstructionRequestStatus,
+    action: string,
+  ) {
     const request = await this.getRequest(communityId, id);
-    const allowed = status === ConstructionRequestStatus.COMPLETED
-      ? request.status === ConstructionRequestStatus.APPROVED
-      : request.status === ConstructionRequestStatus.COMPLETED;
-    if (!allowed) throw new ConflictException('Invalid construction request status transition.');
+    const allowed =
+      status === ConstructionRequestStatus.COMPLETED
+        ? request.status === ConstructionRequestStatus.APPROVED
+        : request.status === ConstructionRequestStatus.COMPLETED;
+    if (!allowed)
+      throw new ConflictException(
+        'Invalid construction request status transition.',
+      );
     const updated = await this.prisma.constructionRequest.update({
       where: { id },
-      data: status === ConstructionRequestStatus.COMPLETED
-        ? { status, completedById: actorId, completedAt: new Date() }
-        : { status, closedAt: new Date() },
+      data:
+        status === ConstructionRequestStatus.COMPLETED
+          ? { status, completedById: actorId, completedAt: new Date() }
+          : { status, closedAt: new Date() },
     });
-    await this.auditLogs.log({ communityId, actorId, action, entity: 'ConstructionRequest', entityId: id, after: updated as unknown as Prisma.InputJsonValue });
+    await this.auditLogs.log({
+      communityId,
+      actorId,
+      action,
+      entity: 'ConstructionRequest',
+      entityId: id,
+      after: updated,
+    });
     return { success: true, data: updated };
   }
 
   private async getRequest(communityId: string, id: string) {
-    const request = await this.prisma.constructionRequest.findFirst({ where: { id, communityId, deletedAt: null } });
-    if (!request) throw new NotFoundException('Construction request not found.');
+    const request = await this.prisma.constructionRequest.findFirst({
+      where: { id, communityId, deletedAt: null },
+    });
+    if (!request)
+      throw new NotFoundException('Construction request not found.');
     return request;
   }
 
   private async nextRequestNumber(communityId: string) {
-    const latest = await this.prisma.constructionRequest.findFirst({ where: { communityId }, orderBy: { requestNumber: 'desc' }, select: { requestNumber: true } });
-    const next = latest ? parseInt(latest.requestNumber.replace(/^CON-/, ''), 10) + 1 : 1;
+    const latest = await this.prisma.constructionRequest.findFirst({
+      where: { communityId },
+      orderBy: { requestNumber: 'desc' },
+      select: { requestNumber: true },
+    });
+    const next = latest
+      ? parseInt(latest.requestNumber.replace(/^CON-/, ''), 10) + 1
+      : 1;
     return `CON-${String(next).padStart(6, '0')}`;
   }
 
-  private async nextBondNumber(communityId: string, tx: Prisma.TransactionClient) {
-    const latest = await tx.constructionBond.findFirst({ where: { communityId }, orderBy: { bondNumber: 'desc' }, select: { bondNumber: true } });
-    const next = latest ? parseInt(latest.bondNumber.replace(/^BND-/, ''), 10) + 1 : 1;
+  private async nextBondNumber(
+    communityId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    const latest = await tx.constructionBond.findFirst({
+      where: { communityId },
+      orderBy: { bondNumber: 'desc' },
+      select: { bondNumber: true },
+    });
+    const next = latest
+      ? parseInt(latest.bondNumber.replace(/^BND-/, ''), 10) + 1
+      : 1;
     return `BND-${String(next).padStart(6, '0')}`;
   }
 
-  private async nextAssessmentNumber(communityId: string, tx: Prisma.TransactionClient) {
-    const latest = await tx.assessment.findFirst({ where: { communityId }, orderBy: { assessmentNumber: 'desc' }, select: { assessmentNumber: true } });
-    const next = latest ? parseInt(latest.assessmentNumber.replace(/^ASS-/, ''), 10) + 1 : 1;
+  private async nextAssessmentNumber(
+    communityId: string,
+    tx: Prisma.TransactionClient,
+  ) {
+    const latest = await tx.assessment.findFirst({
+      where: { communityId },
+      orderBy: { assessmentNumber: 'desc' },
+      select: { assessmentNumber: true },
+    });
+    const next = latest
+      ? parseInt(latest.assessmentNumber.replace(/^ASS-/, ''), 10) + 1
+      : 1;
     return `ASS-${String(next).padStart(6, '0')}`;
   }
 }

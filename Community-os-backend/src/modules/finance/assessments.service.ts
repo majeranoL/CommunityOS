@@ -8,6 +8,7 @@ import {
 import {
   AssessmentStatus,
   BillingPeriodStatus,
+  HouseholdCreditApplicationSource,
   HouseholdStatus,
   Prisma,
 } from '@prisma/client';
@@ -17,6 +18,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { FeaturesService } from '../features/features.service';
 
 import { FinanceSyncService } from './finance-sync.service';
+import { HouseholdCreditService } from './household-credit.service';
 
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
@@ -38,6 +40,7 @@ export class AssessmentsService {
     private readonly prisma: PrismaService,
     private readonly financeSyncService: FinanceSyncService,
     private readonly featuresService: FeaturesService,
+    private readonly householdCreditService: HouseholdCreditService,
   ) {}
 
   async applyDiscount(communityId: string, id: string, dto: ApplyDiscountDto) {
@@ -389,17 +392,12 @@ export class AssessmentsService {
         if (collectible <= 0) break;
         if (!credit.sourcePaymentId) continue;
         const applied = Math.min(credit.balance.toNumber(), collectible);
-        await this.prisma.paymentAllocation.create({
-          data: {
-            communityId,
-            paymentId: credit.sourcePaymentId,
-            assessmentId: assessment.id,
-            allocatedAmount: applied,
-          },
-        });
-        await this.prisma.householdCredit.update({
-          where: { id: credit.id },
-          data: { balance: { decrement: applied } },
+        await this.householdCreditService.applyToAssessment(this.prisma, {
+          communityId,
+          householdId,
+          assessmentId: assessment.id,
+          amount: applied,
+          source: HouseholdCreditApplicationSource.ASSESSMENT_GENERATION,
         });
         collectible -= applied;
       }

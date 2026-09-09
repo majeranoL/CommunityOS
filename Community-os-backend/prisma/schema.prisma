@@ -315,6 +315,13 @@ enum PaymentMethod {
   ONLINE
 }
 
+enum HouseholdCreditApplicationSource {
+  PAYMENT
+  ASSESSMENT_GENERATION
+  DUES_AUTOMATION
+  MANUAL
+}
+
 enum PaymentMethodConfigMethod {
   GCASH
   MAYA
@@ -552,6 +559,7 @@ model Community {
   constructionRequirements ConstructionRequirement[]
   constructionRequestDocuments ConstructionRequestDocument[]
   householdAcquisitionRequests HouseholdAcquisitionRequest[]
+  householdCreditApplications HouseholdCreditApplication[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -789,6 +797,7 @@ model User {
   constructionDocumentsUploaded ConstructionRequestDocument[] @relation("ConstructionDocumentUploadedBy")
   householdAcquisitionRequestsSubmitted HouseholdAcquisitionRequest[] @relation("HouseholdAcquisitionRequestedBy")
   householdAcquisitionRequestsReviewed HouseholdAcquisitionRequest[] @relation("HouseholdAcquisitionReviewedBy")
+  creditApplicationsReversed HouseholdCreditApplication[] @relation("CreditApplicationReversedBy")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1316,6 +1325,7 @@ model Household {
   residentMemberships   ResidentHousehold[]
   assessments           Assessment[]
   credits               HouseholdCredit[]
+  creditApplications    HouseholdCreditApplication[]
   pets                  Pet[]
   utilityReadings       UtilityReading[]
   goodStandingQrs       GoodStandingQR[]
@@ -1439,6 +1449,9 @@ model ConstructionBond {
   refundedAt  DateTime?
   refundNotes String?
 
+  requestId String? @unique @db.Uuid
+  request   ConstructionRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
   remarks String?
 
   // Finance income entry created when the bond is FORFEITED (deposit becomes HOA income).
@@ -1508,6 +1521,7 @@ model ConstructionRequest {
 
   bond      ConstructionBond?
   documents ConstructionRequestDocument[]
+  householdCredit HouseholdCredit?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1942,6 +1956,7 @@ model Assessment {
 
   payments    Payment[]
   allocations PaymentAllocation[]
+  creditApplications HouseholdCreditApplication[]
   itemLoans   FacilityItemLoan[]
   vehicleStickers VehicleSticker[] @relation("StickerAssessment")
   stickerRequests  StickerRequest[] @relation("StickerRequestAssessment")
@@ -2020,8 +2035,13 @@ model Payment {
   importBatchId String?      @db.Uuid
   importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
+  // True when this payment is the synthetic ledger entry behind a manually
+  // issued household credit (method OTHER, no real money movement).
+  isCreditIssue Boolean @default(false)
+
   allocations PaymentAllocation[]
   credits      HouseholdCredit[]
+  creditApplications HouseholdCreditApplication[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -2049,10 +2069,47 @@ model HouseholdCredit {
   balance     Decimal  @default(0) @db.Decimal(10, 2)
   sourcePaymentId String? @db.Uuid
   sourcePayment Payment? @relation(fields: [sourcePaymentId], references: [id], onDelete: SetNull)
+  creditApplications HouseholdCreditApplication[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([communityId, householdId, createdAt])
   @@index([sourcePaymentId])
+}
+
+// Records which assessment consumed credit from which HouseholdCredit so the
+// application can be reversed (payment rejected/cancelled/refunded) and history audited.
+model HouseholdCreditApplication {
+  id          String   @id @default(uuid()) @db.Uuid
+  communityId String   @db.Uuid
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  householdId String   @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  creditId String          @db.Uuid
+  credit   HouseholdCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  assessmentId String     @db.Uuid
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  // The payment whose creation consumed this credit (null for generation-time sweeps).
+  paymentId String? @db.Uuid
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  amount Decimal @db.Decimal(10, 2)
+  source HouseholdCreditApplicationSource @default(PAYMENT)
+  appliedAt DateTime @default(now())
+
+  reversedById String? @db.Uuid
+  reversedBy   User?   @relation("CreditApplicationReversedBy", fields: [reversedById], references: [id], onDelete: SetNull)
+  reversedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([communityId, householdId])
+  @@index([creditId])
+  @@index([assessmentId])
+  @@index([paymentId])
 }
 
 /////////////////////////////////////////////////////

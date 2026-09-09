@@ -33,13 +33,18 @@ import {
 import { DateTimePicker } from '@/components/shared/date-time-picker'
 import { ResidentSelect } from '@/features/facilities/components/resident-select'
 import { documentsService } from '@/features/documents/services/documents'
+import { useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
+import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import {
+  useApplyHouseholdCredit,
   useCreatePayment,
   useUpdatePayment,
   useAssessments,
   useBillingPeriods,
   useChargeTypes,
   useFinanceResidentOptions,
+  useHouseholdCredits,
 } from '@/features/finance/hooks/use-finance'
 import {
   paymentSchema,
@@ -106,6 +111,10 @@ function PaymentFormDialogContent({
   const isEdit = Boolean(payment)
   const createPayment = useCreatePayment()
   const updatePayment = useUpdatePayment()
+  const applyCreditMutation = useApplyHouseholdCredit()
+  const creditsEnabled = useIsFeatureEnabled('household-credit')
+  const canViewCredits = useHasPermission(PERMISSIONS.creditView)
+  const [applyCredit, setApplyCredit] = useState(!isEdit)
 
   const initialHouseholdId = payment?.resident?.householdId ?? null
   const [householdId, setHouseholdId] = useState<string | null>(
@@ -245,11 +254,31 @@ function PaymentFormDialogContent({
   const selectedItems = items.filter((item) => selected.has(item.key))
   const totalAmount = selectedItems.reduce((sum, item) => sum + item.amount, 0)
 
+  const { data: householdCredits } = useHouseholdCredits(
+    { householdId: householdId ?? undefined },
+    { enabled: creditsEnabled && canViewCredits && !isEdit && Boolean(householdId) },
+  )
+  const availableCredit = (householdCredits ?? []).reduce(
+    (sum, credit) =>
+      Number(credit.balance) > 0 ? sum + Number(credit.balance) : sum,
+    0,
+  )
+  const canUseCredit =
+    creditsEnabled && !isEdit && Boolean(householdId) &&
+    selectedItems.every((item) => item.kind === 'assessment')
+  const effectiveApplyCredit = canUseCredit && applyCredit
+  const creditApplied = effectiveApplyCredit
+    ? Math.min(availableCredit, totalAmount)
+    : 0
+  const payable = Math.max(totalAmount - creditApplied, 0)
+  const settleByCredit =
+    effectiveApplyCredit && selectedItems.length > 0 && payable <= 0.005
+
   useEffect(() => {
     if (!isEdit) {
-      form.setValue('amount', totalAmount, { shouldValidate: true })
+      form.setValue('amount', payable, { shouldValidate: true })
     }
-  }, [totalAmount, form, isEdit])
+  }, [totalAmount, form, isEdit, payable])
 
   const toggleItem = (key: string) => {
     setSelected((current) => {
@@ -283,6 +312,7 @@ function PaymentFormDialogContent({
   }
 
   const handleSubmit = (values: PaymentFormValues) => {
+    if (settleByCredit) return
     const assessments = selectedItems
       .filter((item) => item.kind === 'assessment')
       .map((item) => ({ assessmentId: item.id, amount: item.amount }))
@@ -303,15 +333,54 @@ function PaymentFormDialogContent({
       proofFileId: values.proofFileId || undefined,
       proofUrl: values.proofUrl || undefined,
       advanceMonths: values.advanceMonths || undefined,
+      applyCredit: effectiveApplyCredit || undefined,
     }
 
     setPending({ input })
     setConfirmOpen(true)
   }
 
+  const handleSettleSubmit = () => {
+    if (!householdId) return
+    const assessments = selectedItems
+      .filter((item) => item.kind === 'assessment')
+      .map((item) => ({ assessmentId: item.id, amount: item.amount }))
+    setPending({
+      input: {
+        residentId: form.getValues('residentId'),
+        amount: totalAmount,
+        paymentDate: new Date(
+          form.getValues('paymentDate') || Date.now(),
+        ).toISOString(),
+        method: form.getValues('method') as PaymentMethod,
+        allocations: assessments.length > 0 ? assessments : undefined,
+      },
+    })
+    setConfirmOpen(true)
+  }
+
   const confirmSave = () => {
     if (!pending) return
-    if (isEdit && payment) {
+    if (settleByCredit) {
+      applyCreditMutation.mutate(
+        {
+          householdId: householdId as string,
+          allocations: selectedItems.map((item) => ({
+            assessmentId: item.id,
+            amount: item.amount,
+          })),
+        },
+        {
+          onSuccess: () => {
+            setConfirmOpen(false)
+            onOpenChange(false)
+            toast.success(
+              'Household credit was applied to the selected items.',
+            )
+          },
+        },
+      )
+    } else if (isEdit && payment) {
       updatePayment.mutate(
         { id: payment.id, input: pending.input },
         {
@@ -484,6 +553,52 @@ function PaymentFormDialogContent({
                     {formatCurrency(totalAmount)}
                   </span>
                 </p>
+                {creditsEnabled ? (
+                  <div className="space-y-1.5 border-t pt-2">
+                    {canUseCredit ? (
+                      <label className="flex cursor-pointer items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={applyCredit}
+                          onCheckedChange={(checked) =>
+                            setApplyCredit(checked === true)
+                          }
+                        />
+                        Apply household credit (
+                        {formatCurrency(availableCredit)} available)
+                      </label>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Household credit can&apos;t be applied while an advance
+                        billing period is selected.
+                      </p>
+                    )}
+                    {creditApplied > 0 ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Credit applied
+                        </span>
+                        <span className="font-medium text-emerald-600">
+                          −{formatCurrency(creditApplied)}
+                        </span>
+                      </div>
+                    ) : null}
+                    {creditApplied > 0 ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Net to pay
+                        </span>
+                        <span className="font-semibold">
+                          {formatCurrency(payable)}
+                        </span>
+                      </div>
+                    ) : null}
+                    {settleByCredit ? (
+                      <p className="text-xs text-muted-foreground">
+                        The full amount is covered by household credit.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -506,10 +621,13 @@ function PaymentFormDialogContent({
                         }
                       />
                     </FormControl>
-                    <FormDescription>
-                      In PHP. Must equal the total of selected items (
-                      {formatCurrency(totalAmount)}).
-                    </FormDescription>
+<FormDescription>
+                {creditApplied > 0
+                  ? `In PHP. Equals your selected items after applying household credit (${formatCurrency(creditApplied)}).`
+                  : 'In PHP. Must equal the total of selected items (' +
+                    formatCurrency(totalAmount) +
+                    ').'}
+              </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -611,14 +729,27 @@ function PaymentFormDialogContent({
                 Cancel
               </Button>
               <Button
-                type="submit"
+                type={settleByCredit ? 'button' : 'submit'}
+                onClick={settleByCredit ? handleSettleSubmit : undefined}
                 disabled={
                   createPayment.isPending ||
                   updatePayment.isPending ||
+                  applyCreditMutation.isPending ||
                   uploading
                 }
               >
-                {isEdit ? 'Save changes' : 'Record payment'}
+                {applyCreditMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Applying credit…
+                  </>
+                ) : settleByCredit ? (
+                  'Settle with household credit'
+                ) : isEdit ? (
+                  'Save changes'
+                ) : (
+                  'Record payment'
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -643,6 +774,10 @@ function PaymentFormDialogContent({
             value: residentLabel || pending?.input.residentId || '—',
           },
           { label: 'Amount', value: formatCurrency(pending?.input.amount) },
+          {
+            label: 'Settlement',
+            value: settleByCredit ? 'Household credit (full)' : 'Payment',
+          },
           {
             label: 'Method',
             value: pending?.input.method
