@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { CreditCard, Loader2, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
-import { HouseholdLedger } from '@/features/households/components/household-ledger'
+import { DuesTable } from '@/features/finance/components/dues-table'
 import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
 import { OnlineCheckoutDialog } from '@/features/finance/components/online-checkout-dialog'
 import { useHasPermission } from '@/store/auth-store'
@@ -97,7 +97,7 @@ export function MyDuesTab() {
         </div>
       </div>
 
-      <HouseholdLedger
+      <DuesTable
         assessments={household.assessments}
         finance={household.finance ?? null}
         unitLabel={unitLabel(household)}
