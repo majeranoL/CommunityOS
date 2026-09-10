@@ -68,6 +68,13 @@ interface PaymentFormDialogProps {
   onOpenChange: (open: boolean) => void
   payment?: Payment | null
   preselectAssessmentId?: string | null
+  selfPay?: SelfPayInfo | null
+}
+
+export interface SelfPayInfo {
+  residentId: string
+  residentLabel: string
+  householdId: string | null
 }
 
 interface PayableItem {
@@ -85,6 +92,7 @@ export function PaymentFormDialog({
   onOpenChange,
   payment,
   preselectAssessmentId,
+  selfPay,
 }: PaymentFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,6 +100,7 @@ export function PaymentFormDialog({
         <PaymentFormDialogContent
           payment={payment}
           preselectAssessmentId={preselectAssessmentId}
+          selfPay={selfPay}
           onOpenChange={onOpenChange}
         />
       ) : null}
@@ -103,10 +112,12 @@ function PaymentFormDialogContent({
   onOpenChange,
   payment,
   preselectAssessmentId,
+  selfPay,
 }: {
   onOpenChange: (open: boolean) => void
   payment?: Payment | null
   preselectAssessmentId?: string | null
+  selfPay?: SelfPayInfo | null
 }) {
   const isEdit = Boolean(payment)
   const createPayment = useCreatePayment()
@@ -118,16 +129,19 @@ function PaymentFormDialogContent({
   const canViewCreditsAny = canViewCredits || canViewOwnCredits
   const [applyCredit, setApplyCredit] = useState(!isEdit)
 
-  const initialHouseholdId = payment?.resident?.householdId ?? null
+  const initialHouseholdId =
+    payment?.resident?.householdId ?? selfPay?.householdId ?? null
   const [householdId, setHouseholdId] = useState<string | null>(
     initialHouseholdId,
   )
   const [residentLabel, setResidentLabel] = useState<string>(() => {
     const resident = payment?.resident
-    if (!resident) return ''
-    return (
-      [resident.firstName, resident.lastName].filter(Boolean).join(' ') || ''
-    )
+    if (resident) {
+      return (
+        [resident.firstName, resident.lastName].filter(Boolean).join(' ') || ''
+      )
+    }
+    return selfPay?.residentLabel ?? ''
   })
   const [selected, setSelected] = useState<Set<string>>(() => {
     const ids = new Set<string>()
@@ -161,7 +175,7 @@ function PaymentFormDialogContent({
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
-      residentId: payment?.resident?.id ?? '',
+      residentId: payment?.resident?.id ?? selfPay?.residentId ?? '',
       amount: payment ? Number(payment.amount) : 0,
       paymentDate: payment?.paymentDate
         ? new Date(payment.paymentDate).toISOString().slice(0, 16)
@@ -500,27 +514,42 @@ function PaymentFormDialogContent({
             <FormField
               control={form.control}
               name="residentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Resident</FormLabel>
-                  <FormControl>
-                    <ResidentSelect
-                      value={field.value}
-                      onChange={field.onChange}
-                      useOptions={useFinanceResidentOptions}
-                      onSelect={(resident) => {
-                        setHouseholdId(resident.householdId)
-                        setResidentLabel(
-                          [resident.firstName, resident.lastName]
-                            .filter(Boolean)
-                            .join(' '),
-                        )
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) =>
+                selfPay && !isEdit ? (
+                  <FormItem>
+                    <FormLabel>Resident</FormLabel>
+                    <FormControl>
+                      <div className="flex min-h-9 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
+                        {residentLabel}
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      This payment is applied to your household&apos;s billing
+                      on behalf of {residentLabel}, so no selection is needed.
+                    </FormDescription>
+                  </FormItem>
+                ) : (
+                  <FormItem>
+                    <FormLabel>Resident</FormLabel>
+                    <FormControl>
+                      <ResidentSelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        useOptions={useFinanceResidentOptions}
+                        onSelect={(resident) => {
+                          setHouseholdId(resident.householdId)
+                          setResidentLabel(
+                            [resident.firstName, resident.lastName]
+                              .filter(Boolean)
+                              .join(' '),
+                          )
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )
+              }
             />
 
             {!isEdit && householdId ? (

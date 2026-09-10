@@ -3,9 +3,12 @@ import { CreditCard, Loader2, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useMyHousehold } from '@/features/households/hooks/use-households'
 import { DuesTable } from '@/features/finance/components/dues-table'
-import { PaymentFormDialog } from '@/features/finance/components/payment-form-dialog'
+import {
+  PaymentFormDialog,
+  type SelfPayInfo,
+} from '@/features/finance/components/payment-form-dialog'
 import { OnlineCheckoutDialog } from '@/features/finance/components/online-checkout-dialog'
-import { useHasPermission } from '@/store/auth-store'
+import { useAuthStore, useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { formatCurrency } from '@/lib/format'
@@ -25,6 +28,7 @@ function unitLabel(household: {
 
 export function MyDuesTab() {
   const { data: household, isLoading, isError } = useMyHousehold()
+  const user = useAuthStore((state) => state.user)
   const canPay = useHasPermission(PERMISSIONS.paymentCreate)
   const creditsEnabled = useIsFeatureEnabled('household-credit')
   const [payOpen, setPayOpen] = useState(false)
@@ -49,6 +53,16 @@ export function MyDuesTab() {
 
   const outstanding = household.finance?.outstanding ?? 0
   const availableCredit = Number(household.finance?.availableCredit ?? 0)
+
+  const selfPay: SelfPayInfo | null = user?.resident
+    ? {
+        residentId: user.resident.id,
+        residentLabel:
+          [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+          user.referenceNumber,
+        householdId: household.id,
+      }
+    : null
 
   return (
     <div className="space-y-4">
@@ -103,7 +117,11 @@ export function MyDuesTab() {
         unitLabel={unitLabel(household)}
       />
 
-      <PaymentFormDialog open={payOpen} onOpenChange={setPayOpen} />
+      <PaymentFormDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        selfPay={selfPay}
+      />
       <OnlineCheckoutDialog
         open={onlineOpen}
         onOpenChange={setOnlineOpen}
