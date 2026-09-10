@@ -1536,7 +1536,7 @@ export class VehicleStickersService {
     const rows = await tx.$queryRaw<{ next_value: bigint }[]>`
       SELECT "nextValue" AS next_value
       FROM "Sequence"
-      WHERE "communityId" = ${communityId} AND "key" = ${key}
+      WHERE "communityId" = ${communityId}::uuid AND "key" = ${key}
       FOR UPDATE
     `;
 
@@ -1547,7 +1547,7 @@ export class VehicleStickersService {
       await tx.$queryRaw`
         UPDATE "Sequence"
         SET "nextValue" = ${minNext}, "updatedAt" = CURRENT_TIMESTAMP
-        WHERE "communityId" = ${communityId} AND "key" = ${key}
+        WHERE "communityId" = ${communityId}::uuid AND "key" = ${key}
       `;
     }
   }
@@ -1574,7 +1574,7 @@ export class VehicleStickersService {
     const rows = await tx.$queryRaw<{ next_value: bigint }[]>`
       SELECT "nextValue" AS next_value
       FROM "Sequence"
-      WHERE "communityId" = ${communityId} AND "key" = ${key}
+      WHERE "communityId" = ${communityId}::uuid AND "key" = ${key}
       FOR UPDATE
     `;
 
@@ -1583,7 +1583,7 @@ export class VehicleStickersService {
     await tx.$queryRaw`
       UPDATE "Sequence"
       SET "nextValue" = "nextValue" + ${count}, "updatedAt" = CURRENT_TIMESTAMP
-      WHERE "communityId" = ${communityId} AND "key" = ${key}
+      WHERE "communityId" = ${communityId}::uuid AND "key" = ${key}
     `;
 
     return Array.from(

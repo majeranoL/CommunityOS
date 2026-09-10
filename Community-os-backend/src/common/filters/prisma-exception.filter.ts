@@ -94,12 +94,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
           status = HttpStatus.INTERNAL_SERVER_ERROR;
           message = 'Database error occurred.';
           this.logger.error(
-            `Prisma error on ${request.method} ${request.url}`,
-            JSON.stringify({
-              code: exception.code,
-              message: exception.message,
-              meta: exception.meta,
-            }),
+            `Prisma error ${exception.code} on ${request.method} ${request.url}: ${JSON.stringify({ code: exception.code, message: exception.message, meta: exception.meta ?? {} })}`,
           );
       }
     } else if (exception instanceof Prisma.PrismaClientValidationError) {
