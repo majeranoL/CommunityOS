@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsInt,
+  IsNumber,
   IsOptional,
   Matches,
   Max,
@@ -34,4 +35,10 @@ export class UpdateStickerSettingsDto {
   @Min(1)
   @Max(100)
   maxQuantity?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  price?: number;
 }

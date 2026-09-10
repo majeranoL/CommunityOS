@@ -59,7 +59,7 @@ export function AssessmentFormDialog({ open, onOpenChange, assessment }: Assessm
 
   const handleSubmit = (values: AssessmentFormValues) => {
     const input = {
-      assessmentNumber: values.assessmentNumber,
+      assessmentNumber: values.assessmentNumber || undefined,
       title: values.title,
       description: values.description || undefined,
       householdId: values.householdId,
@@ -102,8 +102,13 @@ export function AssessmentFormDialog({ open, onOpenChange, assessment }: Assessm
                   <FormItem>
                     <FormLabel>Assessment number</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. ASMT-0001" {...field} />
+                      <Input placeholder="e.g. ASS-000123" {...field} />
                     </FormControl>
+                    {isEdit ? (
+                      <FormMessage />
+                    ) : (
+                      <FormDescription>Optional. Leave blank to auto-assign.</FormDescription>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

@@ -59,6 +59,7 @@ function requestFixture(overrides: Record<string, unknown> = {}) {
     feeTotal: { toNumber: () => 250 },
     status: StickerRequestStatus.PENDING,
     notes: 'Please expedite.',
+    requestedStickerNumber: null,
     assessmentId: null,
     requestedById: OWNER.id,
     approvedById: null,
@@ -94,10 +95,14 @@ function makeTx(overrides: Record<string, unknown> = {}) {
     sequence: {
       upsert: jest.fn().mockResolvedValue({ id: 'seq-1' }),
     },
-    $queryRaw: jest
-      .fn()
-      .mockResolvedValueOnce(overrides.nextSequence ?? [{ next_value: 1n }])
-      .mockResolvedValue(undefined),
+    $queryRaw: jest.fn().mockImplementation((query: unknown) => {
+      if (String(query).includes('SELECT')) {
+        return Promise.resolve([
+          { next_value: BigInt(Number(overrides.nextValue ?? 1)) },
+        ]);
+      }
+      return Promise.resolve();
+    }),
     chargeType: {
       findFirst: jest.fn().mockResolvedValue(
         overrides.chargeType ?? {
@@ -120,6 +125,7 @@ function makeTx(overrides: Record<string, unknown> = {}) {
       }),
     },
     vehicleSticker: {
+      findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockImplementation(({ data }: any) =>
         Promise.resolve({
           id: 'vstk-1',
@@ -187,6 +193,8 @@ function makeService(overrides: Record<string, unknown> = {}) {
           amount: { toNumber: () => 250 },
         },
       ),
+      update: jest.fn().mockResolvedValue({ id: 'ct-1' }),
+      create: jest.fn().mockResolvedValue({ id: 'ct-1' }),
     },
     setting: {
       findMany: jest.fn().mockResolvedValue(overrides.settings ?? []),
@@ -415,6 +423,40 @@ describe('VehicleStickersService.request', () => {
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+
+  it('stores the resident-preferred sticker number on the request', async () => {
+    const { service, prisma, tx } = makeService();
+    (prisma as any).stickerRequest.findFirst.mockResolvedValue(null);
+    (prisma as any).vehicleSticker.findFirst.mockResolvedValue(null);
+
+    await service.request('community-1', OWNER, {
+      vehicleId: 'veh-1',
+      stickerNumber: 'STK-000100',
+    });
+
+    expect(tx.stickerRequest.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          requestedStickerNumber: 'STK-000100',
+        }),
+      }),
+    );
+  });
+
+  it('rejects a request whose preferred sticker number is already taken', async () => {
+    const { service, prisma } = makeService();
+    (prisma as any).stickerRequest.findFirst.mockResolvedValue(null);
+    (prisma as any).vehicleSticker.findFirst.mockResolvedValue({
+      id: 'vstk-1',
+    });
+
+    await expect(
+      service.request('community-1', OWNER, {
+        vehicleId: 'veh-1',
+        stickerNumber: 'STK-000100',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
 });
 
 describe('VehicleStickersService.requestVerify (approve)', () => {
@@ -492,7 +534,7 @@ describe('VehicleStickersService.requestVerify (approve)', () => {
         feeTotal: { toNumber: () => 500 },
       }),
       settings: [{ key: 'stickerMaxQuantity', value: 2 }],
-      nextSequence: [{ next_value: 40n }],
+      nextValue: 40,
     });
 
     const result = await service.requestVerify(
@@ -543,6 +585,76 @@ describe('VehicleStickersService.requestVerify (approve)', () => {
     expect(result.data.assessment).toBeNull();
     expect(tx.assessment.create).not.toHaveBeenCalled();
     expect(notificationsService.dispatchToHousehold).not.toHaveBeenCalled();
+  });
+
+  it('honours the resident-preferred number as the first sticker when free', async () => {
+    const { service, tx } = makeService({
+      requestForVerify: requestFixture({
+        quantity: 2,
+        feeTotal: { toNumber: () => 500 },
+        requestedStickerNumber: 'STK-000100',
+      }),
+      settings: [{ key: 'stickerMaxQuantity', value: 2 }],
+    });
+
+    await service.requestVerify('community-1', officerUser(), 'req-1', {
+      approved: true,
+    });
+
+    expect(tx.vehicleSticker.create.mock.calls[0][0].data.stickerNumber).toBe(
+      'STK-000100',
+    );
+    expect(tx.vehicleSticker.create.mock.calls[1][0].data.stickerNumber).toBe(
+      'STK-000001',
+    );
+  });
+
+  it('falls back to auto numbers when the preferred number is taken', async () => {
+    const { service, tx } = makeService({
+      requestForVerify: requestFixture({
+        requestedStickerNumber: 'STK-000100',
+      }),
+    });
+    tx.vehicleSticker.findFirst.mockResolvedValueOnce({ id: 'vstk-taken' });
+
+    await service.requestVerify('community-1', officerUser(), 'req-1', {
+      approved: true,
+    });
+
+    expect(tx.vehicleSticker.create.mock.calls[0][0].data.stickerNumber).toBe(
+      'STK-000001',
+    );
+  });
+
+  it('uses the officer-provided number as an override', async () => {
+    const { service, tx } = makeService({
+      requestForVerify: requestFixture({
+        requestedStickerNumber: 'STK-000100',
+      }),
+    });
+
+    await service.requestVerify('community-1', officerUser(), 'req-1', {
+      approved: true,
+      stickerNumber: 'GATE-777',
+    });
+
+    expect(tx.vehicleSticker.create.mock.calls[0][0].data.stickerNumber).toBe(
+      'GATE-777',
+    );
+  });
+
+  it('throws when the officer-provided number is already taken', async () => {
+    const { service, tx } = makeService({
+      requestForVerify: requestFixture(),
+    });
+    tx.vehicleSticker.findFirst.mockResolvedValueOnce({ id: 'vstk-taken' });
+
+    await expect(
+      service.requestVerify('community-1', officerUser(), 'req-1', {
+        approved: true,
+        stickerNumber: 'GATE-777',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });
 
@@ -716,6 +828,33 @@ describe('VehicleStickersService.create (officer direct issue)', () => {
     expect(result.data.stickers[0].stickerNumber).toBe('STK-000001');
     expect(result.data.stickers[1].stickerNumber).toBe('STK-000002');
   });
+
+  it('issues a custom sticker number when provided', async () => {
+    const { service } = makeService({
+      settings: [{ key: 'stickerMaxQuantity', value: 1 }],
+    });
+
+    const result = await service.create('community-1', officerUser(), {
+      vehicleId: 'veh-1',
+      stickerNumber: 'VIP-001',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data.stickers).toHaveLength(1);
+    expect(result.data.stickers[0].stickerNumber).toBe('VIP-001');
+  });
+
+  it('rejects custom numbers when issuing multiple stickers', async () => {
+    const { service } = makeService();
+
+    await expect(
+      service.create('community-1', officerUser(), {
+        vehicleId: 'veh-1',
+        stickerNumber: 'VIP-001',
+        quantity: 2,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
 });
 
 describe('VehicleStickersService.updateSettings', () => {
@@ -746,5 +885,33 @@ describe('VehicleStickersService.updateSettings', () => {
     );
     expect(result.success).toBe(true);
     expect(result.data.maxQuantity).toBe(1);
+  });
+
+  it('updates the vehicle sticker charge type amount when a price is provided', async () => {
+    const { service, prisma } = makeService();
+
+    await service.updateSettings('community-1', officerUser(), { price: 320 });
+
+    expect(prisma.chargeType.update).toHaveBeenCalledWith({
+      where: { id: 'ct-1' },
+      data: { amount: 320, isActive: true },
+    });
+  });
+
+  it('creates the vehicle sticker charge type when missing and a price is provided', async () => {
+    const { service, prisma } = makeService();
+    (prisma as any).chargeType.findFirst.mockResolvedValue(null);
+
+    await service.updateSettings('community-1', officerUser(), { price: 320 });
+
+    expect(prisma.chargeType.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          code: 'vehicle-sticker',
+          amount: 320,
+          isActive: true,
+        }),
+      }),
+    );
   });
 });

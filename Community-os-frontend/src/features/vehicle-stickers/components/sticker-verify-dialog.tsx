@@ -35,18 +35,23 @@ export function StickerVerifyDialog({ open, onOpenChange, request }: StickerVeri
 
   const form = useForm<StickerVerifyValues>({
     resolver: zodResolver(stickerVerifySchema),
-    defaultValues: { approved: true, remarks: '' },
+    defaultValues: { approved: true, remarks: '', stickerNumber: '' },
   })
 
   useEffect(() => {
-    if (open) form.reset({ approved: true, remarks: '' })
+    if (open)
+      form.reset({ approved: true, remarks: '', stickerNumber: '' })
   }, [open, form])
 
   const handleSubmit = (values: StickerVerifyValues) => {
     if (!request) return
     verifySticker.mutate({
       id: request.id,
-      input: { approved: values.approved, remarks: values.remarks || undefined },
+      input: {
+        approved: values.approved,
+        remarks: values.remarks || undefined,
+        stickerNumber: values.stickerNumber || undefined,
+      },
     })
   }
 
@@ -65,21 +70,50 @@ export function StickerVerifyDialog({ open, onOpenChange, request }: StickerVeri
           </DialogDescription>
         </DialogHeader>
 
-        {fee > 0 ? (
-          <div className="space-y-1 rounded-md border bg-muted/40 p-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Quantity</span>
-              <span className="font-medium">{request?.quantity ?? 1}</span>
-            </div>
+        <div className="space-y-1 rounded-md border bg-muted/40 p-3 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Quantity</span>
+            <span className="font-medium">{request?.quantity ?? 1}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Preferred number</span>
+            <span className="font-medium font-mono">
+              {request?.requestedStickerNumber ?? 'Auto-assigned'}
+            </span>
+          </div>
+          {request?.requestedStickerNumber ? (
+            <p className="text-xs text-muted-foreground">
+              Used automatically if it is still available.
+            </p>
+          ) : null}
+          {fee > 0 ? (
             <div className="flex justify-between">
               <span className="text-muted-foreground">Household will be billed</span>
               <span className="font-medium">{formatCurrency(fee)}</span>
             </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="stickerNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sticker number override</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. STK-000100 (blank = auto-assign)" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to auto-assign. When issuing multiple stickers,
+                    the first sticker uses this number and the rest are
+                    auto-generated.
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="remarks"

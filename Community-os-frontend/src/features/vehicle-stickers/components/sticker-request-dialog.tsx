@@ -46,6 +46,13 @@ const requestSchema = z.object({
     .optional()
     .or(z.literal('')),
   notes: z.string().trim().max(500).optional().or(z.literal('')),
+  stickerNumber: z
+    .string()
+    .trim()
+    .max(30, 'Max 30 characters')
+    .regex(/^[A-Za-z0-9-]+$/, 'Use letters, numbers, and dashes only')
+    .optional()
+    .or(z.literal('')),
 })
 
 type RequestFormValues = z.infer<typeof requestSchema>
@@ -63,12 +70,12 @@ export function StickerRequestDialog({
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
-    defaultValues: { quantity: '', notes: '' },
+    defaultValues: { quantity: '', notes: '', stickerNumber: '' },
   })
 
   useEffect(() => {
     if (open) {
-      form.reset({ quantity: maxQuantity >= 2 ? '' : '', notes: '' })
+      form.reset({ quantity: '', notes: '', stickerNumber: '' })
     }
   }, [open, form, maxQuantity])
 
@@ -81,6 +88,7 @@ export function StickerRequestDialog({
       vehicleId: vehicle.id,
       quantity: values.quantity ? Number(values.quantity) : 1,
       notes: values.notes || undefined,
+      stickerNumber: values.stickerNumber || undefined,
     })
   }
 
@@ -152,6 +160,23 @@ export function StickerRequestDialog({
                   <FormControl>
                     <Input placeholder="Optional notes" {...field} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="stickerNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preferred sticker number</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. STK-000123 (optional)" {...field} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to be assigned automatically. Your preferred
+                    number is used at approval if it is still available.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

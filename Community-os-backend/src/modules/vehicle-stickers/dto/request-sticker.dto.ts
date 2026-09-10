@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -27,4 +28,12 @@ export class RequestStickerDto {
   @IsString()
   @MaxLength(500)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  @Matches(/^[A-Za-z0-9-]+$/, {
+    message: 'Sticker number may only contain letters, numbers, and dashes.',
+  })
+  stickerNumber?: string;
 }

@@ -1729,6 +1729,8 @@ model StickerRequest {
 
   notes String? @db.VarChar(500)
 
+  requestedStickerNumber String? @db.VarChar(30)
+
   assessmentId String?    @db.Uuid
   assessment   Assessment? @relation("StickerRequestAssessment", fields: [assessmentId], references: [id], onDelete: SetNull)
 

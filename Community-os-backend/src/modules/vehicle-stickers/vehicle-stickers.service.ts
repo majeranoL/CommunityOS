@@ -281,6 +281,21 @@ export class VehicleStickersService {
       );
     }
 
+    const requestedStickerNumber = dto.stickerNumber?.trim();
+
+    if (requestedStickerNumber) {
+      const taken = await this.prisma.vehicleSticker.findFirst({
+        where: { communityId, stickerNumber: requestedStickerNumber },
+        select: { id: true },
+      });
+
+      if (taken) {
+        throw new ConflictException(
+          'That sticker number is already taken. Leave it blank to have an officer assign one.',
+        );
+      }
+    }
+
     const pendingRequest = await this.prisma.stickerRequest.findFirst({
       where: {
         communityId,
@@ -331,6 +346,7 @@ export class VehicleStickersService {
           quantity,
           feeTotal: new Prisma.Decimal(unitPrice * quantity),
           notes: dto.notes?.trim(),
+          requestedStickerNumber,
           requestedById: user.id,
         },
         include: this.requestInclude,
@@ -570,12 +586,11 @@ export class VehicleStickersService {
         const settings = await this.getStickerSettings(communityId);
         const expirationDate = this.cycleExpiration(settings, issueDate);
 
-        const numbers = await this.allocateNumbers(
-          tx,
-          communityId,
-          'vehicle-sticker',
-          request.quantity,
-        );
+        const numbers = await this.resolveStickerNumbers(tx, communityId, {
+          count: request.quantity,
+          requestedNumber: request.requestedStickerNumber,
+          customNumber: dto.stickerNumber?.trim(),
+        });
 
         const created: Array<{
           id: string;
@@ -778,25 +793,11 @@ export class VehicleStickersService {
     }
 
     const result = await this.prisma.$transaction(async (tx) => {
-      const numbers =
-        dto.stickerNumber && quantity === 1
-          ? [dto.stickerNumber]
-          : await this.allocateNumbers(
-              tx,
-              communityId,
-              'vehicle-sticker',
-              quantity,
-            );
-
-      if (dto.stickerNumber && quantity === 1) {
-        const duplicate = await tx.vehicleSticker.findFirst({
-          where: { communityId, stickerNumber: dto.stickerNumber },
-        });
-
-        if (duplicate) {
-          throw new ConflictException('Sticker number already exists.');
-        }
-      }
+      const numbers = await this.resolveStickerNumbers(tx, communityId, {
+        count: quantity,
+        customNumber: dto.stickerNumber?.trim(),
+        requestedNumber: null,
+      });
 
       const stickerRows: Array<{
         id: string;
@@ -925,6 +926,32 @@ export class VehicleStickersService {
         }),
       ),
     );
+
+    if (dto.price !== undefined) {
+      await this.prisma.chargeType
+        .findFirst({
+          where: { communityId, code: STICKER_CHARGE_CODE, deletedAt: null },
+          select: { id: true },
+        })
+        .then((chargeType) =>
+          chargeType
+            ? this.prisma.chargeType.update({
+                where: { id: chargeType.id },
+                data: { amount: dto.price, isActive: true },
+              })
+            : this.prisma.chargeType.create({
+                data: {
+                  communityId,
+                  code: STICKER_CHARGE_CODE,
+                  name: STICKER_CHARGE_NAME,
+                  category: FinanceCategory.VEHICLE_STICKER,
+                  isActive: true,
+                  autoGenerate: false,
+                  amount: dto.price,
+                },
+              }),
+        );
+    }
 
     const updated = await this.getStickerSettings(communityId);
 
@@ -1411,6 +1438,134 @@ export class VehicleStickersService {
   // ==========================================
   // Atomic per-community number generation
   // ==========================================
+
+  /**
+   * Resolves the full set of sticker numbers for an issuance, honouring an
+   * officer-provided override first, then a resident's preferred number (when
+   * it is still free), and finally auto-generated sequence numbers. Custom /
+   * preferred numbers are written back to the sequence so auto-numbering stays
+   * based on the last sticker used.
+   */
+  private async resolveStickerNumbers(
+    tx: Prisma.TransactionClient,
+    communityId: string,
+    opts: {
+      count: number;
+      requestedNumber?: string | null;
+      customNumber?: string | null;
+    },
+  ): Promise<string[]> {
+    const firstNumber =
+      opts.customNumber?.trim() || opts.requestedNumber?.trim();
+
+    const useAuto = async () => {
+      const numbers = await this.allocateNumbers(
+        tx,
+        communityId,
+        'vehicle-sticker',
+        opts.count,
+      );
+      await this.syncSequence(tx, communityId, 'vehicle-sticker', numbers);
+      return numbers;
+    };
+
+    if (!firstNumber) {
+      return useAuto();
+    }
+
+    const taken = await tx.vehicleSticker.findFirst({
+      where: { communityId, stickerNumber: firstNumber },
+      select: { id: true },
+    });
+
+    if (taken) {
+      if (opts.customNumber) {
+        throw new ConflictException('Sticker number already exists.');
+      }
+      return useAuto();
+    }
+
+    const numbers = [firstNumber];
+    if (opts.count > 1) {
+      numbers.push(
+        ...(await this.allocateNumbers(
+          tx,
+          communityId,
+          'vehicle-sticker',
+          opts.count - 1,
+        )),
+      );
+    }
+    await this.syncSequence(tx, communityId, 'vehicle-sticker', numbers);
+    return numbers;
+  }
+
+  /**
+   * Keeps a community's sequence tracker aligned with the highest sticker
+   * number actually in use (including custom / resident-preferred numbers and
+   * any previously issued stickers), so the next auto-generated number is
+   * always based on the last sticker allocated.
+   */
+  private async syncSequence(
+    tx: Prisma.TransactionClient,
+    communityId: string,
+    key: SequenceKey,
+    usedNumbers: string[],
+  ) {
+    const cfg = SEQUENCE_CONFIGS[key];
+    const matcher = new RegExp(`^${cfg.prefix}-(\\d{${cfg.digits}})$`);
+    const parse = (value: string | null | undefined): number | null => {
+      if (!value) return null;
+      const match = matcher.exec(value);
+      return match ? Number(match[1]) : null;
+    };
+
+    let maxSuffix = 0;
+    for (const value of usedNumbers) {
+      const parsed = parse(value);
+      if (parsed !== null && parsed > maxSuffix) maxSuffix = parsed;
+    }
+
+    if (key === 'vehicle-sticker') {
+      const existing = await tx.vehicleSticker.findMany({
+        where: { communityId },
+        select: { stickerNumber: true },
+      });
+      for (const row of existing) {
+        const parsed = parse(row.stickerNumber);
+        if (parsed !== null && parsed > maxSuffix) maxSuffix = parsed;
+      }
+    }
+
+    await tx.sequence.upsert({
+      where: { communityId_key: { communityId, key } },
+      update: {},
+      create: {
+        communityId,
+        key,
+        prefix: cfg.prefix,
+        digits: cfg.digits,
+      },
+    });
+
+    const rows = await tx.$queryRaw<{ next_value: bigint }[]>`
+      SELECT "nextValue" AS next_value
+      FROM "Sequence"
+      WHERE "communityId" = ${communityId} AND "key" = ${key}
+      FOR UPDATE
+    `;
+
+    const nextValue = rows[0] ? Number(rows[0].next_value) : 1;
+    const minNext = maxSuffix + 1;
+
+    if (minNext > nextValue) {
+      await tx.$queryRaw`
+        UPDATE "Sequence"
+        SET "nextValue" = ${minNext}, "updatedAt" = CURRENT_TIMESTAMP
+        WHERE "communityId" = ${communityId} AND "key" = ${key}
+      `;
+    }
+  }
 
   private async allocateNumbers(
     tx: Prisma.TransactionClient,

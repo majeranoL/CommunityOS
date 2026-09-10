@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const assessmentSchema = z.object({
-  assessmentNumber: z.string().min(1, 'Assessment number is required').max(30),
+  assessmentNumber: z.string().max(30).optional().or(z.literal('')),
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().optional().or(z.literal('')),
   householdId: z.string().min(1, 'Select a household'),

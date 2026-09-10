@@ -45,6 +45,7 @@ export function StickerSettingsDialog({ open, onOpenChange }: StickerSettingsDia
       cycleStart: '',
       cycleEnd: '',
       maxQuantity: '',
+      price: '',
     },
   })
 
@@ -55,6 +56,7 @@ export function StickerSettingsDialog({ open, onOpenChange }: StickerSettingsDia
         cycleStart: options.cycle.start ?? '',
         cycleEnd: options.cycle.end ?? '',
         maxQuantity: String(options.maxQuantity),
+        price: options.price > 0 ? String(options.price) : '',
       })
     }
   }, [open, options, form])
@@ -65,6 +67,7 @@ export function StickerSettingsDialog({ open, onOpenChange }: StickerSettingsDia
       cycleStart: values.cycleEnabled && values.cycleStart ? values.cycleStart : undefined,
       cycleEnd: values.cycleEnabled && values.cycleEnd ? values.cycleEnd : undefined,
       maxQuantity: values.maxQuantity ? Number(values.maxQuantity) : 1,
+      price: values.price !== '' ? Number(values.price) : undefined,
     })
   }
 
@@ -141,6 +144,22 @@ export function StickerSettingsDialog({ open, onOpenChange }: StickerSettingsDia
                   <FormControl>
                     <Input type="number" min={1} max={100} {...field} value={field.value ?? ''} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sticker price</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={0} step="0.01" placeholder="0.00" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">
+                    The fee billed to a household for each sticker issued. Set to 0 for free.
+                  </p>
                   <FormMessage />
                 </FormItem>
               )}

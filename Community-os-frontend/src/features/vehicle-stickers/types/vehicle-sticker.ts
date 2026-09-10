@@ -39,6 +39,7 @@ export interface StickerRequestListItem {
   feeTotal: string
   status: StickerRequestStatus
   notes: string | null
+  requestedStickerNumber: string | null
   reviewRemarks: string | null
   approvedAt: string | null
   createdAt: string
@@ -64,6 +65,7 @@ export interface RequestStickerInput {
   vehicleId: string
   quantity?: number
   notes?: string
+  stickerNumber?: string
 }
 
 export interface StickerCycleInfo {
@@ -87,6 +89,7 @@ export interface StickerSettingsInput {
   cycleStart?: string
   cycleEnd?: string
   maxQuantity?: number
+  price?: number
 }
 
 export type UpdateStickerInput = Partial<CreateStickerInput> & {
@@ -96,6 +99,7 @@ export type UpdateStickerInput = Partial<CreateStickerInput> & {
 export interface VerifyStickerInput {
   approved: boolean
   remarks?: string
+  stickerNumber?: string
 }
 
 export interface RenewStickerInput {

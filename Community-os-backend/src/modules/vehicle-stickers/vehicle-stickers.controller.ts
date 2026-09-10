@@ -150,7 +150,7 @@ export class VehicleStickersController {
   // ==========================================
 
   @Post()
-  @Permissions('sticker.create')
+  @Permissions('sticker.verify')
   create(@Request() req: any, @Body() dto: CreateStickerDto) {
     return this.vehicleStickersService.create(
       req.user.community.id,
@@ -201,7 +201,7 @@ export class VehicleStickersController {
   }
 
   @Post(':id/renew')
-  @Permissions('sticker.create')
+  @Permissions('sticker.verify')
   renew(
     @Request() req: any,
     @Param('id', ParseUUIDPipe) id: string,

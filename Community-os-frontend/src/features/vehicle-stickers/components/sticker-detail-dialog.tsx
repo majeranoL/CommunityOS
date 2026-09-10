@@ -70,6 +70,11 @@ export function StickerDetailDialog({ open, onOpenChange, stickerId }: StickerDe
               <Badge variant={STATUS_VARIANT[request.status]}>{request.status}</Badge>
             </Row>
             <Row label="Quantity">{request.quantity}</Row>
+            {request.requestedStickerNumber ? (
+              <Row label="Preferred number">
+                <span className="font-mono">{request.requestedStickerNumber}</span>
+              </Row>
+            ) : null}
             <Row label="Fee">
               {fee > 0 ? formatCurrency(fee) : 'Free'}
             </Row>

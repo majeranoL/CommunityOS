@@ -10,6 +10,14 @@ const quantityField = z
   .optional()
   .or(z.literal(''))
 
+const stickerNumberField = z
+  .string()
+  .trim()
+  .max(30, 'Max 30 characters')
+  .regex(/^[A-Za-z0-9-]+$/, 'Use letters, numbers, and dashes only')
+  .optional()
+  .or(z.literal(''))
+
 export const stickerFormSchema = z.object({
   vehicleId: z.string().trim().min(1, 'Vehicle is required'),
   stickerNumber: z.string().trim().max(30).optional().or(z.literal('')),
@@ -25,6 +33,7 @@ export type StickerFormValues = z.infer<typeof stickerFormSchema>
 export const stickerRequestSchema = z.object({
   quantity: quantityField,
   notes: z.string().trim().max(500).optional().or(z.literal('')),
+  stickerNumber: stickerNumberField,
 })
 
 export type StickerRequestValues = z.infer<typeof stickerRequestSchema>
@@ -32,6 +41,7 @@ export type StickerRequestValues = z.infer<typeof stickerRequestSchema>
 export const stickerVerifySchema = z.object({
   approved: z.boolean(),
   remarks: z.string().trim().max(500).optional().or(z.literal('')),
+  stickerNumber: stickerNumberField,
 })
 
 export type StickerVerifyValues = z.infer<typeof stickerVerifySchema>
@@ -45,6 +55,17 @@ export type StickerRenewValues = z.infer<typeof stickerRenewSchema>
 
 const monthDay = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
 
+const priceField = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value === '' || (/^\d+(\.\d{1,2})?$/.test(value) && Number(value) >= 0),
+    { message: 'Enter a valid amount (e.g. 250 or 250.00).' },
+  )
+  .optional()
+  .or(z.literal(''))
+
 export const stickerSettingsSchema = z
   .object({
     cycleEnabled: z.boolean(),
@@ -55,6 +76,7 @@ export const stickerSettingsSchema = z
       .or(z.literal('')),
     cycleEnd: z.string().regex(monthDay, 'Use MM-DD (e.g. 07-14)').optional().or(z.literal('')),
     maxQuantity: quantityField,
+    price: priceField,
   })
   .refine(
     (values) => !values.cycleEnabled || (values.cycleStart && values.cycleEnd),

@@ -116,7 +116,7 @@ export interface Assessment extends AssessmentListItem {
 }
 
 export interface CreateAssessmentInput {
-  assessmentNumber: string
+  assessmentNumber?: string
   title: string
   description?: string
   householdId: string

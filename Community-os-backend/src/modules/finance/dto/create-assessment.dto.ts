@@ -12,10 +12,10 @@ import {
 import { Type } from 'class-transformer';
 
 export class CreateAssessmentDto {
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @MaxLength(30)
-  assessmentNumber!: string;
+  assessmentNumber?: string;
 
   @IsString()
   @IsNotEmpty()

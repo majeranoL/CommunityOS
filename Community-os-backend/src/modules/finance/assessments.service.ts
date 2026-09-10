@@ -91,26 +91,36 @@ export class AssessmentsService {
     // Clean Inputs
     // ==========================================
 
-    dto.assessmentNumber = dto.assessmentNumber.trim();
+    dto.assessmentNumber = dto.assessmentNumber?.trim();
     dto.title = dto.title.trim();
     dto.description = dto.description?.trim();
     dto.period = dto.period?.trim();
     dto.remarks = dto.remarks?.trim();
 
     // ==========================================
+    // Resolve Assessment Number (auto when blank)
+    // ==========================================
+
+    const nextNumber = (await this.latestAssessmentNumber(communityId)) + 1;
+    const assessmentNumber =
+      dto.assessmentNumber || `ASS-${String(nextNumber).padStart(6, '0')}`;
+
+    // ==========================================
     // Duplicate Assessment Number
     // ==========================================
 
-    const existing = await this.prisma.assessment.findFirst({
-      where: {
-        communityId,
-        assessmentNumber: dto.assessmentNumber,
-        deletedAt: null,
-      },
-    });
+    if (dto.assessmentNumber) {
+      const existing = await this.prisma.assessment.findFirst({
+        where: {
+          communityId,
+          assessmentNumber: dto.assessmentNumber,
+          deletedAt: null,
+        },
+      });
 
-    if (existing) {
-      throw new ConflictException('Assessment already exists.');
+      if (existing) {
+        throw new ConflictException('Assessment already exists.');
+      }
     }
 
     // ==========================================
@@ -169,7 +179,7 @@ export class AssessmentsService {
       data: {
         communityId,
 
-        assessmentNumber: dto.assessmentNumber,
+        assessmentNumber: assessmentNumber,
         title: dto.title,
         description: dto.description,
         householdId: dto.householdId,
@@ -324,17 +334,7 @@ export class AssessmentsService {
     }
 
     // Next assessment numbers
-    const latest = await this.prisma.assessment.findFirst({
-      where: { communityId },
-      orderBy: { assessmentNumber: 'desc' },
-      select: { assessmentNumber: true },
-    });
-
-    let nextNumber = 0;
-    if (latest) {
-      const parsed = parseInt(latest.assessmentNumber.replace(/^ASS-/, ''), 10);
-      if (!Number.isNaN(parsed)) nextNumber = parsed;
-    }
+    let nextNumber = await this.latestAssessmentNumber(communityId);
 
     const due = new Date(dueDate);
     const created: Prisma.AssessmentGetPayload<{
@@ -1061,6 +1061,19 @@ export class AssessmentsService {
 
     const due = dueDate ? new Date(dueDate) : new Date();
     return `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  private async latestAssessmentNumber(communityId: string): Promise<number> {
+    const latest = await this.prisma.assessment.findFirst({
+      where: { communityId },
+      orderBy: { assessmentNumber: 'desc' },
+      select: { assessmentNumber: true },
+    });
+
+    if (!latest) return 0;
+
+    const parsed = parseInt(latest.assessmentNumber.replace(/^ASS-/, ''), 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
   }
 
   private async findOrCreateBillingPeriod(
