@@ -107,7 +107,7 @@ export const NAV_SECTIONS: NavSection[] = [
             label: 'Vehicle Stickers',
             href: '/app/stickers',
             icon: StickyNote,
-            permission: PERMISSIONS.stickerView,
+            permission: PERMISSIONS.stickerVerify,
             feature: 'vehicle-stickers',
           },
         ],

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Car, Download, Plus, Search, StickyNote, Upload } from 'lucide-react'
+import { Car, Download, Plus, Search, StickyNote, Upload, X } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { Pagination } from '@/components/shared/pagination'
 import { StatusBadge } from '@/components/shared/status-badge'
@@ -41,7 +41,7 @@ import { useDeactivateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { useRevalidateVehicle } from '@/features/vehicles/hooks/use-vehicles'
 import { VehicleFormDialog } from '@/features/vehicles/components/vehicle-form-dialog'
 import { StickerRequestDialog } from '@/features/vehicle-stickers/components/sticker-request-dialog'
-import { useStickerOptions, useVehicleStickers } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
+import { useStickerOptions, useVehicleStickers, useCancelRequest } from '@/features/vehicle-stickers/hooks/use-vehicle-stickers'
 import { ModuleImportDialog } from '@/features/shared/import-export/module-import-dialog'
 import { ModuleExportDialog } from '@/features/shared/import-export/module-export-dialog'
 import type { VehicleListItem } from '@/features/vehicles/types/vehicle'
@@ -85,6 +85,7 @@ export default function VehiclesPage() {
   const deleteVehicleMutation = useDeleteVehicle()
   const deactivateVehicle = useDeactivateVehicle()
   const revalidateVehicle = useRevalidateVehicle()
+  const cancelStickerRequest = useCancelRequest()
 
   const isOwnRow = (row: VehicleListItem) =>
     Boolean(myResidentId) && row.residentId === myResidentId
@@ -181,14 +182,29 @@ export default function VehiclesPage() {
     {
       key: 'actions',
       header: '',
-      cell: (row) =>
-        isOwnRow(row) ? (
+      cell: (row) => {
+        if (!isOwnRow(row)) return null
+        const pendingRequest = row.requests?.find((request) => request.status === 'PENDING')
+        const canRequestStickerForVehicle =
+          ['ACTIVE'].includes(row.status) &&
+          canRequestSticker &&
+          canViewStickers &&
+          !pendingRequest &&
+          !row.stickers?.some((sticker) => ['PENDING', 'ACTIVE'].includes(sticker.status))
+        return (
           <div className="flex justify-end gap-1">
-            {['ACTIVE'].includes(row.status) &&
-            canRequestSticker &&
-            canViewStickers &&
-            !row.requests?.some((request) => request.status === 'PENDING') &&
-            !row.stickers?.some((sticker) => ['PENDING', 'ACTIVE'].includes(sticker.status)) ? (
+            {pendingRequest && canRequestSticker && canViewStickers ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => cancelStickerRequest.mutate(pendingRequest.id)}
+              >
+                <X className="mr-1 h-3.5 w-3.5" />
+                Cancel request
+              </Button>
+            ) : null}
+            {canRequestStickerForVehicle ? (
               <Button
                 type="button"
                 variant="outline"
@@ -196,7 +212,7 @@ export default function VehiclesPage() {
                 onClick={() => setBuyVehicle(row)}
               >
                 <StickyNote className="mr-1 h-3.5 w-3.5" />
-                Buy sticker
+                Request sticker
               </Button>
             ) : null}
             <Button
@@ -239,7 +255,8 @@ export default function VehiclesPage() {
               </Button>
             ) : null}
           </div>
-        ) : null,
+        )
+      },
     },
   ]
 

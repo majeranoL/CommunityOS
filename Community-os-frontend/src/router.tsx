@@ -250,7 +250,7 @@ export const router = createBrowserRouter([
       {
         path: 'stickers',
         element: (
-          <PermissionRoute permission={PERMISSIONS.stickerView}>
+          <PermissionRoute permission={PERMISSIONS.stickerVerify}>
             {withSuspense(<VehicleStickersPage />)}
           </PermissionRoute>
         ),
