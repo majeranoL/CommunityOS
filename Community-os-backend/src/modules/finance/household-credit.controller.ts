@@ -41,7 +41,7 @@ export class HouseholdCreditController {
   // ==========================================
 
   @Get('mine')
-  @Permissions('credit.view')
+  @Permissions('credit.view_own')
   async mine(@Request() req: any) {
     const householdId = req.user.resident?.household?.id;
     if (!householdId) {
@@ -135,6 +135,13 @@ export class HouseholdCreditController {
   @Post('apply')
   @Permissions('payment.create')
   async apply(@Request() req: any, @Body() dto: ApplyHouseholdCreditDto) {
+    const hasManage = req.user.permissions?.includes('credit.manage');
+    const householdId = hasManage
+      ? dto.householdId
+      : req.user.resident?.household?.id;
+    if (!householdId) {
+      throw new NotFoundException('No household is linked to your account.');
+    }
     const items = dto.allocations?.length
       ? dto.allocations.map((allocation) => ({
           assessmentId: allocation.assessmentId,
@@ -144,7 +151,7 @@ export class HouseholdCreditController {
 
     const result = await this.credits.apply({
       communityId: req.user.community.id,
-      householdId: dto.householdId,
+      householdId,
       actorId: req.user.id,
       items,
     });

@@ -114,6 +114,8 @@ function PaymentFormDialogContent({
   const applyCreditMutation = useApplyHouseholdCredit()
   const creditsEnabled = useIsFeatureEnabled('household-credit')
   const canViewCredits = useHasPermission(PERMISSIONS.creditView)
+  const canViewOwnCredits = useHasPermission(PERMISSIONS.creditViewOwn)
+  const canViewCreditsAny = canViewCredits || canViewOwnCredits
   const [applyCredit, setApplyCredit] = useState(!isEdit)
 
   const initialHouseholdId = payment?.resident?.householdId ?? null
@@ -256,7 +258,7 @@ function PaymentFormDialogContent({
 
   const { data: householdCredits } = useHouseholdCredits(
     { householdId: householdId ?? undefined },
-    { enabled: creditsEnabled && canViewCredits && !isEdit && Boolean(householdId) },
+    { enabled: creditsEnabled && canViewCreditsAny && !isEdit && Boolean(householdId) },
   )
   const availableCredit = (householdCredits ?? []).reduce(
     (sum, credit) =>
@@ -456,29 +458,31 @@ function PaymentFormDialogContent({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="advanceMonths"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Advance months (optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="e.g. 3"
-                        value={field.value || ''}
-                        onChange={(event) => field.onChange(event.target.valueAsNumber || undefined)}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Enter months with an amount to submit an advance payment. An officer will verify it.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {creditsEnabled ? (
+                <FormField
+                  control={form.control}
+                  name="advanceMonths"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Advance months (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="e.g. 3"
+                          value={field.value || ''}
+                          onChange={(event) => field.onChange(event.target.valueAsNumber || undefined)}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter months with an amount to submit an advance payment. An officer will verify it.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : null}
             </div>
             {showTransferInstructions && (
               <div className="rounded-lg border bg-muted/30 p-3">

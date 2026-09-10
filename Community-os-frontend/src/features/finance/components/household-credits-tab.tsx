@@ -21,12 +21,15 @@ import {
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/shared/confirm-dialog'
 import { HouseholdSelect } from '@/features/finance/components/household-select'
+import { useHasPermission } from '@/store/auth-store'
+import { PERMISSIONS } from '@/constants/permissions'
 import {
   useAdjustHouseholdCredit,
   useApplyHouseholdCredit,
   useAssessments,
   useHouseholdCredits,
   useIssueHouseholdCredit,
+  useMyHouseholdCredits,
   useVoidHouseholdCredit,
 } from '@/features/finance/hooks/use-finance'
 import type { HouseholdCredit } from '@/features/finance/types/finance'
@@ -47,6 +50,85 @@ function creditOrigin(credit: HouseholdCredit) {
 }
 
 export function HouseholdCreditsTab() {
+  const canManage = useHasPermission(PERMISSIONS.creditManage)
+
+  return canManage ? (
+    <HouseholdCreditsAdmin />
+  ) : (
+    <MyHouseholdCredits />
+  )
+}
+
+function MyHouseholdCredits() {
+  const { data, isLoading } = useMyHouseholdCredits()
+
+  const credits = data?.credits ?? []
+  const availableBalance = Number(data?.availableBalance ?? 0)
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs text-muted-foreground">Your available credit</p>
+        <p className="text-2xl font-semibold text-emerald-600">
+          {formatCurrency(availableBalance)}
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading your household credit…
+        </div>
+      ) : credits.length > 0 ? (
+        <div className="rounded-lg border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Household</TableHead>
+                <TableHead>Available</TableHead>
+                <TableHead>Origin</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {credits.map((credit) => (
+                <TableRow key={credit.id}>
+                  <TableCell>
+                    <span className="font-medium">{credit.household.address}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={
+                        creditAvailable(credit) > 0
+                          ? 'font-medium'
+                          : 'text-muted-foreground'
+                      }
+                    >
+                      {formatCurrency(creditAvailable(credit))}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {creditOrigin(credit)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatDateTime(credit.createdAt)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <p className="rounded-lg border p-6 text-sm text-muted-foreground">
+          Your household has no available credit yet. Credit is created when you
+          make an advance payment, or when the association issues you credit.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function HouseholdCreditsAdmin() {
   const { data: credits, isLoading } = useHouseholdCredits({})
 
   const totalAvailable = (credits ?? []).reduce(

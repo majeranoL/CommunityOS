@@ -127,6 +127,7 @@ export const PERMISSIONS = {
   billingManage: 'billing.manage',
 
   creditView: 'credit.view',
+  creditViewOwn: 'credit.view_own',
   creditManage: 'credit.manage',
 
   assessmentView: 'assessment.view',

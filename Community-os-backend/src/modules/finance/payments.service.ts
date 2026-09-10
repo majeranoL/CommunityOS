@@ -20,6 +20,9 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 import { NotificationsService } from '../notifications/notifications.service';
 
+import { FeaturesService } from '../features/features.service';
+import { HOUSEHOLD_CREDIT_FEATURE } from '../features/feature.constants';
+
 import { FinanceSyncService } from './finance-sync.service';
 import { HouseholdCreditService } from './household-credit.service';
 
@@ -39,6 +42,7 @@ export class PaymentsService {
     private readonly financeSyncService: FinanceSyncService,
     private readonly gateway: PaymentsGatewayService,
     private readonly householdCreditService: HouseholdCreditService,
+    private readonly featuresService: FeaturesService,
   ) {}
 
   // ==========================================
@@ -108,6 +112,17 @@ export class PaymentsService {
     );
 
     const isAdvance = Boolean(dto.advanceMonths);
+    if (isAdvance) {
+      const enabled = await this.featuresService.isEnabled(
+        communityId,
+        HOUSEHOLD_CREDIT_FEATURE,
+      );
+      if (!enabled) {
+        throw new BadRequestException(
+          'Advance payments are not enabled for this community.',
+        );
+      }
+    }
     if (targets.length === 0 && !isAdvance) {
       throw new BadRequestException(
         'Select at least one assessment or billing period to pay for.',

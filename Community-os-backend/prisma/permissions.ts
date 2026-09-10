@@ -95,6 +95,11 @@ export const permissions = [
     description: 'View household credit balances and history',
   },
   {
+    code: 'credit.view_own',
+    module: 'Billing',
+    description: 'View own household credit balance and history',
+  },
+  {
     code: 'credit.manage',
     module: 'Billing',
     description: 'Issue, adjust, apply, and void household credits',
@@ -996,6 +1001,7 @@ export const MEMBER_PERMISSIONS: string[] = [
   'assessment.view',
   'payment.view',
   'payment.create',
+  'credit.view_own',
   'finance.view_own',
   'finance.expense_view',
   'finance.income_statement_view',

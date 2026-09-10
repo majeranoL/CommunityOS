@@ -8,6 +8,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { FinanceSyncService } from './finance-sync.service';
 import { HouseholdCreditService } from './household-credit.service';
 import { PaymentsGatewayService } from '../payments-gateway/payments-gateway.service';
+import { FeaturesService } from '../features/features.service';
 
 describe('PaymentsService gateway transitions', () => {
   let service: PaymentsService;
@@ -85,6 +86,10 @@ describe('PaymentsService gateway transitions', () => {
               .fn()
               .mockResolvedValue({ assessmentIds: [] }),
           },
+        },
+        {
+          provide: FeaturesService,
+          useValue: { isEnabled: jest.fn().mockResolvedValue(true) },
         },
       ],
     }).compile();

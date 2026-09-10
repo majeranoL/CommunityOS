@@ -530,6 +530,7 @@ async function main() {
         'billing.view',
         'billing.manage',
         'credit.view',
+        'credit.view_own',
         'credit.manage',
         'finance.view_own',
         'finance.view_all',

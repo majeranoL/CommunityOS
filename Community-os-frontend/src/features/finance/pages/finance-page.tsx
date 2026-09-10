@@ -181,7 +181,10 @@ export default function FinancePage() {
     isManager
 
   const canViewCredits = useHasPermission(PERMISSIONS.creditView)
-  const showCredits = isManager && creditsEnabled && canViewCredits
+  const canViewOwnCredits = useHasPermission(PERMISSIONS.creditViewOwn)
+  const showCredits =
+    creditsEnabled &&
+    ((isManager && canViewCredits) || (!isManager && canViewOwnCredits))
 
   const tabs: Array<{ value: string; label: string }> = []
   if (!isManager) tabs.push({ value: 'my-dues', label: 'My dues' })
