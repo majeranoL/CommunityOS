@@ -311,21 +311,6 @@ export class VehicleStickersService {
       );
     }
 
-    const activeSticker = await this.prisma.vehicleSticker.findFirst({
-      where: {
-        communityId,
-        vehicleId: dto.vehicleId,
-        deletedAt: null,
-        status: StickerStatus.ACTIVE,
-      },
-    });
-
-    if (activeSticker) {
-      throw new ConflictException(
-        'This vehicle already has an active sticker.',
-      );
-    }
-
     const chargeType = await this.prisma.chargeType.findFirst({
       where: { communityId, code: STICKER_CHARGE_CODE, deletedAt: null },
       select: { amount: true },

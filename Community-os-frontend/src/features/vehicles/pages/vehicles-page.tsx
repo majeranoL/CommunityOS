@@ -185,15 +185,10 @@ export default function VehiclesPage() {
       cell: (row) => {
         if (!isOwnRow(row)) return null
         const pendingRequest = row.requests?.find((request) => request.status === 'PENDING')
-        const canRequestStickerForVehicle =
-          ['ACTIVE'].includes(row.status) &&
-          canRequestSticker &&
-          canViewStickers &&
-          !pendingRequest &&
-          !row.stickers?.some((sticker) => ['PENDING', 'ACTIVE'].includes(sticker.status))
+        const canDoStickers = canRequestSticker && canViewStickers
         return (
           <div className="flex justify-end gap-1">
-            {pendingRequest && canRequestSticker && canViewStickers ? (
+            {pendingRequest && canDoStickers ? (
               <Button
                 type="button"
                 variant="outline"
@@ -203,8 +198,7 @@ export default function VehiclesPage() {
                 <X className="mr-1 h-3.5 w-3.5" />
                 Cancel request
               </Button>
-            ) : null}
-            {canRequestStickerForVehicle ? (
+            ) : ['ACTIVE'].includes(row.status) && canDoStickers ? (
               <Button
                 type="button"
                 variant="outline"

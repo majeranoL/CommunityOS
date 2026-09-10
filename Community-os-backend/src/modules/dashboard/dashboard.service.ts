@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
+import { hasAnyPermission } from '../../common/utils/permissions';
 
 @Injectable()
 export class DashboardService {
@@ -26,8 +27,12 @@ export class DashboardService {
   // Overview
   // ==========================================
 
-  async overview(communityId: string) {
+  async overview(communityId: string, user?: any) {
     const now = new Date();
+
+    const scopeResidentId = hasAnyPermission(user, ['complaint.review'])
+      ? undefined
+      : user?.resident?.id;
 
     const startOfMonth = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
@@ -104,6 +109,7 @@ export class DashboardService {
           status: {
             in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS],
           },
+          ...(scopeResidentId && { residentId: scopeResidentId }),
         },
       }),
 
@@ -229,6 +235,7 @@ export class DashboardService {
           status: {
             in: [ComplaintStatus.OPEN, ComplaintStatus.IN_PROGRESS],
           },
+          ...(scopeResidentId && { residentId: scopeResidentId }),
         },
         orderBy: { createdAt: 'desc' },
         take: 5,

@@ -395,17 +395,17 @@ describe('VehicleStickersService.request', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('rejects a request when the vehicle already has an active sticker', async () => {
-    const { service, prisma } = makeService();
+  it('still allows a request when the vehicle already has an active sticker', async () => {
+    const { service, prisma, tx } = makeService();
     (prisma as any).stickerRequest.findFirst.mockResolvedValue(null);
     (prisma as any).vehicleSticker.findFirst.mockResolvedValue({
       id: 'vstk-1',
       status: StickerStatus.ACTIVE,
     });
 
-    await expect(service.request('community-1', OWNER, dto)).rejects.toThrow(
-      'already has an active sticker',
-    );
+    await service.request('community-1', OWNER, { vehicleId: 'veh-1' });
+
+    expect(tx.stickerRequest.create).toHaveBeenCalled();
   });
 
   it('disallows multiple quantities when the community limits to one', async () => {
