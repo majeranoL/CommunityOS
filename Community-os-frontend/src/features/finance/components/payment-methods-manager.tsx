@@ -12,6 +12,10 @@ import {
 import { documentsService } from '@/features/documents/services/documents'
 import { apiErrorMessage } from '@/lib/api'
 import { toast } from '@/components/ui/sonner'
+import {
+  SecureImage,
+  SecureMediaPreview,
+} from '@/components/shared/secure-image'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -266,14 +270,11 @@ export function PaymentMethodsManager({
                 <div className="grid gap-2">
                   <Label>QR image</Label>
                   {editing.qrPreview ? (
-                    <a
-                      href={editing.qrPreview}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-2 text-sm text-primary"
-                    >
-                      <ImagePlus className="h-4 w-4" /> View uploaded QR
-                    </a>
+                    <SecureImage
+                      src={editing.qrPreview}
+                      alt="Uploaded QR code"
+                      className="max-h-48 w-auto rounded-md border"
+                    />
                   ) : (
                     <Label className="flex items-center gap-2 rounded-lg border p-3 text-sm text-muted-foreground">
                       <input
@@ -372,14 +373,12 @@ export function ActivePaymentMethods({
           <CardContent className="pt-6">
             <p className="mb-2 font-medium">{METHOD_LABELS[m.method]}</p>
             {(m.displayMode === 'QR' || m.displayMode === 'BOTH') && m.qrUrl && (
-              <a
-                href={m.qrUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="mb-2 block text-sm text-primary"
-              >
-                <ImagePlus className="mr-1 inline h-4 w-4" /> View QR to scan
-              </a>
+              <SecureMediaPreview
+                src={m.qrUrl}
+                alt={`${METHOD_LABELS[m.method]} QR code`}
+                fileName="QR code"
+                className="mx-auto max-h-56 w-auto rounded-md border"
+              />
             )}
             {(m.displayMode === 'NUMBER' || m.displayMode === 'BOTH') && m.accountNumber && (
               <p className="text-sm">
