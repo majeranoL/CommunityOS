@@ -93,6 +93,14 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         default:
           status = HttpStatus.INTERNAL_SERVER_ERROR;
           message = 'Database error occurred.';
+          this.logger.error(
+            `Prisma error on ${request.method} ${request.url}`,
+            JSON.stringify({
+              code: exception.code,
+              message: exception.message,
+              meta: exception.meta,
+            }),
+          );
       }
     } else if (exception instanceof Prisma.PrismaClientValidationError) {
       status = HttpStatus.BAD_REQUEST;
