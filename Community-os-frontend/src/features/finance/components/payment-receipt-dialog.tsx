@@ -38,6 +38,12 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
         .join(' ')
     : '—'
 
+  const approver = payment?.verifiedBy
+    ? [payment.verifiedBy.firstName, payment.verifiedBy.lastName]
+        .filter(Boolean)
+        .join(' ')
+    : null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85vh] overflow-y-auto print:static print:inset-auto print:max-h-none print:max-w-none print:translate-x-0 print:translate-y-0 print:overflow-visible print:border-0 print:shadow-none print:p-0 sm:max-w-2xl">
@@ -181,7 +187,9 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
             <div className="flex justify-between gap-8 border-t pt-6 text-xs text-muted-foreground">
               <div className="flex-1">
                 <p>Prepared by</p>
-                <div className="mt-8 border-t border-dashed pt-1">Finance office</div>
+                <div className="mt-8 border-t border-dashed pt-1">
+                  {approver ?? 'Finance office'}
+                </div>
               </div>
               <div className="flex-1">
                 <p>Payment date</p>
@@ -190,9 +198,7 @@ export function PaymentReceiptDialog({ paymentId, open, onOpenChange }: PaymentR
               <div className="flex-1">
                 <p>Received by</p>
                 <div className="mt-8 border-t border-dashed pt-1">
-                  {payment.verifiedBy
-                    ? `${payment.verifiedBy.firstName} ${payment.verifiedBy.lastName}`
-                    : 'Pending officer verification'}
+                  {approver ?? 'Pending officer verification'}
                 </div>
               </div>
             </div>
