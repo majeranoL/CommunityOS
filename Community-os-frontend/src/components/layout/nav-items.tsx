@@ -32,6 +32,7 @@ export interface NavItem {
   permission?: string
   feature?: string
   badge?: string
+  children?: Array<Omit<NavItem, 'children'>>
 }
 
 export interface NavSection {
@@ -97,23 +98,19 @@ export const NAV_SECTIONS: NavSection[] = [
         permission: PERMISSIONS.householdView,
       },
       {
-        label: 'My Households',
-        href: '/app/my-households',
-        icon: Home,
-        permission: PERMISSIONS.householdRequest,
-      },
-      {
         label: 'Vehicles',
         href: '/app/vehicles',
         icon: Car,
         permission: PERMISSIONS.vehicleView,
-      },
-      {
-        label: 'Stickers',
-        href: '/app/stickers',
-        icon: StickyNote,
-        permission: PERMISSIONS.stickerView,
-        feature: 'vehicle-stickers',
+        children: [
+          {
+            label: 'Vehicle Stickers',
+            href: '/app/stickers',
+            icon: StickyNote,
+            permission: PERMISSIONS.stickerView,
+            feature: 'vehicle-stickers',
+          },
+        ],
       },
       {
         label: 'Pets',

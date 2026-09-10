@@ -57,9 +57,6 @@ const VehicleStickersPage = lazy(
 const ConstructionPage = lazy(
   () => import('@/features/construction/pages/construction-page'),
 )
-const MyHouseholdsPage = lazy(
-  () => import('@/features/households/pages/my-households-page'),
-)
 const VisitorsPage = lazy(
   () => import('@/features/visitors/pages/visitors-page'),
 )
@@ -239,14 +236,6 @@ export const router = createBrowserRouter([
         element: (
           <PermissionRoute permission={PERMISSIONS.householdView}>
             {withSuspense(<HouseholdsPage />)}
-          </PermissionRoute>
-        ),
-      },
-      {
-        path: 'my-households',
-        element: (
-          <PermissionRoute permission={PERMISSIONS.householdRequest}>
-            {withSuspense(<MyHouseholdsPage />)}
           </PermissionRoute>
         ),
       },

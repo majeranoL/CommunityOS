@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Home, Moon, Sun, Monitor } from 'lucide-react'
+import { Check, Home, Moon, Search, Sun, Monitor } from 'lucide-react'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatusBadge } from '@/components/shared/status-badge'
 import {
@@ -10,6 +10,9 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +22,12 @@ import { useAuthStore, useHasPermission } from '@/store/auth-store'
 import { PERMISSIONS } from '@/constants/permissions'
 import { useSecureImageUrl } from '@/components/shared/secure-image'
 import { useTheme } from '@/components/theme-provider'
-import { useMyHousehold } from '@/features/households/hooks/use-households'
+import {
+  useHouseholdSearch,
+  useMyAcquisitionRequests,
+  useMyHousehold,
+  useRequestHousehold,
+} from '@/features/households/hooks/use-households'
 import { useIsFeatureEnabled } from '@/features/features/hooks/use-enabled-features'
 import { GoodStandingPassCard } from '@/features/good-standing/components/good-standing-pass-card'
 import { HouseholdDetailsDialog } from '@/features/households/components/household-details-dialog'
@@ -38,6 +46,22 @@ const THEME_OPTIONS: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'system', label: 'System', icon: Monitor },
 ]
 
+function householdLabel(item: {
+  block?: string | null
+  lot?: string | null
+  unit?: string | null
+  address?: string | null
+}) {
+  return (
+    [
+      item.block && `Block ${item.block}`,
+      item.lot && `Lot ${item.lot}`,
+      item.unit && `Unit ${item.unit}`,
+      item.address,
+    ].filter(Boolean).join(', ') || 'Unnamed household'
+  )
+}
+
 export default function SettingsPage() {
   const user = useAuthStore((state) => state.user)
   const { theme, setTheme } = useTheme()
@@ -47,6 +71,30 @@ export default function SettingsPage() {
   const avatarUrl = useSecureImageUrl(user?.avatarUrl)
   const [householdOpen, setHouseholdOpen] = useState(false)
   const goodBadStandingEnabled = useIsFeatureEnabled('good-bad-standing')
+
+  const households = user?.resident?.households ?? []
+  const { data: requests = [] } = useMyAcquisitionRequests()
+  const [householdSearch, setHouseholdSearch] = useState('')
+  const [selectedHouseholdId, setSelectedHouseholdId] = useState<
+    string | undefined
+  >()
+  const [newProperty, setNewProperty] = useState(false)
+  const [block, setBlock] = useState('')
+  const [lot, setLot] = useState('')
+  const [unit, setUnit] = useState('')
+  const [address, setAddress] = useState('')
+  const [notes, setNotes] = useState('')
+  const searchResults = useHouseholdSearch(householdSearch)
+  const requestHousehold = useRequestHousehold(() => {
+    setHouseholdSearch('')
+    setSelectedHouseholdId(undefined)
+    setNewProperty(false)
+    setBlock('')
+    setLot('')
+    setUnit('')
+    setAddress('')
+    setNotes('')
+  })
 
   return (
     <div className="space-y-6">
@@ -201,6 +249,190 @@ export default function SettingsPage() {
                 open={householdOpen}
                 onOpenChange={setHouseholdOpen}
               />
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>My households</CardTitle>
+                  <CardDescription>
+                    Every household your account is linked to. Each household
+                    keeps separate finances and records.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {households.map((household) => (
+                    <div
+                      key={household.id}
+                      className="flex items-center gap-3 rounded-md border p-3"
+                    >
+                      <Home className="h-5 w-5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">
+                          {householdLabel(household)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {household.isPrimary
+                            ? 'Primary household'
+                            : 'Associated household'}
+                        </p>
+                      </div>
+                      <StatusBadge status="ACTIVE" />
+                    </div>
+                  ))}
+                  {!households.length ? (
+                    <p className="text-sm text-muted-foreground">
+                      No verified household is linked to this account yet.
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Request to add a household</CardTitle>
+                  <CardDescription>
+                    Choose an existing property or submit details for a newly
+                    acquired property. An HOA officer must verify it.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      value={householdSearch}
+                      onChange={(event) => {
+                        setHouseholdSearch(event.target.value)
+                        setNewProperty(false)
+                      }}
+                      placeholder="Search block, lot, unit, or address"
+                    />
+                    <Button variant="outline" type="button">
+                      <Search className="mr-2 h-4 w-4" />
+                      Search
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => {
+                        setNewProperty(true)
+                        setSelectedHouseholdId(undefined)
+                      }}
+                    >
+                      New property
+                    </Button>
+                  </div>
+                  {searchResults.data?.length ? (
+                    <div className="grid gap-2">
+                      {searchResults.data.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={`rounded-md border p-3 text-left text-sm ${
+                            selectedHouseholdId === item.id
+                              ? 'border-primary bg-primary/5'
+                              : ''
+                          }`}
+                          onClick={() => {
+                            setSelectedHouseholdId(item.id)
+                            setNewProperty(false)
+                          }}
+                        >
+                          {householdLabel(item)}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {newProperty ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <Label>Block</Label>
+                        <Input
+                          value={block}
+                          onChange={(event) => setBlock(event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Lot</Label>
+                        <Input
+                          value={lot}
+                          onChange={(event) => setLot(event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Unit</Label>
+                        <Input
+                          value={unit}
+                          onChange={(event) => setUnit(event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Address</Label>
+                        <Input
+                          value={address}
+                          onChange={(event) => setAddress(event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                  <div>
+                    <Label>Notes</Label>
+                    <Textarea
+                      value={notes}
+                      onChange={(event) => setNotes(event.target.value)}
+                      placeholder="Ownership or occupancy details for the HOA officer"
+                    />
+                  </div>
+                  <Button
+                    disabled={
+                      requestHousehold.isPending ||
+                      (!selectedHouseholdId && !newProperty)
+                    }
+                    onClick={() =>
+                      requestHousehold.mutate({
+                        householdId: selectedHouseholdId,
+                        requestedBlock: block || undefined,
+                        requestedLot: lot || undefined,
+                        requestedUnit: unit || undefined,
+                        requestedAddress: address || undefined,
+                        notes: notes || undefined,
+                      })
+                    }
+                  >
+                    {requestHousehold.isPending
+                      ? 'Submitting…'
+                      : 'Submit for review'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>My pending requests</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {requests.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between rounded-md border p-3 text-sm"
+                    >
+                      <span>
+                        {item.household
+                          ? householdLabel(item.household)
+                          : householdLabel({
+                              block: item.requestedBlock,
+                              lot: item.requestedLot,
+                              unit: item.requestedUnit,
+                              address: item.requestedAddress,
+                            })}
+                      </span>
+                      <StatusBadge status={item.status} />
+                    </div>
+                  ))}
+                  {!requests.length ? (
+                    <p className="text-sm text-muted-foreground">
+                      No household requests.
+                    </p>
+                  ) : null}
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader>
