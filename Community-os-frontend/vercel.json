@@ -23,7 +23,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://communityos-backend.onrender.com/api/$1"
+      "destination": "https://communityos-backend-j08g.onrender.com/api/$1"
     },
     {
       "source": "/assets/(.*)",
