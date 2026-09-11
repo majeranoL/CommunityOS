@@ -949,34 +949,34 @@ export class PaymentsService {
           [sortBy]: order,
         },
 
-include: {
-        verifiedBy: {
-          select: {
-            id: true,
-            firstName: true,
-            middleName: true,
-            lastName: true,
+        include: {
+          verifiedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              middleName: true,
+              lastName: true,
+            },
           },
-        },
-        chargeType: {
-          select: {
-            id: true,
-            name: true,
-            category: true,
+          chargeType: {
+            select: {
+              id: true,
+              name: true,
+              category: true,
+            },
           },
-        },
-        allocations: {
-          include: {
-            assessment: {
-              select: {
-                id: true,
-                assessmentNumber: true,
-                title: true,
-                period: true,
+          allocations: {
+            include: {
+              assessment: {
+                select: {
+                  id: true,
+                  assessmentNumber: true,
+                  title: true,
+                  period: true,
+                },
               },
             },
           },
-        },
           resident: {
             select: {
               id: true,
