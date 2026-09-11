@@ -357,7 +357,9 @@ export default function VehiclesPage() {
         columns={columns}
         rows={data?.items ?? []}
         keyExtractor={(row) => row.id}
-        onRowClick={(row) => setEditVehicle(row)}
+        onRowClick={(row) => {
+          if (isOwnRow(row)) setEditVehicle(row)
+        }}
         isLoading={isLoading}
         emptyMessage="No vehicles found."
       />
