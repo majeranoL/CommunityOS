@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
-  BadgeDollarSign,
   Building2,
   CreditCard,
   DollarSign,
@@ -43,7 +42,6 @@ const ADMIN_NAV = [
   { label: 'System Health', href: '/admin/monitoring', icon: ShieldCheck },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
   { label: 'Payment methods', href: '/admin/payment-methods', icon: Wallet },
-  { label: 'Household credits', href: '/admin/household-credits', icon: BadgeDollarSign },
   { label: 'Provision', href: '/admin/communities/new', icon: Users },
 ]
 

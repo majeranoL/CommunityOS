@@ -126,9 +126,6 @@ const AdminRevenuePage = lazy(
 const AdminInvoicesPage = lazy(
   () => import('@/features/admin/pages/admin-invoices-page'),
 )
-const AdminHouseholdCreditsPage = lazy(
-  () => import('@/features/admin/pages/admin-household-credits-page'),
-)
 
 function withSuspense(element: React.ReactNode) {
   return (
@@ -441,10 +438,6 @@ export const router = createBrowserRouter([
       {
         path: 'payment-methods',
         element: withSuspense(<AdminPaymentMethodsPage />),
-      },
-      {
-        path: 'household-credits',
-        element: withSuspense(<AdminHouseholdCreditsPage />),
       },
       {
         path: 'monitoring',

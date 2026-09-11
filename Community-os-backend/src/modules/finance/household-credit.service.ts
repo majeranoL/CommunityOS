@@ -55,36 +55,6 @@ export class HouseholdCreditService {
     return this.listCredits(this.prisma, where);
   }
 
-  /** Superadmin household picker for a community. */
-  async listHouseholds(communityId: string) {
-    return this.prisma.household.findMany({
-      where: { communityId },
-      select: { id: true, block: true, lot: true, unit: true, address: true },
-      orderBy: { address: 'asc' },
-      take: 500,
-    });
-  }
-
-  /** Superadmin view across all communities (newest first, capped). */
-  async listAll(limit = 200) {
-    return this.prisma.householdCredit.findMany({
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-      include: this.creditInclude,
-    });
-  }
-
-  async findOneGlobal(id: string) {
-    const credit = await this.prisma.householdCredit.findFirst({
-      where: { id },
-      select: { id: true, communityId: true },
-    });
-    if (!credit) {
-      throw new NotFoundException('Household credit not found.');
-    }
-    return credit;
-  }
-
   async availableFor(
     communityId: string,
     householdId: string,
@@ -110,22 +80,6 @@ export class HouseholdCreditService {
     amount: number;
   }) {
     return this.prisma.$transaction((tx) => this.updateBalance(tx, params));
-  }
-
-  /** Superadmin adjust without community scoping. */
-  async adjustAll(params: { creditId: string; amount: number }) {
-    const { creditId, amount } = params;
-    const credit = await this.prisma.householdCredit.findFirst({
-      where: { id: creditId },
-      select: { id: true },
-    });
-    if (!credit) {
-      throw new NotFoundException('Household credit not found.');
-    }
-    return this.prisma.householdCredit.update({
-      where: { id: credit.id },
-      data: { balance: amount },
-    });
   }
 
   async void(params: {
