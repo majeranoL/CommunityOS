@@ -38,7 +38,9 @@ export const vehicleStickersService = {
   },
 
   async get(id: string) {
-    const { data } = await api.get<ApiEnvelope<StickerRequestListItem>>(`/vehicle-stickers/${id}`)
+    const { data } = await api.get<ApiEnvelope<StickerRequestListItem>>(
+      `/vehicle-stickers/requests/${id}`,
+    )
     return data.data
   },
 
