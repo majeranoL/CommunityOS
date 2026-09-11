@@ -1147,6 +1147,14 @@ export class PaymentsService {
             },
           },
         },
+        verifiedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+          },
+        },
       },
     });
 
